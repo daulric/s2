@@ -1,15 +1,10 @@
 "use client"
 
-import { useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Play, Search } from 'lucide-react'
 import { useAuth } from "@/context/AuthProvider"
+import { VideoCard } from "@/components/video-card"
 
 export default function HomePage({videos}) {
-  const [searchQuery, setSearchQuery] = useState("");
   const { user: {profile} } = useAuth();
 
   return (
@@ -20,18 +15,6 @@ export default function HomePage({videos}) {
             <div>
               <h1 className="text-3xl font-bold">Welcome {profile?.username || "Guest"}</h1>
               <p className="text-muted-foreground">Your Place of Rest</p>
-            </div>
-            <div className="flex w-full md:w-auto">
-              <Input
-                placeholder="Search videos..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full md:w-80"
-              />
-              <Button variant="ghost" size="icon" className="ml-2">
-                <Search className="h-4 w-4" />
-                <span className="sr-only">Search</span>
-              </Button>
             </div>
           </div>
 
@@ -83,36 +66,5 @@ export default function HomePage({videos}) {
         </div>
       </main>
     </>
-  )
-}
-
-function VideoCard({ video }) {
-  return (
-    <Card className="overflow-hidden">
-      <div className="relative">
-        <img 
-          src={video.thumbnail} 
-          alt={video.title} 
-          className="w-full h-40 object-cover"
-        />
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/30">
-          <Link href={`/video/${video.id}`}>
-            <Button size="icon" variant="secondary" className="rounded-full h-12 w-12">
-              <Play className="h-6 w-6" />
-            </Button>
-          </Link>
-        </div>
-      </div>
-      <CardContent className="p-3">
-        <h3 className="font-medium line-clamp-2 mb-1">{video.title}</h3>
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>{video.username}</span>
-          <span>{video.views} views</span>
-        </div>
-        <div className="text-xs text-muted-foreground mt-1">
-          {video.uploadDate}
-        </div>
-      </CardContent>
-    </Card>
   )
 }

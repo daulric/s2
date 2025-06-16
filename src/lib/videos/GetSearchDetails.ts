@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
+import { VideoProps  } from "@/components/video-card"
 
-export default async function GetSearchVideos(search: string) {
+export default async function GetSearchVideos(search: string, time_allowed: number = 10) {
   if (!search) return null;
 
   try {
@@ -11,23 +12,17 @@ export default async function GetSearchVideos(search: string) {
       .schema("meetup-app")
       .from("profiles")
       .select("id")
-      .like("username", `%${search}%`);
+      .ilike("username", `%${search}%`);
 
     if (profilesError) throw profilesError;
 
     const profileIds = profiles?.map(p => p.id) || [];
 
-    // Step 2: Query videos filtered by profile_ids or title/description/category matching
-    const query = supabase
-      .schema("meetup-app")
-      .from("videos")
-      .select("*, profiles(username)");
-
     // Run parallel queries for videos matching text fields
     const [title_query, description_query, category_query] = await Promise.all([
-      query.like("title", `%${search}%`),
-      query.like("description", `%${search}%`),
-      query.like("category", `%${search}%`),
+      supabase.schema("meetup-app").from("videos").select("*, profiles(username)").ilike('title', `%${search}%`),
+      supabase.schema("meetup-app").from("videos").select("*, profiles(username)").ilike('description', `%${search}%`),
+      supabase.schema("meetup-app").from("videos").select("*, profiles(username)").ilike('category', `%${search}%`),
     ]);
 
     // Query videos that belong to profiles matching username
@@ -35,14 +30,9 @@ export default async function GetSearchVideos(search: string) {
       .schema("meetup-app")
       .from("videos")
       .select("*, profiles(username)")
-      .in("profile_id", profileIds);
+      .in("userid", profileIds);
 
-    if (
-      title_query.error ||
-      description_query.error ||
-      category_query.error ||
-      profileVideosError
-    ) {
+    if (title_query.error ||description_query.error || category_query.error || profileVideosError ) {
       throw (
         title_query.error ||
         description_query.error ||
@@ -60,16 +50,40 @@ export default async function GetSearchVideos(search: string) {
     ];
 
     // Remove duplicates by video id
-    const merged = Object.values(
-      combined.reduce<Record<string, typeof combined[0]>>((acc, item) => {
-        acc[item.id] = item;
-        return acc;
-      }, {})
+    const merged = await Promise.all(
+      Object.values(
+        combined
+          .filter(item => item.visibility === "public")
+          .reduce<Record<string, typeof combined[0]>>((acc, item) => {
+            acc[item.video_id] = item;
+            return acc;
+          }, {})
+      ).map(async (item): Promise<VideoProps> => {
+        const { data } = await supabase
+          .storage
+          .from("images")
+          .createSignedUrl(item.thumbnail_path, time_allowed);
+
+        const readableDate = new Date(item.created_at).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+
+        return {
+          id: item.video_id,
+          title: item.title,
+          thumbnail: data?.signedUrl ?? "",
+          views: item.views.toString(),
+          uploadDate: readableDate,
+          username: item.profiles.username,
+        };
+      })
     );
 
     return merged;
   } catch (error) {
-    console.error("Search error:", error);
-    return null;
+    console.log("Search error:", error);
+    return [];
   }
 }

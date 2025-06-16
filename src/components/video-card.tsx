@@ -2,16 +2,19 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Play } from "lucide-react"
+import Image from "next/image"
+
+export type VideoProps = {
+  id: string
+  title: string
+  thumbnail: string
+  views: string
+  uploadDate: string
+  username: string
+}
 
 type VideoCardProps = {
-  video: {
-    id: string
-    title: string
-    thumbnail: string
-    views: string
-    uploadDate: string
-    username: string
-  }
+  video: VideoProps
   compact?: boolean
 }
 
@@ -22,10 +25,12 @@ export function VideoCard({ video, compact = false }: VideoCardProps) {
         <Card className="overflow-hidden">
           <div className="flex">
             <div className="relative w-40 h-24 flex-shrink-0">
-              <img
+              <Image
                 src={video.thumbnail}
                 alt={video.title}
                 className="w-full h-full object-cover"
+                width={1000}
+                height={1000}
               />
             </div>
             <CardContent className="p-3 flex-1">
@@ -46,7 +51,7 @@ export function VideoCard({ video, compact = false }: VideoCardProps) {
   return (
     <Card className="overflow-hidden">
       <div className="relative">
-        <img src={video.thumbnail} alt={video.title} className="w-full h-40 object-cover" />
+        <Image src={video.thumbnail} width={1000} height={1000} alt={video.title} className="w-full h-40 object-cover" />
         <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/30">
           <Link href={`/video/${video.id}`}>
             <Button size="icon" variant="secondary" className="rounded-full h-12 w-12">

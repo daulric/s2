@@ -4,6 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { ModeToggle } from "./mode-toggle"
 import { ProfileIcon } from "./profile-icon"
+import { SearchInput } from "./search-input"
 import { Button } from "@/components/ui/button"
 import { Upload } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
@@ -23,7 +24,17 @@ export function Header() {
         </Link>
       </div>
 
+      {/* Desktop search bar - hidden on mobile */}
+      <div className="hidden md:flex flex-1 max-w-2xl mx-4 lg:mx-8">
+        <SearchInput />
+      </div>
+
       <div className="flex items-center gap-1 sm:gap-4">
+        {/* Mobile search button - hidden on desktop */}
+        <div className="md:hidden">
+          <SearchInput mobile />
+        </div>
+
         {user && (
           <Link href="/upload">
             <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" aria-label="Upload video">

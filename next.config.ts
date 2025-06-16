@@ -6,6 +6,17 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '100mb',
     },
   },
+
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: (process.env.NEXT_PUBLIC_SUPABASE_URL)?.split("https://")[1] || "daulric.dev",
+        port: "",
+        pathname: "/storage/v1/**"
+      }
+    ],
+  },
 };
 
 export default nextConfig;
