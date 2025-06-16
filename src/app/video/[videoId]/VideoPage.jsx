@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog"
 import { VideoCard } from "@/components/video-card"
 import { useAuth } from "@/context/AuthProvider"
+import { useSignal, useComputed } from "@preact/signals-react"
 
 // Keyboard shortcuts help data
 const keyboardShortcuts = [
@@ -53,7 +54,7 @@ const keyboardShortcuts = [
 ]
 
 export default function VideoPage({ videoData, public_videos }) {
-  const { user } = useAuth()
+  const { user: { user }, supabase } = useAuth()
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
@@ -70,6 +71,48 @@ export default function VideoPage({ videoData, public_videos }) {
   const videoRef = useRef(null)
   const containerRef = useRef(null)
   const controlsTimeoutRef = useRef(null)
+
+  const subscribers = useSignal(0);
+  const video_data_signal = useSignal(0);
+
+  // Get Subscribers
+  useEffect(() => {
+    
+    async function isSubscribed() {
+      if (!user) return;
+
+      const { data: subed } = await supabase.schema("meetup-app")
+        .from("subscribers")
+        .select("*")
+        .eq("subscriber", user.id)
+        .eq("vendor", videoData.creator_id)
+        .single();
+      
+        if (subed) {
+          setIsSubscribed(subed.is_subscribed);
+        }
+    }
+
+    async function  getTotalSubs() {
+      if (!videoData.creator_id) return;
+
+      const { data: total_amount } = await supabase.schema("meetup-app")
+        .from("subscribers")
+        .select("*")
+        .eq("vendor", videoData.creator_id)
+        .eq("is_subscribed", true);
+
+      subscribers.value = total_amount.length;
+    }
+
+    Promise.allSettled([getTotalSubs(), isSubscribed()])
+  }, [user]);
+
+  useEffect(() => {
+    if (videoData) {
+      video_data_signal.value = videoData;
+    }
+  }, [videoData]);
 
   // Effect to handle video play/pause
   useEffect(() => {
@@ -572,19 +615,23 @@ export default function VideoPage({ videoData, public_videos }) {
             <div className="flex items-start space-x-4">
               <Avatar className="h-12 w-12">
                 <AvatarImage
-                  src={videoData.avatar_url ? videoData.avatar_url : `https://api.dicebear.com/7.x/avataaars/svg?seed=${videoData.username}`}
-                  alt={videoData.username}
+                  src={useComputed(() => video_data_signal.value.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${videoData.username}`)}
+                  alt={useComputed(() => video_data_signal.value.username)}
                 />
-                <AvatarFallback>{videoData.username?.[0]}</AvatarFallback>
+                <AvatarFallback>{useComputed(() => video_data_signal.value.username?.[0])}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <h3 className="font-semibold">{videoData.username}</h3>
-                <p className="text-sm text-muted-foreground">{videoData.subscribers || 0} subscribers</p>
+                <p className="text-sm text-muted-foreground">{useComputed(() => subscribers.value) || 0} subscribers</p>
                 <p className="mt-2 text-sm">{videoData.description}</p>
               </div>
-              <Button variant={isSubscribed ? "outline" : "default"} onClick={handleSubscribe}>
-                {isSubscribed ? "Subscribed" : "Subscribe"}
-              </Button>
+              { useComputed(() => (
+                (user && user.id !== video_data_signal.value.creator_id ) && (
+                  <Button variant={isSubscribed ? "outline" : "default"} onClick={handleSubscribe}>
+                    {isSubscribed ? "Subscribed" : "Subscribe"}
+                  </Button>
+                )
+              )) }
             </div>
 
             <Separator className="my-6" />

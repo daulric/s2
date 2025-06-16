@@ -28,6 +28,7 @@ export async function GetVideoDetails(id, time_allowed = 10) {
 
     const return_data = {
         id: data.video_id,
+        creator_id: data.userid,
         video: video_url,
         thumbnail: thumbnail_url,
         username: user_data.username,
