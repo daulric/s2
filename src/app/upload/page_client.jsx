@@ -314,7 +314,7 @@ export default function UploadPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {visibilites.map(({ type, icon: Icon }) => (
-                        <SelectItem value={type.toLowerCase()}>
+                        <SelectItem key={`${type}-${Math.random()}`} value={type.toLowerCase()}>
                           <div className="flex items-center">
                             <Icon className="h-4 w-4 mr-2" />
                             { type }

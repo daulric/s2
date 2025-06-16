@@ -38,6 +38,7 @@ export const config = {
     // Protected routes
     '/home',
     '/',
+    '/profile',
     '/profile/:path*',
     '/upload',
     '/settings/:path*',
