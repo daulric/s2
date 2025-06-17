@@ -18,6 +18,8 @@ import { Mail, Calendar, MapPin, LinkIcon, Camera, Edit3, Save, X, Video, Eye, T
 import { useAuth } from "@/context/AuthProvider"
 import { VideoCard, VideoProps } from "@/components/video-card"
 import { VideoEditDialog } from "@/components/video-edit-dialog"
+import { useSignal, useComputed } from "@preact/signals-react"
+import Link from "next/link"
 
 // Mock user data - in a real app, this would come from your database
 const mockUserVideos: VideoProps[] = [
@@ -83,16 +85,27 @@ export default function ProfilePage() {
   const [editingVideo, setEditingVideo] = useState<any>(null)
   const [isVideoEditOpen, setIsVideoEditOpen] = useState(false)
 
+  // Signals
+  const subscribers = useSignal(0);
+  const subscriber_updater = useComputed(() => subscribers.value);
+  const views = useSignal(0);
+  const views_updater = useComputed(() => views.value);
+  const total_video_count = useSignal(0);
+  const total_videoCount_updater = useComputed(() => total_video_count.value);
+  const total_likes = useSignal(0);
+  const total_likes_updater = useComputed(() => total_likes.value);
+
   useEffect(() => {
     if (!user) {
       return
     }
 
     document.title = "s2 - Profile"
-    console.log(user);
     // Load user profile data
     loadProfile()
-  }, [user, router])
+    load_subs();
+    load_videos();
+  }, [user])
 
   const loadProfile = async () => {
     if (!user) return
@@ -108,8 +121,6 @@ export default function ProfilePage() {
       if (error && error.code !== "PGRST116") {
         throw error
       }
-
-      console.log(data)
 
       if (data) {
         setProfileData({
@@ -137,6 +148,34 @@ export default function ProfilePage() {
         description: "Please try refreshing the page",
       })
     }
+  }
+
+  const load_subs = async () => {
+    const { data, error } = await supabase.schema("meetup-app")
+      .from("subscribers")
+      .select("*")
+      .eq("vendor", user.id);
+    
+    if (error) return;
+    subscribers.value = data.length;
+  }
+
+  const load_videos = async () => {
+    const { data, error } = await supabase.schema("meetup-app")
+      .from("videos")
+      .select("*")
+      .eq("userid", user.id);
+    
+    if (error || !data) return
+    
+    let view_count: number = 0;
+
+    data.map((i: any) => {
+      view_count += i.views;
+    });
+
+    views.value = view_count;
+    total_video_count.value = data.length;
   }
 
   const handleSaveProfile = async () => {
@@ -246,7 +285,7 @@ export default function ProfilePage() {
                     alt={profileData.username || "User"}
                   />
                   <AvatarFallback className="text-2xl">
-                    {(profileData.username || user.email || "U").charAt(0).toUpperCase()}
+                    {(profileData.username || user.email || "G").charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 {isEditing && (
@@ -333,7 +372,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2">
                 <Video className="h-5 w-5 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">{mockUserVideos.length}</p>
+                  <p className="text-2xl font-bold">{total_videoCount_updater}</p>
                   <p className="text-sm text-muted-foreground">Videos</p>
                 </div>
               </div>
@@ -345,7 +384,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2">
                 <Eye className="h-5 w-5 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">2.5K</p>
+                  <p className="text-2xl font-bold">{views_updater}</p>
                   <p className="text-sm text-muted-foreground">Total Views</p>
                 </div>
               </div>
@@ -357,7 +396,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2">
                 <ThumbsUp className="h-5 w-5 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">156</p>
+                  <p className="text-2xl font-bold">{total_likes_updater}</p>
                   <p className="text-sm text-muted-foreground">Total Likes</p>
                 </div>
               </div>
@@ -369,7 +408,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">42</p>
+                  <p className="text-2xl font-bold">{ subscriber_updater }</p>
                   <p className="text-sm text-muted-foreground">Subscribers</p>
                 </div>
               </div>
@@ -416,7 +455,7 @@ export default function ProfilePage() {
                     <h3 className="text-lg font-semibold mb-2">No videos yet</h3>
                     <p className="text-muted-foreground mb-4">Start creating content by uploading your first video</p>
                     <Button asChild>
-                      <a href="/upload">Upload Video</a>
+                      <Link href="/upload">Upload Video</Link>
                     </Button>
                   </div>
                 )}
