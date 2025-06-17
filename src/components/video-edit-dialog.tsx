@@ -21,25 +21,13 @@ import { Badge } from "@/components/ui/badge"
 import { Camera, X, Upload } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
 import { categories, visibilites } from "@/lib/videos/details"
-
-type VideoData = {
-  id: string
-  title: string
-  description: string
-  thumbnail: string
-  category: string
-  visibility: string
-  tags: string[]
-  views: string
-  duration: string
-  createdAt: string
-}
+import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 
 type VideoEditDialogProps = {
-  video: VideoData | null
+  video: VideoInfoProps | null
   isOpen: boolean
   onClose: () => void
-  onSave: (videoData: VideoData) => void
+  onSave: (videoData: VideoInfoProps) => void
 }
 
 export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDialogProps) {
@@ -51,9 +39,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
     thumbnail: video?.thumbnail || "",
     category: video?.category || "education",
     visibility: video?.visibility || "public",
-    tags: video?.tags || [],
   })
-  const [newTag, setNewTag] = useState("")
 
   const handleThumbnailUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -95,23 +81,6 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
     }
   }
 
-  const handleAddTag = () => {
-    if (newTag.trim() && formData.tags.length < 5 && !formData.tags.includes(newTag.trim())) {
-      setFormData((prev) => ({
-        ...prev,
-        tags: [...prev.tags, newTag.trim()],
-      }))
-      setNewTag("")
-    }
-  }
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      tags: prev.tags.filter((tag) => tag !== tagToRemove),
-    }))
-  }
-
   const handleSave = async () => {
     if (!video) return
 
@@ -125,14 +94,13 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
     setIsLoading(true)
     try {
       // In a real app, you would update the database here
-      const updatedVideo: VideoData = {
+      const updatedVideo: VideoInfoProps = {
         ...video,
         title: formData.title,
         description: formData.description,
         thumbnail: formData.thumbnail,
         category: formData.category,
         visibility: formData.visibility,
-        tags: formData.tags,
       }
 
       // Simulate API call
@@ -171,7 +139,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
             <div className="mt-2 flex flex-col sm:flex-row gap-4">
               <div className="relative w-full sm:w-48 h-32 bg-muted rounded-lg overflow-hidden">
                 <img
-                  src={formData.thumbnail || "/placeholder.svg"}
+                  src={formData.thumbnail || video.thumbnail}
                   alt="Video thumbnail"
                   className="w-full h-full object-cover"
                 />
@@ -228,6 +196,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>Category</Label>
+              <br/>
               <Select
                 value={formData.category}
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
@@ -243,6 +212,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
 
             <div>
               <Label>Visibility</Label>
+              <br/>
               <Select
                 value={formData.visibility}
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, visibility: value }))}
@@ -264,38 +234,8 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
             </div>
           </div>
 
-          {/* Tags */}
-          <div>
-            <Label>Tags</Label>
-            <div className="mt-2">
-              <div className="flex flex-wrap gap-2 mb-2">
-                {formData.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-                    {tag}
-                    <button type="button" onClick={() => handleRemoveTag(tag)} className="hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-              {formData.tags.length < 5 && (
-                <div className="flex gap-2">
-                  <Input
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    placeholder="Add a tag"
-                    onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), handleAddTag())}
-                    maxLength={20}
-                  />
-                  <Button type="button" onClick={handleAddTag} variant="outline" size="sm">
-                    Add
-                  </Button>
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground mt-1">Add up to 5 tags to help people find your video</p>
-            </div>
-          </div>
         </div>
+        <br/>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

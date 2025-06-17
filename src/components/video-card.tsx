@@ -4,6 +4,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Play } from "lucide-react"
 import Image from "next/image"
 
+import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
+
 export type VideoProps = {
   id: string
   title: string
@@ -14,7 +16,7 @@ export type VideoProps = {
 }
 
 type VideoCardProps = {
-  video: VideoProps
+  video: VideoInfoProps | VideoProps
   compact?: boolean
 }
 

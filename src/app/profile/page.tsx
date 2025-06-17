@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,38 +15,11 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Mail, Calendar, MapPin, LinkIcon, Camera, Edit3, Save, X, Video, Eye, ThumbsUp, Users } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
-import { VideoCard, VideoProps } from "@/components/video-card"
+import { VideoCard , VideoProps} from "@/components/video-card"
 import { VideoEditDialog } from "@/components/video-edit-dialog"
 import { useSignal, useComputed } from "@preact/signals-react"
 import Link from "next/link"
-
-// Mock user data - in a real app, this would come from your database
-const mockUserVideos: VideoProps[] = [
-  {
-    id: "user-video-1",
-    title: "My First Video Upload",
-    thumbnail: "/placeholder.svg?height=180&width=320",
-    views: "1.2K",
-    username: "You",
-    uploadDate: "2 days ago",
-  },
-  {
-    id: "user-video-2",
-    title: "Tutorial: Getting Started",
-    thumbnail: "/placeholder.svg?height=180&width=320",
-    views: "856",
-    username: "You",
-    uploadDate: "1 week ago",
-  },
-  {
-    id: "user-video-3",
-    title: "Behind the Scenes",
-    thumbnail: "/placeholder.svg?height=180&width=320",
-    views: "432",
-    username: "You",
-    uploadDate: "2 weeks ago",
-  },
-]
+import converttovideoformat, { VideoData, VideoInfoProps } from "@/lib/videos/data-to-video-format"
 
 const mockLikedVideos: VideoProps[] = [
   {
@@ -69,8 +41,7 @@ const mockLikedVideos: VideoProps[] = [
 ]
 
 export default function ProfilePage() {
-  const { user: { user }, supabase } = useAuth()
-  const router = useRouter()
+  const { user: { user }, supabase } = useAuth();
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [profileData, setProfileData] = useState({
@@ -95,6 +66,45 @@ export default function ProfilePage() {
   const total_likes = useSignal(0);
   const total_likes_updater = useComputed(() => total_likes.value);
 
+  const user_videos = useSignal<VideoInfoProps[]>([]);
+
+  const user_videos_ui = useComputed(() => {
+
+    if (user_videos.value !== null && user_videos.value.length > 0) {
+
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        { user_videos.value?.map((video) => (
+          <div key={video.id} className="relative group">
+            <VideoCard video={video} />
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => handleEditVideo(video)}
+                className="h-8 w-8 p-0"
+              >
+                <Edit3 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )) }
+      </div>
+      )
+    }
+
+    return (
+      <div className="text-center py-12">
+        <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold mb-2">No videos yet</h3>
+        <p className="text-muted-foreground mb-4">Start creating content by uploading your first video</p>
+        <Button asChild>
+          <Link href="/upload">Upload Video</Link>
+        </Button>
+      </div>
+    )
+  })
+
   useEffect(() => {
     if (!user) {
       return
@@ -105,6 +115,10 @@ export default function ProfilePage() {
     loadProfile()
     load_subs();
     load_videos();
+
+    return () => {
+      user_videos.value = [];
+    }
   }, [user])
 
   const loadProfile = async () => {
@@ -170,8 +184,14 @@ export default function ProfilePage() {
     
     let view_count: number = 0;
 
-    data.map((i: any) => {
+    data.map(async (i: VideoData) => {
       view_count += i.views;
+      
+      const video =  await(converttovideoformat(supabase, i, 10));
+  
+      if (!user_videos.value.some(item => item.id === video.id)) {
+        user_videos.value = [...user_videos.value, video];
+      }
     });
 
     views.value = view_count;
@@ -431,34 +451,7 @@ export default function ProfilePage() {
                 <CardDescription>Manage your uploaded videos</CardDescription>
               </CardHeader>
               <CardContent>
-                {mockUserVideos.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {mockUserVideos.map((video) => (
-                      <div key={video.id} className="relative group">
-                        <VideoCard video={video} />
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleEditVideo(video)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Edit3 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No videos yet</h3>
-                    <p className="text-muted-foreground mb-4">Start creating content by uploading your first video</p>
-                    <Button asChild>
-                      <Link href="/upload">Upload Video</Link>
-                    </Button>
-                  </div>
-                )}
+               { user_videos_ui }
               </CardContent>
             </Card>
           </TabsContent>

@@ -8,12 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "preview": "next  build && next start",
-
     "build:cf": "NEXT_PRIVATE_STANDALONE=true next build",
     "check": "npm run build:cf && tsc && wrangler deploy --dry-run",
     "deploy:cf": "wrangler deploy",
     "cf:postbuild": "opennextjs-cloudflare build -s",
-
     "cf:build": "opennextjs-cloudflare build",
     "cf:deploy": "opennextjs-cloudflare deploy",
     "preview:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
@@ -61,7 +59,7 @@
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.508.0",
-    "next": "15.3.2",
+    "next": "^15.3.3",
     "next-themes": "^0.4.6",
     "react": "^19.0.0",
     "react-day-picker": "8.10.1",
