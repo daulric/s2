@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,56 +17,79 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Camera, X, Upload } from "lucide-react"
+import { Camera, Upload } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
-import { categories, visibilites } from "@/lib/videos/details"
-import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
+import { categories, visibilites, capitalizeFirstLetter } from "@/lib/videos/details"
+import type { VideoData, VideoInfoProps } from "@/lib/videos/data-to-video-format"
 
 type VideoEditDialogProps = {
   video: VideoInfoProps | null
   isOpen: boolean
   onClose: () => void
-  onSave: (videoData: VideoInfoProps) => void
+  onSave: (videoData: VideoData, thumbnail?: File) => void
 }
 
 export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDialogProps) {
   const { supabase } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
   const [formData, setFormData] = useState({
-    title: video?.title || "",
-    description: video?.description || "",
-    thumbnail: video?.thumbnail || "",
-    category: video?.category || "education",
-    visibility: video?.visibility || "public",
+    title: "",
+    description: "",
+    thumbnail: "",
+    category: "",
+    visibility: "",
   })
+
+  const thumbnail_ref = useRef<HTMLImageElement | null>(null)
+  const thumb_name = useRef("");
+
+  // Initialize form data when video changes
+  useEffect(() => {
+    if (video) {
+      setFormData({
+        title: video.title || "",
+        description: video.description || "",
+        thumbnail: video.thumbnail || "",
+        category: video.category || "",
+        visibility: video.visibility || "public",
+      })
+      setThumbnailFile(null)
+    }
+  }, [video])
 
   const handleThumbnailUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file || !video) return
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 5 * (1024 * 1024)) {
       toast.error("File too large", {
         description: "Please choose an image under 5MB",
       })
       return
     }
 
+    // Preview the image immediately
+    if (thumbnail_ref.current) {
+      thumbnail_ref.current.src = URL.createObjectURL(file)
+    }
+
+    setThumbnailFile(file)
     setIsLoading(true)
+
     try {
       const fileExt = file.name.split(".").pop()
       const fileName = `${video.id}-thumbnail-${Date.now()}.${fileExt}`
-      const filePath = `thumbnails/${fileName}`
 
-      const { error: uploadError } = await supabase.storage.from("videos").upload(filePath, file)
+      const { error: uploadError } = await supabase.storage.from("images").upload(fileName, file, {
+        contentType: file.type,
+        upsert: true,
+      })
 
       if (uploadError) throw uploadError
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("videos").getPublicUrl(filePath)
-
-      setFormData((prev) => ({ ...prev, thumbnail: publicUrl }))
+      setFormData((prev) => ({ ...prev, thumbnail: fileName }));
+      thumb_name.current = fileName;
 
       toast.success("Thumbnail uploaded", {
         description: "Don't forget to save your changes",
@@ -93,20 +116,19 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
 
     setIsLoading(true)
     try {
-      // In a real app, you would update the database here
-      const updatedVideo: VideoInfoProps = {
-        ...video,
-        title: formData.title,
+      const updatedVideo: VideoData = {
+        video_id: video.id,
+        userid: video.creator_id,
+        title: formData.title, // Fixed: was using formData.description
         description: formData.description,
-        thumbnail: formData.thumbnail,
-        category: formData.category,
-        visibility: formData.visibility,
+        thumbnail_path: thumb_name.current.length !== 0 && thumb_name.current || "",
+        category: formData.category.length !== 0 ? formData.category : video.category,
+        visibility: formData.visibility.length !== 0 ? formData.visibility : video.visibility || "public",
+        views: video.views,
+        created_at: video.created_at,
       }
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      onSave(updatedVideo)
+      onSave(updatedVideo, thumbnailFile || undefined)
       onClose()
 
       toast.success("Video updated", {
@@ -122,10 +144,25 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
     }
   }
 
+  const handleClose = () => {
+    // Reset form when closing
+    if (video) {
+      setFormData({
+        title: video.title || "",
+        description: video.description || "",
+        thumbnail: video.thumbnail || "",
+        category: video.category || "",
+        visibility: video.visibility || "public",
+      })
+    }
+    setThumbnailFile(null)
+    onClose()
+  }
+
   if (!video) return null
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Video</DialogTitle>
@@ -139,6 +176,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
             <div className="mt-2 flex flex-col sm:flex-row gap-4">
               <div className="relative w-full sm:w-48 h-32 bg-muted rounded-lg overflow-hidden">
                 <img
+                  ref={thumbnail_ref}
                   src={formData.thumbnail || video.thumbnail}
                   alt="Video thumbnail"
                   className="w-full h-full object-cover"
@@ -196,49 +234,49 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>Category</Label>
-              <br/>
               <Select
-                value={formData.category}
+                value={ formData.category }
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  { categories.map((detail) => <SelectItem value={detail.toLowerCase()}>{detail}</SelectItem>) }
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category.toLowerCase()}>
+                      {category}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div>
               <Label>Visibility</Label>
-              <br/>
               <Select
                 value={formData.visibility}
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, visibility: value }))}
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select visibility" />
                 </SelectTrigger>
                 <SelectContent>
-                {visibilites.map(({ type, icon: Icon }) => (
-                    <SelectItem key={`${type}-${Math.random()}`} value={type.toLowerCase()}>
-                        <div className="flex items-center">
-                            <Icon className="h-4 w-4 mr-2" />
-                            { type }
-                        </div>
+                  {visibilites.map(({ type, icon: Icon }) => (
+                    <SelectItem key={type} value={type.toLowerCase()}>
+                      <div className="flex items-center">
+                        <Icon className="h-4 w-4 mr-2" />
+                        {type}
+                      </div>
                     </SelectItem>
-                ))}
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-
         </div>
-        <br/>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="mt-6">
+          <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={isLoading}>

@@ -185,6 +185,7 @@ export default function ProfilePage() {
     let view_count: number = 0;
 
     data.map(async (i: VideoData) => {
+      if (i.views)
       view_count += i.views;
       
       const video =  await(converttovideoformat(supabase, i, 10));
@@ -267,20 +268,23 @@ export default function ProfilePage() {
   }
 
   const handleEditVideo = (video: any) => {
-    setEditingVideo({
-      ...video,
-      description:
-        "Learn how to build amazing applications with modern web technologies. This comprehensive tutorial covers everything you need to know.",
-      category: "education",
-      visibility: "public",
-      tags: ["tutorial", "web development", "programming"],
-    })
+    setEditingVideo({...video})
     setIsVideoEditOpen(true)
   }
 
-  const handleSaveVideo = (updatedVideo: any) => {
-    // In a real app, you would update the video in your state/database
-    console.log("Updated video:", updatedVideo)
+  const handleSaveVideo = async (updatedVideo: any) => {
+
+    const { error } = await supabase.schema("meetup-app")
+      .from("videos")
+      .update(updatedVideo)
+      .eq("video_id", updatedVideo.video_id)
+
+    if (error) {
+      toast.error("Details Upload Error", {
+        description: error?.message || error,
+      });
+    }
+
     setEditingVideo(null)
   }
 
