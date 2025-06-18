@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import converttoVideo from "@/lib/videos/data-to-video-format";
 
-export async function GetVideoDetails(id, time_allowed = 10) {
+export async function GetVideoDetails(id, time_allowed = 30) {
     const supabase = await createClient();
     const { data: {user} } = await supabase.auth.getUser();
 
@@ -21,7 +21,7 @@ export async function GetVideoDetails(id, time_allowed = 10) {
     return return_data;
 }
 
-export async function GetPublicVideos(time_allowed = 10) {
+export async function GetPublicVideos(time_allowed = 30) {
     const supabase = await createClient();
 
     const { data, error } = await supabase

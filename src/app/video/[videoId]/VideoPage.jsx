@@ -76,37 +76,72 @@ export default function VideoPage({ videoData, public_videos }) {
   const video_data_signal = useSignal(0);
 
   // Get Subscribers
-  useEffect(() => {
+  async function upsertManual(table, key, newData) {
+    // key: object containing the unique identifying fields, e.g. { vendor, subscriber }
+    // newData: fields to update or insert
+
+    // 1. Check if row exists
+    const { data: existingData, error: selectError } = await supabase
+      .from(table)
+      .select("*")
+      .match(key)
+      .single();
+
+    if (selectError && selectError.code !== 'PGRST116') {
+      // PGRST116 = "No rows found" error is expected if no data exists
+      throw selectError;
+    }
+
+    if (existingData) {
+      // 2. Update existing row
+      const { data, error } = await supabase
+        .from(table)
+        .update(newData)
+        .match(key);
+
+      if (error) throw error;
+      return data;
+    } else {
+      // 3. Insert new row (merge key and newData)
+      const insertData = { ...key, ...newData };
+      const { data, error } = await supabase.from(table).insert(insertData);
+      if (error) throw error;
+      return data;
+    }
+  }
+
+  async function setIsSubscribe() {
+    if (!user) return;
+
+    const { data: subed } = await supabase
+      .from("subscribers")
+      .select("*")
+      .eq("subscriber", user.id)
+      .eq("vendor", videoData.creator_id)
+      .single();
     
-    async function isSubscribed() {
-      if (!user) return;
+      if (subed) {
+        setIsSubscribed(subed.is_subscribed);
+      }
+  }
 
-      const { data: subed } = await supabase
-        .from("subscribers")
-        .select("*")
-        .eq("subscriber", user.id)
-        .eq("vendor", videoData.creator_id)
-        .single();
-      
-        if (subed) {
-          setIsSubscribed(subed.is_subscribed);
-        }
-    }
+  async function  getTotalSubs() {
+    if (!user) return;
+    if (!videoData.creator_id) return;
 
-    async function  getTotalSubs() {
-      if (!videoData.creator_id) return;
+    const { data: total_amount } = await supabase
+      .from("subscribers")
+      .select("*")
+      .eq("vendor", videoData.creator_id)
+      .eq("is_subscribed", true);
 
-      const { data: total_amount } = await supabase
-        .from("subscribers")
-        .select("*")
-        .eq("vendor", videoData.creator_id)
-        .eq("is_subscribed", true);
+    subscribers.value = total_amount.length;
+  }
 
-      subscribers.value = total_amount.length;
-    }
-
-    Promise.allSettled([getTotalSubs(), isSubscribed()])
-  }, [user]);
+  useEffect(() => {
+    setIsSubscribe();
+    getTotalSubs();
+  }, [user])
 
   useEffect(() => {
     if (videoData) {
@@ -356,7 +391,7 @@ export default function VideoPage({ videoData, public_videos }) {
     }
   }
 
-  const handleSubscribe = () => {
+  const handleSubscribe = async () => {
     if (!user) {
       toast.error("Authentication required", {
         description: "Please sign in to subscribe to channels",
@@ -364,12 +399,20 @@ export default function VideoPage({ videoData, public_videos }) {
       return
     }
 
-    setIsSubscribed(!isSubscribed)
+    setIsSubscribed(prev => !prev);
+
+    await upsertManual(
+      "subscribers",
+      { vendor: videoData.creator_id, subscriber: user.id },
+      { is_subscribed: !isSubscribed }
+    );
+
     if (!isSubscribed) {
       toast.success(`Subscribed to ${videoData.username}`, {
         description: "You'll be notified about new uploads",
       })
     }
+
   }
 
   const handleSave = () => {
@@ -457,6 +500,7 @@ export default function VideoPage({ videoData, public_videos }) {
                 onClick={togglePlay}
                 onEnded={() => setIsPlaying(false)}
                 playsInline
+                preload="auto"
               />
 
               {/* Play button overlay - only show when paused */}
@@ -625,13 +669,11 @@ export default function VideoPage({ videoData, public_videos }) {
                 <p className="text-sm text-muted-foreground">{useComputed(() => subscribers.value) || 0} subscribers</p>
                 <p className="mt-2 text-sm">{videoData.description}</p>
               </div>
-              { useComputed(() => (
-                (user && user.id !== video_data_signal.value.creator_id ) && (
-                  <Button variant={isSubscribed ? "outline" : "default"} onClick={handleSubscribe}>
-                    {isSubscribed ? "Subscribed" : "Subscribe"}
-                  </Button>
-                )
-              )) }
+              {(user && user.id !== videoData.creator_id) && (
+                <Button variant={isSubscribed ? "outline" : "default"} onClick={handleSubscribe}>
+                  {isSubscribed ? "Subscribed" : "Subscribe"}
+                </Button>
+              )}
             </div>
 
             <Separator className="my-6" />
@@ -721,7 +763,7 @@ export default function VideoPage({ videoData, public_videos }) {
             <TabsContent value="related" className="mt-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {related_vids.map((video) => (
-                  <VideoCard key={video.id} video={video} />
+                  <VideoCard key={video.id} video={video} quick_load />
                 ))}
               </div>
             </TabsContent>
@@ -729,7 +771,7 @@ export default function VideoPage({ videoData, public_videos }) {
             <TabsContent value="trending" className="mt-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {trending_vids.map((video) => (
-                  <VideoCard key={video.id} video={video} />
+                  <VideoCard key={video.id} video={video} quick_load/>
                 ))}
               </div>
             </TabsContent>
@@ -737,7 +779,7 @@ export default function VideoPage({ videoData, public_videos }) {
             <TabsContent value="new" className="mt-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {new_vids.map((video) => (
-                  <VideoCard key={video.id} video={video} />
+                  <VideoCard key={video.id} video={video} quick_load />
                 ))}
               </div>
             </TabsContent>

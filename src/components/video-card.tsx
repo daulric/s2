@@ -18,9 +18,10 @@ export type VideoProps = {
 type VideoCardProps = {
   video: VideoInfoProps | VideoProps
   compact?: boolean
+  quick_load?: boolean
 }
 
-export function VideoCard({ video, compact = false }: VideoCardProps) {
+export function VideoCard({ video, compact = false, quick_load = false }: VideoCardProps) {
   if (compact) {
     return (
       <Link href={`/video/${video.id}`}>
@@ -33,6 +34,7 @@ export function VideoCard({ video, compact = false }: VideoCardProps) {
                 className="w-full h-full object-cover"
                 width={1000}
                 height={1000}
+                loading={quick_load ? "eager" : "lazy"}
               />
             </div>
             <CardContent className="p-3 flex-1">
@@ -53,7 +55,7 @@ export function VideoCard({ video, compact = false }: VideoCardProps) {
   return (
     <Card className="overflow-hidden">
       <div className="relative">
-        <Image src={video.thumbnail} width={1000} height={1000} alt={video.title} className="w-full h-40 object-cover" />
+        <Image src={video.thumbnail} width={1000} height={1000} alt={video.title} className="w-full h-40 object-cover" loading={quick_load ? "eager" : "lazy"}/>
         <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/30">
           <Link href={`/video/${video.id}`}>
             <Button size="icon" variant="secondary" className="rounded-full h-12 w-12">
