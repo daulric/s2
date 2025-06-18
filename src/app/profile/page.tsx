@@ -22,7 +22,12 @@ import Link from "next/link"
 import converttovideoformat, { VideoData, VideoInfoProps } from "@/lib/videos/data-to-video-format"
 
 interface VideoWithLikes extends VideoData {
-  video_likes: { is_liked: boolean }[];
+  video_likes: { is_liked: boolean, videos?: VideoData }[];
+}
+
+interface VideoLikes {
+  is_liked: boolean, 
+  videos?: VideoData,
 }
 
 const mockLikedVideos: VideoProps[] = [
@@ -70,6 +75,23 @@ export default function ProfilePage() {
   const total_likes = useSignal(0);
   const total_likes_updater = useComputed(() => total_likes.value);
 
+  const total_liked_videos = useSignal<VideoInfoProps[]>([]);
+  const total_liked_vids_updater =useComputed(() => (
+    total_liked_videos.value.length > 0 ? (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {total_liked_videos.value.map((video) => (
+          <VideoCard key={video.id} video={video} />
+        ))}
+      </div>
+    ) : (
+      <div className="text-center py-12">
+        <ThumbsUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold mb-2">No liked videos</h3>
+        <p className="text-muted-foreground">Videos you like will appear here</p>
+      </div>
+    )
+  ));
+
   const user_videos = useSignal<VideoInfoProps[]>([]);
 
   const user_videos_ui = useComputed(() => {
@@ -116,12 +138,18 @@ export default function ProfilePage() {
 
     document.title = "s2 - Profile"
     // Load user profile data
-    loadProfile()
+    loadProfile();
     load_subs();
     load_videos();
+    load_liked_video();
 
     return () => {
       user_videos.value = [];
+      total_liked_videos.value = [];
+      total_likes.value = 0;
+      total_video_count.value = 0;
+      subscribers.value = 0;
+      views.value = 0;
     }
   }, [user])
 
@@ -205,6 +233,25 @@ export default function ProfilePage() {
     views.value = view_count;
     total_likes.value = totalLikesCount
     total_video_count.value = data.length;
+  }
+
+  const load_liked_video = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase.from("video_likes")
+      .select("*, videos(*)")
+      .eq("userid", user.id)
+      .eq("is_liked", true);
+    
+    if (error) return;
+    data.map(async (i: VideoLikes) => {
+      if (!i.videos) return;
+
+      const contered = await (converttovideoformat(supabase,  i.videos, 120));
+      if (!total_liked_videos.value.find(i => i.id === contered.id)) {
+        total_liked_videos.value = [...total_liked_videos.value, contered];
+      }
+    });
   }
 
   const handleSaveProfile = async () => {
@@ -475,19 +522,7 @@ export default function ProfilePage() {
                 <CardDescription>Videos you've liked</CardDescription>
               </CardHeader>
               <CardContent>
-                {mockLikedVideos.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {mockLikedVideos.map((video) => (
-                      <VideoCard key={video.id} video={video} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <ThumbsUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No liked videos</h3>
-                    <p className="text-muted-foreground">Videos you like will appear here</p>
-                  </div>
-                )}
+                { total_liked_vids_updater }
               </CardContent>
             </Card>
           </TabsContent>
