@@ -30,25 +30,6 @@ interface VideoLikes {
   videos?: VideoData,
 }
 
-const mockLikedVideos: VideoProps[] = [
-  {
-    id: "liked-1",
-    title: "Amazing React Tutorial",
-    thumbnail: "/placeholder.svg?height=180&width=320",
-    views: "2.1M",
-    username: "TechGuru",
-    uploadDate: "3 days ago",
-  },
-  {
-    id: "liked-2",
-    title: "JavaScript Tips & Tricks",
-    thumbnail: "/placeholder.svg?height=180&width=320",
-    views: "1.5M",
-    username: "CodeMaster",
-    uploadDate: "1 week ago",
-  },
-]
-
 export default function ProfilePage() {
   const { user: { user }, supabase } = useAuth();
   const [isEditing, setIsEditing] = useState(false)
