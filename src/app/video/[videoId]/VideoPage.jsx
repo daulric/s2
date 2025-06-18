@@ -81,7 +81,7 @@ export default function VideoPage({ videoData, public_videos }) {
     async function isSubscribed() {
       if (!user) return;
 
-      const { data: subed } = await supabase.schema("meetup-app")
+      const { data: subed } = await supabase
         .from("subscribers")
         .select("*")
         .eq("subscriber", user.id)
@@ -96,7 +96,7 @@ export default function VideoPage({ videoData, public_videos }) {
     async function  getTotalSubs() {
       if (!videoData.creator_id) return;
 
-      const { data: total_amount } = await supabase.schema("meetup-app")
+      const { data: total_amount } = await supabase
         .from("subscribers")
         .select("*")
         .eq("vendor", videoData.creator_id)

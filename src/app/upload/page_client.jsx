@@ -127,7 +127,7 @@ export default function UploadPage() {
       });
 
       promised_uplaod.then(async ([video_path, thumbnail_path]) => {
-        const { data, error } = await supabase.schema("meetup-app").from("videos").insert({
+        const { data, error } = await supabase.from("videos").insert({
           title,
           description,
           video_path,

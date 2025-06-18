@@ -33,7 +33,7 @@ export default async function PAGE({params}) {
 
     const PublicVideos = await GetPublicVideos();
 
-    const {  error } = await supabase.schema("meetup-app")
+    const {  error } = await supabase
         .from("videos")
         .update({views: (Number(data.views) + 1)})
         .eq("video_id", id)

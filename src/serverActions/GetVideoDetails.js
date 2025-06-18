@@ -7,7 +7,7 @@ export async function GetVideoDetails(id, time_allowed = 10) {
     const supabase = await createClient();
     const { data: {user} } = await supabase.auth.getUser();
 
-    const {data, error} = await supabase.schema("meetup-app")
+    const {data, error} = await supabase
         .from("videos")
         .select("*")
         .eq("video_id", id)
@@ -24,7 +24,7 @@ export async function GetVideoDetails(id, time_allowed = 10) {
 export async function GetPublicVideos(time_allowed = 10) {
     const supabase = await createClient();
 
-    const { data, error } = await supabase.schema("meetup-app")
+    const { data, error } = await supabase
         .from("videos")
         .select("*")
         .eq("visibility", "public");

@@ -9,6 +9,10 @@ export async function createClient(req?: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      db: {
+        schema: process.env.NEXT_PUBLIC_SCHEMA,
+      },
+
       cookies: {
         getAll() {
           if (req) {

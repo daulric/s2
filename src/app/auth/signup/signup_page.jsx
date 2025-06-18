@@ -48,7 +48,6 @@ export default function SignupPage() {
   
       if (user) {
         const { data: profileData, error: profileError } = await supabase
-          .schema("meetup-app")
           .from("profiles")
           .insert({
             id: user.id,

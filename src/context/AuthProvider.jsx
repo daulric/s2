@@ -36,7 +36,7 @@ export function AuthProvider({ children }) {
         if (session) {
           const session_user = session.user;
 
-          const {data: profile_data} = await supabase.schema("meetup-app").from("profiles").select().eq("id", session_user.id).single();
+          const {data: profile_data} = await supabase.from("profiles").select().eq("id", session_user.id).single();
 
           if (!sessionStorage.getItem("profile_user")) {
             sessionStorage.setItem("profile_user", JSON.stringify(profile_data))
@@ -74,7 +74,6 @@ export function AuthProvider({ children }) {
 
           const fetchProfile = async () => {
             const { data: profile_data } = await supabase
-              .schema("meetup-app")
               .from("profiles")
               .select()
               .eq("id", session.user.id)

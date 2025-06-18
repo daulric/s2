@@ -126,7 +126,6 @@ export default function ProfilePage() {
 
     try {
       const { data, error } = await supabase
-        .schema("meetup-app")
         .from("profiles")
         .select("*")
         .eq("id", user.id)
@@ -165,7 +164,7 @@ export default function ProfilePage() {
   }
 
   const load_subs = async () => {
-    const { data, error } = await supabase.schema("meetup-app")
+    const { data, error } = await supabase
       .from("subscribers")
       .select("*")
       .eq("vendor", user.id);
@@ -175,7 +174,7 @@ export default function ProfilePage() {
   }
 
   const load_videos = async () => {
-    const { data, error } = await supabase.schema("meetup-app")
+    const { data, error } = await supabase
       .from("videos")
       .select("*")
       .eq("userid", user.id);
@@ -204,7 +203,7 @@ export default function ProfilePage() {
 
     setIsLoading(true)
     try {
-      const { error } = await supabase.schema("meetup-app").from("profiles").upsert({
+      const { error } = await supabase.from("profiles").upsert({
         id: user.id,
         username: profileData.username,
         description: profileData.description,
@@ -274,7 +273,7 @@ export default function ProfilePage() {
 
   const handleSaveVideo = async (updatedVideo: any) => {
 
-    const { error } = await supabase.schema("meetup-app")
+    const { error } = await supabase
       .from("videos")
       .update(updatedVideo)
       .eq("video_id", updatedVideo.video_id)

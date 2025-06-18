@@ -22,7 +22,7 @@ export type VideoData = {
     title: string,
     description?: string,
     video_path?: string,
-    thumbnail_path: string,
+    thumbnail_path?: string | null,
     visibility: string,
     views?: number,
     created_at: Date | string,
@@ -30,6 +30,7 @@ export type VideoData = {
 }
 
 export default async function convert(supabase: SupabaseClient, data: VideoData, time_allowed: number = 10) {
+    const placeholder = "/placeholder.png"
 
     try {
         if (!supabase) throw "A Supabase Client is Needed"
@@ -38,7 +39,7 @@ export default async function convert(supabase: SupabaseClient, data: VideoData,
             try {
                 if (!data.userid) throw "No User ID";
                 
-                const { data: u, error } = await supabase.schema("meetup-app")
+                const { data: u, error } = await supabase
                     .from("profiles")
                     .select("username, avatar_url")
                     .eq("id", data.userid)
@@ -50,6 +51,7 @@ export default async function convert(supabase: SupabaseClient, data: VideoData,
                 throw e;
             }
         })();
+
 
         const [video_url, thumbnail_url, avatar_url] = await Promise.all([
             supabase.storage.from("videos").createSignedUrl(data.video_path || "", time_allowed).then(({data}) => data && data.signedUrl),
@@ -68,7 +70,7 @@ export default async function convert(supabase: SupabaseClient, data: VideoData,
             created_at: data.created_at,
             uploadDate: (new Date(data.created_at)).toDateString(),
             video: video_url || "",
-            thumbnail: thumbnail_url || "",
+            thumbnail:  thumbnail_url || placeholder,
             avatar_url: avatar_url,
             visibility: data.visibility,
         } satisfies VideoInfoProps

@@ -9,7 +9,6 @@ export default async function GetSearchVideos(search: string, time_allowed: numb
 
     // Step 1: Find profiles with matching username
     const { data: profiles, error: profilesError } = await supabase
-      .schema("meetup-app")
       .from("profiles")
       .select("id")
       .ilike("username", `%${search}%`);
@@ -20,14 +19,13 @@ export default async function GetSearchVideos(search: string, time_allowed: numb
 
     // Run parallel queries for videos matching text fields
     const [title_query, description_query, category_query] = await Promise.all([
-      supabase.schema("meetup-app").from("videos").select("*, profiles(username)").ilike('title', `%${search}%`),
-      supabase.schema("meetup-app").from("videos").select("*, profiles(username)").ilike('description', `%${search}%`),
-      supabase.schema("meetup-app").from("videos").select("*, profiles(username)").ilike('category', `%${search}%`),
+      supabase.from("videos").select("*, profiles(username)").ilike('title', `%${search}%`),
+      supabase.from("videos").select("*, profiles(username)").ilike('description', `%${search}%`),
+      supabase.from("videos").select("*, profiles(username)").ilike('category', `%${search}%`),
     ]);
 
     // Query videos that belong to profiles matching username
     const { data: profile_videos, error: profileVideosError } = await supabase
-      .schema("meetup-app")
       .from("videos")
       .select("*, profiles(username)")
       .in("userid", profileIds);

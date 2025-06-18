@@ -54,7 +54,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
         category: video.category || "",
         visibility: video.visibility || "public",
       })
-      setThumbnailFile(null)
+      setThumbnailFile(null);
     }
   }, [video])
 
@@ -121,11 +121,11 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
         userid: video.creator_id,
         title: formData.title, // Fixed: was using formData.description
         description: formData.description,
-        thumbnail_path: thumb_name.current.length !== 0 && thumb_name.current || "",
         category: formData.category.length !== 0 ? formData.category : video.category,
         visibility: formData.visibility.length !== 0 ? formData.visibility : video.visibility || "public",
         views: video.views,
         created_at: video.created_at,
+        ...(thumb_name.current.length !== 0 && { thumbnail_path: thumb_name.current }),
       }
 
       onSave(updatedVideo, thumbnailFile || undefined)
