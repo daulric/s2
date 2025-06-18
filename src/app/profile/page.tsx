@@ -21,6 +21,10 @@ import { useSignal, useComputed } from "@preact/signals-react"
 import Link from "next/link"
 import converttovideoformat, { VideoData, VideoInfoProps } from "@/lib/videos/data-to-video-format"
 
+interface VideoWithLikes extends VideoData {
+  video_likes: { is_liked: boolean }[];
+}
+
 const mockLikedVideos: VideoProps[] = [
   {
     id: "liked-1",
@@ -176,7 +180,7 @@ export default function ProfilePage() {
   const load_videos = async () => {
     const { data, error } = await supabase
       .from("videos")
-      .select("*")
+      .select("*, video_likes(is_liked)")
       .eq("userid", user.id);
     
     if (error || !data) return
@@ -194,7 +198,12 @@ export default function ProfilePage() {
       }
     });
 
+    const totalLikesCount: number = data?.reduce((total: number, video: VideoWithLikes) => 
+      total + video.video_likes.filter(like => like.is_liked === true).length, 0
+    ) || 0;
+
     views.value = view_count;
+    total_likes.value = totalLikesCount
     total_video_count.value = data.length;
   }
 

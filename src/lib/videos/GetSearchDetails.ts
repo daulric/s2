@@ -80,8 +80,7 @@ export default async function GetSearchVideos(search: string, time_allowed: numb
     );
 
     return merged;
-  } catch (error) {
-    console.log("Search error:", error);
+  } catch {
     return [];
   }
 }
