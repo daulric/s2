@@ -219,7 +219,7 @@ export default function ProfilePage() {
       if (i.views)
       view_count += i.views;
       
-      const video =  await(converttovideoformat(supabase, i, 10));
+      const video =  await(converttovideoformat(supabase, i, 120));
   
       if (!user_videos.value.some(item => item.id === video.id)) {
         user_videos.value = [...user_videos.value, video];
