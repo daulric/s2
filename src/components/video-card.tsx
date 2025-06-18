@@ -53,25 +53,25 @@ export function VideoCard({ video, compact = false, quick_load = false }: VideoC
   }
 
   return (
-    <Card className="overflow-hidden">
-      <div className="relative">
-        <Image src={video.thumbnail} width={1000} height={1000} alt={video.title} className="w-full h-40 object-cover" loading={quick_load ? "eager" : "lazy"}/>
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/30">
-          <Link href={`/video/${video.id}`}>
-            <Button size="icon" variant="secondary" className="rounded-full h-12 w-12">
-              <Play className="h-6 w-6" />
-            </Button>
-          </Link>
+    <Link href={`/video/${video.id}`}>
+      <Card className="overflow-hidden">
+        <div className="relative">
+          <Image src={video.thumbnail} width={1000} height={1000} alt={video.title} className="w-full h-40 object-cover" loading={quick_load ? "eager" : "lazy"}/>
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/30">
+              <Button size="icon" variant="secondary" className="rounded-full h-12 w-12">
+                <Play className="h-6 w-6" />
+              </Button>
+          </div>
         </div>
-      </div>
-      <CardContent className="p-3">
-        <h3 className="font-medium line-clamp-2 mb-1">{video.title}</h3>
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>{video.username}</span>
-          <span>{video.views} views</span>
-        </div>
-        <div className="text-xs text-muted-foreground mt-1">{video.uploadDate}</div>
-      </CardContent>
-    </Card>
+        <CardContent className="p-3">
+          <h3 className="font-medium line-clamp-2 mb-1">{video.title}</h3>
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>{video.username}</span>
+            <span>{video.views} views</span>
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">{video.uploadDate}</div>
+        </CardContent>
+      </Card>
+    </Link>
   )
 }

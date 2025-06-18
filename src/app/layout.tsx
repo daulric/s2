@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/context/AuthProvider"
 import { Header } from "@/components/header"
 import {Toaster} from "@/components/ui/sonner"
+import NextTopLoader from "nextjs-toploader"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -37,8 +38,9 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>
             <Header />
+            <NextTopLoader showSpinner={false}/>
             {children}
-            <Toaster />
+            <Toaster position="top-right" />
           </AuthProvider>
         </ThemeProvider>
       </body>

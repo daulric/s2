@@ -36,6 +36,7 @@ import {
 import { VideoCard } from "@/components/video-card"
 import { useAuth } from "@/context/AuthProvider"
 import { useSignal, useComputed } from "@preact/signals-react"
+import upsert from "@/lib/supabase/upsert"
 
 // Keyboard shortcuts help data
 const keyboardShortcuts = [
@@ -74,41 +75,6 @@ export default function VideoPage({ videoData, public_videos }) {
 
   const subscribers = useSignal(0);
   const video_data_signal = useSignal(0);
-
-  // Get Subscribers
-  async function upsertManual(table, key, newData) {
-    // key: object containing the unique identifying fields, e.g. { vendor, subscriber }
-    // newData: fields to update or insert
-
-    // 1. Check if row exists
-    const { data: existingData, error: selectError } = await supabase
-      .from(table)
-      .select("*")
-      .match(key)
-      .single();
-
-    if (selectError && selectError.code !== 'PGRST116') {
-      // PGRST116 = "No rows found" error is expected if no data exists
-      throw selectError;
-    }
-
-    if (existingData) {
-      // 2. Update existing row
-      const { data, error } = await supabase
-        .from(table)
-        .update(newData)
-        .match(key);
-
-      if (error) throw error;
-      return data;
-    } else {
-      // 3. Insert new row (merge key and newData)
-      const insertData = { ...key, ...newData };
-      const { data, error } = await supabase.from(table).insert(insertData);
-      if (error) throw error;
-      return data;
-    }
-  }
 
   async function setIsSubscribe() {
     if (!user) return;
@@ -401,7 +367,8 @@ export default function VideoPage({ videoData, public_videos }) {
 
     setIsSubscribed(prev => !prev);
 
-    await upsertManual(
+    await upsert(
+      supabase,
       "subscribers",
       { vendor: videoData.creator_id, subscriber: user.id },
       { is_subscribed: !isSubscribed }
