@@ -61,7 +61,7 @@ export default function ProfilePage() {
     total_liked_videos.value.length > 0 ? (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {total_liked_videos.value.map((video) => (
-          <VideoCard key={video.id} video={video} />
+          <VideoCard key={video.id} video={video} compact />
         ))}
       </div>
     ) : (
@@ -83,8 +83,8 @@ export default function ProfilePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         { user_videos.value?.map((video) => (
           <div key={video.id} className="relative group">
-            <VideoCard video={video} />
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <VideoCard video={video} compact />
+            <div className="absolute top-2 right-2 opacity-100 transition-opacity">
               <Button
                 size="sm"
                 variant="secondary"
