@@ -13,11 +13,13 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { useAuth } from "@/context/AuthProvider"
 import { toast } from "sonner"
 import { useRouter, redirect } from "next/navigation"
+import { useSignal, useSignals } from "@preact/signals-react/runtime"
 
 export default function LoginPage() {
+  useSignals();
   const email = useRef(null);
   const password = useRef(null);
-  const [isLoading, setIsLoading] = useState(false)
+  const isLoading = useSignal(false);
   const router = useRouter();
 
   const { signIn, user: {user} } = useAuth();
@@ -28,7 +30,7 @@ export default function LoginPage() {
 
   const handleEmailLogin = async (e) => {
     e.preventDefault()
-    setIsLoading(true)
+    isLoading.value = true;
 
     try {
       const data = await signIn({email: email.current.value, password: password.current.value});
@@ -41,7 +43,7 @@ export default function LoginPage() {
         description: error?.message,
       });
     } finally {
-      setIsLoading(false)
+      isLoading.value = false
     }
   }
 
@@ -83,8 +85,8 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Loading..." : "Login"}
+            <Button type="submit" className="w-full" disabled={isLoading.value}>
+              {isLoading.value ? "Loading..." : "Login"}
             </Button>
           </form>
 

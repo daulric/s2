@@ -20,6 +20,7 @@ import { VideoEditDialog } from "@/components/video-edit-dialog"
 import { useSignal, useComputed } from "@preact/signals-react"
 import Link from "next/link"
 import converttovideoformat, { VideoData, VideoInfoProps } from "@/lib/videos/data-to-video-format"
+import { useSignals } from "@preact/signals-react/runtime"
 
 interface VideoWithLikes extends VideoData {
   video_likes: { is_liked: boolean, videos?: VideoData }[];
@@ -31,6 +32,7 @@ interface VideoLikes {
 }
 
 export default function ProfilePage() {
+  useSignals();
   const { user: { user }, supabase } = useAuth();
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -48,69 +50,11 @@ export default function ProfilePage() {
 
   // Signals
   const subscribers = useSignal(0);
-  const subscriber_updater = useComputed(() => subscribers.value);
   const views = useSignal(0);
-  const views_updater = useComputed(() => views.value);
   const total_video_count = useSignal(0);
-  const total_videoCount_updater = useComputed(() => total_video_count.value);
   const total_likes = useSignal(0);
-  const total_likes_updater = useComputed(() => total_likes.value);
-
   const total_liked_videos = useSignal<VideoInfoProps[]>([]);
-  const total_liked_vids_updater =useComputed(() => (
-    total_liked_videos.value.length > 0 ? (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {total_liked_videos.value.map((video) => (
-          <VideoCard key={video.id} video={video} compact />
-        ))}
-      </div>
-    ) : (
-      <div className="text-center py-12">
-        <ThumbsUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No liked videos</h3>
-        <p className="text-muted-foreground">Videos you like will appear here</p>
-      </div>
-    )
-  ));
-
   const user_videos = useSignal<VideoInfoProps[]>([]);
-
-  const user_videos_ui = useComputed(() => {
-
-    if (user_videos.value !== null && user_videos.value.length > 0) {
-
-      return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        { user_videos.value?.map((video) => (
-          <div key={video.id} className="relative group">
-            <VideoCard video={video} compact />
-            <div className="absolute top-2 right-2 opacity-100 transition-opacity">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => handleEditVideo(video)}
-                className="h-8 w-8 p-0"
-              >
-                <Edit3 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )) }
-      </div>
-      )
-    }
-
-    return (
-      <div className="text-center py-12">
-        <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No videos yet</h3>
-        <p className="text-muted-foreground mb-4">Start creating content by uploading your first video</p>
-        <Button asChild>
-          <Link href="/upload">Upload Video</Link>
-        </Button>
-      </div>
-    )
-  })
 
   useEffect(() => {
     if (!user) {
@@ -432,7 +376,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2">
                 <Video className="h-5 w-5 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">{total_videoCount_updater}</p>
+                  <p className="text-2xl font-bold">{total_video_count.value}</p>
                   <p className="text-sm text-muted-foreground">Videos</p>
                 </div>
               </div>
@@ -444,7 +388,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2">
                 <Eye className="h-5 w-5 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">{views_updater}</p>
+                  <p className="text-2xl font-bold">{views.value}</p>
                   <p className="text-sm text-muted-foreground">Total Views</p>
                 </div>
               </div>
@@ -456,7 +400,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2">
                 <ThumbsUp className="h-5 w-5 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">{total_likes_updater}</p>
+                  <p className="text-2xl font-bold">{total_likes.value}</p>
                   <p className="text-sm text-muted-foreground">Total Likes</p>
                 </div>
               </div>
@@ -468,7 +412,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">{ subscriber_updater }</p>
+                  <p className="text-2xl font-bold">{ subscribers.value }</p>
                   <p className="text-sm text-muted-foreground">Subscribers</p>
                 </div>
               </div>
@@ -491,7 +435,34 @@ export default function ProfilePage() {
                 <CardDescription>Manage your uploaded videos</CardDescription>
               </CardHeader>
               <CardContent>
-               { user_videos_ui }
+               { user_videos.value !== null && user_videos.value.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    { user_videos.value?.map((video) => (
+                      <div key={video.id} className="relative group">
+                        <VideoCard video={video} compact />
+                        <div className="absolute top-2 right-2 opacity-100 transition-opacity">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleEditVideo(video)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )) }
+                  </div>
+               ): (
+                <div className="text-center py-12">
+                  <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No videos yet</h3>
+                  <p className="text-muted-foreground mb-4">Start creating content by uploading your first video</p>
+                  <Button asChild>
+                    <Link href="/upload">Upload Video</Link>
+                  </Button>
+                </div>
+               ) }
               </CardContent>
             </Card>
           </TabsContent>
@@ -503,7 +474,19 @@ export default function ProfilePage() {
                 <CardDescription>Videos you've liked</CardDescription>
               </CardHeader>
               <CardContent>
-                { total_liked_vids_updater }
+                { total_liked_videos.value.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {total_liked_videos.value.map((video) => (
+                      <VideoCard key={video.id} video={video} compact />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <ThumbsUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No liked videos</h3>
+                    <p className="text-muted-foreground">Videos you like will appear here</p>
+                  </div>
+              ) }
               </CardContent>
             </Card>
           </TabsContent>

@@ -1,29 +1,29 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { VideoCard, VideoProps } from "@/components/video-card"
-import { Filter, Search, Video } from "lucide-react"
+import { Filter, Search } from "lucide-react"
 import GetSearchDetails from "@/lib/videos/GetSearchDetails";
-import { useSignal, useComputed } from "@preact/signals-react"
+import { useSignal } from "@preact/signals-react"
+import { useSignals } from "@preact/signals-react/runtime"
 
 export default function SearchPage() {
+  useSignals();
   const searchParams = useSearchParams()
   const query = searchParams.get("q") || ""
 
-  // Results Data
+  // Signals
   const results = useSignal<VideoProps[]>([]);
-  const results_length = useComputed(() => results.value.length);
-
-  const [sortBy, setSortBy] = useState("relevance")
-  const [uploadTime, setUploadTime] = useState("any")
-  const [duration, setDuration] = useState("any")
-  const [type, setType] = useState("all")
-  const [showFilters, setShowFilters] = useState(false)
+  const sortBy = useSignal("relevance");
+  const uploadTime = useSignal("any");
+  const duration = useSignal("any");
+  const type = useSignal("all");
+  const showFilters = useSignal(false);
 
   // Simulate search results based on query
   useEffect(() => {
@@ -43,12 +43,11 @@ export default function SearchPage() {
 
     return () => {
       document.title = "s2";
-      results.value = [];
     }
-  }, [query])
+  }, [query, results.value]);
 
   const handleSortChange = (value: string) => {
-    setSortBy(value)
+    sortBy.value = value;
     // In a real app, this would trigger a new search with sorting
     const sortedResults = [...results.value]
 
@@ -83,13 +82,13 @@ export default function SearchPage() {
   }
 
   const clearFilters = () => {
-    setSortBy("relevance")
-    setUploadTime("any")
-    setDuration("any")
-    setType("all")
+    sortBy.value = "relevance"
+    uploadTime.value = "any";
+    duration.value = "any";
+    type.value = "all";
   }
 
-  const hasActiveFilters = sortBy !== "relevance" || uploadTime !== "any" || duration !== "any" || type !== "all"
+  const hasActiveFilters = sortBy.value !== "relevance" || uploadTime.value !== "any" || duration.value !== "any" || type.value !== "all"
 
   return (
     <main className="min-h-screen pt-20 p-4 bg-background">
@@ -104,23 +103,23 @@ export default function SearchPage() {
               </h1>
               {query && (
                 <p className="text-muted-foreground mt-1">
-                  Results for "{query}" • {results_length} videos found
+                  Results for "{query}" • {results.value.length} videos found
                 </p>
               )}
             </div>
-            <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="flex items-center">
+            <Button variant="outline" onClick={() => { showFilters.value = !showFilters.value } } className="flex items-center">
               <Filter className="h-4 w-4 mr-2" />
               Filters
             </Button>
           </div>
 
           {/* Filters */}
-          {showFilters && (
+          {showFilters.value && (
             <Card className="p-4 mb-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Sort by</label>
-                  <Select value={sortBy} onValueChange={handleSortChange}>
+                  <Select value={sortBy.value} onValueChange={handleSortChange}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -135,7 +134,7 @@ export default function SearchPage() {
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Upload time</label>
-                  <Select value={uploadTime} onValueChange={setUploadTime}>
+                  <Select value={uploadTime.value} onValueChange={ (value) => { uploadTime.value = value } }>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -152,7 +151,7 @@ export default function SearchPage() {
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Duration</label>
-                  <Select value={duration} onValueChange={setDuration}>
+                  <Select value={duration.value} onValueChange={(value) => { duration.value = value }}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -167,7 +166,7 @@ export default function SearchPage() {
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Type</label>
-                  <Select value={type} onValueChange={setType}>
+                  <Select value={type.value} onValueChange={(value) => { type.value = value }}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -195,40 +194,37 @@ export default function SearchPage() {
         </div>
 
         {/* Search Results */}
-        {useComputed(() => {
-          if (results.value.length > 0) return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              { results.value.map((video) => <VideoCard key={video.id} video={video} />) }
-            </div>
-          )
 
-          return (
-            <div className="text-center py-12">
-              <div className="max-w-md mx-auto">
-                <Search className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No results found</h3>
-                <p className="text-muted-foreground mb-6">
-                  {query
-                    ? `No videos found for "${query}". Try different keywords or check your spelling.`
-                    : "Enter a search term to find videos."}
-                </p>
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <p>Try searching for:</p>
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>Different keywords</li>
-                    <li>More general terms</li>
-                    <li>Creator names</li>
-                  </ul>
-                </div>
-                {hasActiveFilters && (
-                  <Button variant="outline" onClick={clearFilters} className="mt-4">
-                    Clear filters
-                  </Button>
-                )}
+        { results.value.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            { results.value.map((video) => <VideoCard key={video.id} video={video} />) }
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="max-w-md mx-auto">
+              <Search className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-xl font-semibold mb-2">No results found</h3>
+              <p className="text-muted-foreground mb-6">
+                {query
+                  ? `No videos found for "${query}". Try different keywords or check your spelling.`
+                  : "Enter a search term to find videos."}
+              </p>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>Try searching for:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Different keywords</li>
+                  <li>More general terms</li>
+                  <li>Creator names</li>
+                </ul>
               </div>
+              {hasActiveFilters && (
+                <Button variant="outline" onClick={clearFilters} className="mt-4">
+                  Clear filters
+                </Button>
+              )}
             </div>
-          )
-        })}
+          </div>
+        ) }
 
       </div>
     </main>

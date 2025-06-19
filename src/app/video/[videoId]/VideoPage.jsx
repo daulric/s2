@@ -35,7 +35,8 @@ import {
 } from "@/components/ui/dialog"
 import { VideoCard } from "@/components/video-card"
 import { useAuth } from "@/context/AuthProvider"
-import { useSignal, useComputed } from "@preact/signals-react"
+import { useSignal } from "@preact/signals-react"
+import { useSignals } from "@preact/signals-react/runtime"
 import upsert from "@/lib/supabase/upsert"
 
 // Keyboard shortcuts help data
@@ -55,26 +56,28 @@ const keyboardShortcuts = [
 ]
 
 export default function VideoPage({ videoData, public_videos }) {
-  const { user: { user }, supabase } = useAuth()
+  useSignals();
+  const { user: { user }, supabase } = useAuth();
 
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [isMuted, setIsMuted] = useState(false)
-  const [volume, setVolume] = useState(1)
-  const [comment, setComment] = useState("")
-  const [isSubscribed, setIsSubscribed] = useState(false)
-  const [isLiked, setIsLiked] = useState(false)
-  const [isDisliked, setIsDisliked] = useState(false)
-  const [isSaved, setIsSaved] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const [showControls, setShowControls] = useState(true)
-  const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false)
   const videoRef = useRef(null)
   const containerRef = useRef(null)
   const controlsTimeoutRef = useRef(null)
 
   const subscribers = useSignal(0);
   const video_data_signal = useSignal(0);
+  const total_likes = useSignal(0);
+  const isLiked = useSignal(false);
+  const isDisliked = useSignal(false);
+  const isSubscribed = useSignal(false);
+  const volume = useSignal(1);
+  const isPlaying = useSignal(false);
+  const duration = useSignal(0);
+  const currentTime = useSignal(0);
+  const isMuted = useSignal(false);
+  const comment = useSignal("");
+  const isSaved = useSignal(false);
+  const showControls = useSignal(true);
+  const isKeyboardShortcutsOpen = useSignal(false);
 
   async function setIsSubscribe() {
     if (!user) return;
@@ -87,12 +90,11 @@ export default function VideoPage({ videoData, public_videos }) {
       .single();
     
       if (subed) {
-        setIsSubscribed(subed.is_subscribed);
+        isSubscribed.value = subed.is_subscribed;
       }
   }
 
   async function  getTotalSubs() {
-    if (!user) return;
     if (!videoData.creator_id) return;
 
     const { data: total_amount } = await supabase
@@ -104,24 +106,61 @@ export default function VideoPage({ videoData, public_videos }) {
     subscribers.value = total_amount.length;
   }
 
-  useEffect(() => {
-    setIsSubscribe();
-    getTotalSubs();
-  }, [user])
+  async function getIsUserLikedVideo() {
+    if (!user) return;
+
+    const { data, error } = await supabase.from("video_likes")
+      .select("*")
+      .eq("userid", user.id)
+      .eq("video_id", videoData.id)
+      .single();
+
+    if (error || !data) return;
+    if (data.is_liked === true) {
+      isLiked.value = true;
+    } else if (data.is_liked === false) {
+      isDisliked.value = true;
+    }
+  }
+
+  async function getTotalLikes() {
+
+    const { data, error } = await supabase.from("video_likes")
+      .select("is_liked")
+      .eq("video_id", videoData.id)
+      .eq("is_liked", true);
+    
+    if (error) return;
+    total_likes.value = data.length;
+  }
 
   useEffect(() => {
+
     if (videoData) {
       video_data_signal.value = videoData;
+      getTotalLikes();
+      getTotalSubs();
     }
-  }, [videoData]);
+
+    setIsSubscribe();
+    getIsUserLikedVideo();
+
+    return () => {
+      subscribers.value = 0;
+      total_likes.value = 0;
+      isLiked.value = false;
+      isDisliked.value = false;
+      isSubscribed.value = false;
+    }
+  }, [user, videoData])
 
   // Effect to handle video play/pause
   useEffect(() => {
     if (videoRef.current) {
-      if (isPlaying) {
+      if (isPlaying.value) {
         videoRef.current.play().catch((error) => {
           console.error("Error playing video:", error)
-          setIsPlaying(false)
+          isPlaying.value = false;
           toast.error("Error playing video", {
             description: "The video could not be played. Please try again.",
           })
@@ -130,15 +169,15 @@ export default function VideoPage({ videoData, public_videos }) {
         videoRef.current.pause()
       }
     }
-  }, [isPlaying])
+  }, [isPlaying.value])
 
   // Effect to handle video mute/unmute and volume
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.muted = isMuted
-      videoRef.current.volume = volume
+      videoRef.current.muted = isMuted.value
+      videoRef.current.volume = volume.value
     }
-  }, [isMuted, volume])
+  }, [isMuted.value, volume.value])
 
   // Effect to set up keyboard controls
   useEffect(() => {
@@ -203,7 +242,7 @@ export default function VideoPage({ videoData, public_videos }) {
   // Effect to auto-hide controls after inactivity
   useEffect(() => {
     const handleMouseMove = () => {
-      setShowControls(true)
+      showControls.value = true;
 
       // Clear any existing timeout
       if (controlsTimeoutRef.current) {
@@ -212,8 +251,8 @@ export default function VideoPage({ videoData, public_videos }) {
 
       // Set a new timeout to hide controls after 3 seconds of inactivity
       controlsTimeoutRef.current = setTimeout(() => {
-        if (isPlaying) {
-          setShowControls(false)
+        if (isPlaying.value) {
+          showControls.value = false;
         }
       }, 3000)
     }
@@ -223,8 +262,8 @@ export default function VideoPage({ videoData, public_videos }) {
       playerElement.addEventListener("mousemove", handleMouseMove)
       playerElement.addEventListener("mouseenter", handleMouseMove)
       playerElement.addEventListener("mouseleave", () => {
-        if (isPlaying) {
-          setShowControls(false)
+        if (isPlaying.value) {
+          showControls.value = false;
         }
       })
     }
@@ -234,8 +273,8 @@ export default function VideoPage({ videoData, public_videos }) {
         playerElement.removeEventListener("mousemove", handleMouseMove)
         playerElement.removeEventListener("mouseenter", handleMouseMove)
         playerElement.removeEventListener("mouseleave", () => {
-          if (isPlaying) {
-            setShowControls(false)
+          if (isPlaying.value) {
+            showControls.value = false;
           }
         })
       }
@@ -244,19 +283,19 @@ export default function VideoPage({ videoData, public_videos }) {
         clearTimeout(controlsTimeoutRef.current)
       }
     }
-  }, [isPlaying])
+  }, [isPlaying.value])
 
   // Handle video metadata loaded
   const handleMetadataLoaded = () => {
     if (videoRef.current) {
-      setDuration(videoRef.current.duration)
+      duration.value = videoRef.current.duration;
     }
   }
 
   // Handle time update
   const handleTimeUpdate = () => {
     if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime)
+      currentTime.value = videoRef.current.currentTime;
     }
   }
 
@@ -270,11 +309,11 @@ export default function VideoPage({ videoData, public_videos }) {
   }
 
   const togglePlay = () => {
-    setIsPlaying(!isPlaying)
+    isPlaying.value = !isPlaying.value;
   }
 
   const toggleMute = () => {
-    setIsMuted(!isMuted)
+    isMuted.value = !isMuted.value;
   }
 
   const toggleFullscreen = () => {
@@ -306,26 +345,27 @@ export default function VideoPage({ videoData, public_videos }) {
   }
 
   const increaseVolume = () => {
-    if (isMuted) {
-      setIsMuted(false)
+    if (isMuted.value) {
+      isMuted.value = false;
     }
-    setVolume((prev) => Math.min(1, prev + 0.1))
 
+    volume.value = Math.min(1, volume.value + 0.1);
     // Show a visual indicator for volume change
-    toast.info(`🔊 Volume: ${Math.round((volume + 0.1) * 100)}%`, { duration: 1000 })
+    toast.info(`🔊 Volume: ${Math.round(volume.value * 100)}%`, { duration: 500 })
   }
 
   const decreaseVolume = () => {
-    setVolume((prev) => Math.max(0, prev - 0.1))
-    if (volume - 0.1 <= 0) {
-      setIsMuted(true)
+    volume.value = Math.max(0, volume.value - 0.1);
+    
+    if (volume.value <= 0) {
+      isMuted.value = true;
     }
 
     // Show a visual indicator for volume change
-    toast.info(`🔉 Volume: ${Math.round((volume - 0.1) * 100)}%`, { duration: 1000 })
+    toast.info(`Volume: ${Math.round((volume.value) * 100)}%`, { duration: 500 })
   }
 
-  const handleLike = () => {
+  const handleLike = async () => {
     if (!user) {
       toast.error("Authentication required", {
         description: "Please sign in to like videos",
@@ -333,15 +373,30 @@ export default function VideoPage({ videoData, public_videos }) {
       return
     }
 
-    if (isLiked) {
-      setIsLiked(false)
+    if (isLiked.value) {
+      isLiked.value = false;
+      total_likes.value = Math.max(0, total_likes.value - 1);
+      await upsert(
+        supabase, 
+        "video_likes", 
+        { video_id: videoData.id, userid: user.id}, 
+        {  is_liked: null }
+      )
     } else {
-      setIsLiked(true)
-      setIsDisliked(false)
+      isLiked.value = true;
+      isDisliked.value = false;
+      total_likes.value += 1;
+
+      await upsert(
+        supabase, 
+        "video_likes", 
+        { video_id: videoData.id,userid: user.id,}, 
+        {  is_liked: true }
+      )
     }
   }
 
-  const handleDislike = () => {
+  const handleDislike = async () => {
     if (!user) {
       toast.error("Authentication required", {
         description: "Please sign in to dislike videos",
@@ -349,11 +404,24 @@ export default function VideoPage({ videoData, public_videos }) {
       return
     }
 
-    if (isDisliked) {
-      setIsDisliked(false)
+    if (isDisliked.value) {
+      isDisliked.value = false
+      await upsert(
+        supabase, 
+        "video_likes", 
+        { video_id: videoData.id,userid: user.id,}, 
+        { is_liked: null }
+      )
     } else {
-      setIsDisliked(true)
-      setIsLiked(false)
+      isDisliked.value = true;
+      isLiked.value = false;
+      total_likes.value = Math.max(0, total_likes.value - 1);
+      await upsert(
+        supabase, 
+        "video_likes", 
+        { video_id: videoData.id,userid: user.id,}, 
+        {  is_liked: false }
+      )
     }
   }
 
@@ -365,16 +433,16 @@ export default function VideoPage({ videoData, public_videos }) {
       return
     }
 
-    setIsSubscribed(prev => !prev);
+    isSubscribed.value = !isSubscribed.value;
 
     await upsert(
       supabase,
       "subscribers",
       { vendor: videoData.creator_id, subscriber: user.id },
-      { is_subscribed: !isSubscribed }
+      { is_subscribed: isSubscribed.value }
     );
 
-    if (!isSubscribed) {
+    if (isSubscribed.value) {
       toast.success(`Subscribed to ${videoData.username}`, {
         description: "You'll be notified about new uploads",
       })
@@ -390,8 +458,9 @@ export default function VideoPage({ videoData, public_videos }) {
       return
     }
 
-    setIsSaved(!isSaved)
-    if (!isSaved) {
+    isSaved.value = !isSaved.value;
+
+    if (isSaved.value) {
       toast.success("Video saved", {
         description: "Added to your Watch Later playlist",
       })
@@ -420,11 +489,12 @@ export default function VideoPage({ videoData, public_videos }) {
       return
     }
 
-    if (comment.trim()) {
+    if (comment.value.trim()) {
       toast.success("Comment posted", {
         description: "Your comment has been added",
       })
-      setComment("")
+
+      comment.value = "";
     }
   }
 
@@ -465,13 +535,13 @@ export default function VideoPage({ videoData, public_videos }) {
                 onLoadedMetadata={handleMetadataLoaded}
                 onTimeUpdate={handleTimeUpdate}
                 onClick={togglePlay}
-                onEnded={() => setIsPlaying(false)}
+                onEnded={() => { isPlaying.value = false }}
                 playsInline
                 preload="auto"
               />
 
               {/* Play button overlay - only show when paused */}
-              {!isPlaying && (
+              {!isPlaying.value && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <Button
                     onClick={togglePlay}
@@ -487,7 +557,7 @@ export default function VideoPage({ videoData, public_videos }) {
               {/* Video controls - show based on showControls state */}
               <div
                 className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300 ${
-                  showControls ? "opacity-100" : "opacity-0"
+                  showControls.value ? "opacity-100" : "opacity-0"
                 }`}
               >
                 {/* Progress bar */}
@@ -501,7 +571,7 @@ export default function VideoPage({ videoData, public_videos }) {
                     }
                   }}
                 >
-                  <div className="bg-primary h-full" style={{ width: `${(currentTime / duration) * 100 || 0}%` }}></div>
+                  <div className="bg-primary h-full" style={{ width: `${(currentTime.value / duration.value) * 100 || 0}%` }}></div>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -510,10 +580,10 @@ export default function VideoPage({ videoData, public_videos }) {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button onClick={togglePlay} variant="ghost" size="icon" className="text-white">
-                            {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                            {isPlaying.value ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="top">{isPlaying ? "Pause (Space)" : "Play (Space)"}</TooltipContent>
+                        <TooltipContent side="top">{isPlaying.value ? "Pause (Space)" : "Play (Space)"}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
 
@@ -521,20 +591,20 @@ export default function VideoPage({ videoData, public_videos }) {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button onClick={toggleMute} variant="ghost" size="icon" className="text-white">
-                            {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                            {isMuted.value ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="top">{isMuted ? "Unmute (M)" : "Mute (M)"}</TooltipContent>
+                        <TooltipContent side="top">{isMuted.value ? "Unmute (M)" : "Mute (M)"}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
 
                     <div className="text-white text-xs">
-                      {formatTime(currentTime)} / {formatTime(duration)}
+                      {formatTime(currentTime.value)} / {formatTime(duration.value)}
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Dialog open={isKeyboardShortcutsOpen} onOpenChange={setIsKeyboardShortcutsOpen}>
+                    <Dialog open={isKeyboardShortcutsOpen.value} onOpenChange={() => isKeyboardShortcutsOpen.value = !isKeyboardShortcutsOpen.value}>
                       <DialogTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-white">
                           <Keyboard className="h-5 w-5" />
@@ -584,21 +654,21 @@ export default function VideoPage({ videoData, public_videos }) {
               </div>
               <div className="flex items-center space-x-2 mt-2 sm:mt-0">
                 <Button
-                  variant={isLiked ? "default" : "ghost"}
+                  variant={isLiked.value ? "default" : "ghost"}
                   size="sm"
                   className="flex items-center"
                   onClick={handleLike}
                 >
-                  <ThumbsUp className={`h-4 w-4 mr-1 ${isLiked ? "fill-current" : ""}`} />
-                  {videoData.likes || 0}
+                  <ThumbsUp className={ `h-4 w-4 mr-1 ${isLiked.value ? "fill-current" : ""}` }/>
+                  {total_likes}
                 </Button>
                 <Button
-                  variant={isDisliked ? "default" : "ghost"}
+                  variant={isDisliked.value ? "default": "ghost"}
                   size="sm"
                   className="flex items-center"
                   onClick={handleDislike}
                 >
-                  <ThumbsDown className={`h-4 w-4 mr-1 ${isDisliked ? "fill-current" : ""}`} />
+                  <ThumbsDown className={`h-4 w-4 mr-1 ${isDisliked.value ? "fill-current" : ""}`} />
                   Dislike
                 </Button>
                 <Button variant="ghost" size="sm" className="flex items-center" onClick={handleShare}>
@@ -606,16 +676,13 @@ export default function VideoPage({ videoData, public_videos }) {
                   Share
                 </Button>
                 <Button
-                  variant={isSaved ? "default" : "ghost"}
+                  variant={isSaved.value ? "default" : "ghost"}
                   size="sm"
                   className="flex items-center"
                   onClick={handleSave}
                 >
-                  <Clock className={`h-4 w-4 mr-1 ${isSaved ? "fill-current" : ""}`} />
-                  {isSaved ? "Saved" : "Save"}
-                </Button>
-                <Button variant="ghost" size="sm" className="flex items-center">
-                  <MoreHorizontal className="h-4 w-4" />
+                  <Clock className={`h-4 w-4 mr-1 ${isSaved.value ? "fill-current" : ""}`} />
+                  {isSaved.value ? "Saved" : "Save"}
                 </Button>
               </div>
             </div>
@@ -626,19 +693,19 @@ export default function VideoPage({ videoData, public_videos }) {
             <div className="flex items-start space-x-4">
               <Avatar className="h-12 w-12">
                 <AvatarImage
-                  src={useComputed(() => video_data_signal.value.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${videoData.username}`)}
-                  alt={useComputed(() => video_data_signal.value.username)}
+                  src={video_data_signal.value.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${videoData.username}`}
+                  alt={ video_data_signal.value.username}
                 />
-                <AvatarFallback>{useComputed(() => video_data_signal.value.username?.[0])}</AvatarFallback>
+                <AvatarFallback>{video_data_signal.value.username?.[0]}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <h3 className="font-semibold">{videoData.username}</h3>
-                <p className="text-sm text-muted-foreground">{useComputed(() => subscribers.value) || 0} subscribers</p>
+                <p className="text-sm text-muted-foreground">{subscribers.value || 0} subscribers</p>
                 <p className="mt-2 text-sm">{videoData.description}</p>
               </div>
               {(user && user.id !== videoData.creator_id) && (
-                <Button variant={isSubscribed ? "outline" : "default"} onClick={handleSubscribe}>
-                  {isSubscribed ? "Subscribed" : "Subscribe"}
+                <Button variant={ isSubscribed.value ? "outline" : "default" } onClick={handleSubscribe}>
+                  { isSubscribed.value ? "Subscribed" : "Subscribe" }
                 </Button>
               )}
             </div>
@@ -660,15 +727,15 @@ export default function VideoPage({ videoData, public_videos }) {
                 <div className="flex-1">
                   <Textarea
                     placeholder="Add a comment..."
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
+                    value={comment.value}
+                    onChange={(e) => { comment.value = e.target.value } }
                     className="resize-none"
                   />
                   <div className="flex justify-end mt-2 space-x-2">
-                    <Button type="button" variant="ghost" onClick={() => setComment("")}>
+                    <Button type="button" variant="ghost" onClick={() => { comment.value = "" }}>
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={!comment.trim()}>
+                    <Button type="submit" disabled={!comment.value.trim()}>
                       Comment
                     </Button>
                   </div>

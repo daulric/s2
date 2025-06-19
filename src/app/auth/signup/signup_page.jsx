@@ -12,12 +12,14 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { useAuth } from "@/context/AuthProvider"
 import { toast } from "sonner"
 import { redirect, useRouter } from "next/navigation"
+import { useSignal, useSignals } from "@preact/signals-react/runtime"
 
 export default function SignupPage() {
+  useSignals();
   const email = useRef(null);
   const username = useRef(null);
   const  password = useRef(null);
-  const [isLoading, setIsLoading] = useState(false)
+  const isLoading = useSignal(false);
   const {signUp, supabase, user: { user }} = useAuth();
   const router = useRouter();
 
@@ -27,7 +29,7 @@ export default function SignupPage() {
 
   const handleEmailSignup = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
+    isLoading.value = true;
 
     if (!email.current || !username.current || !password.current) {
       toast.error("Invalid input", {
@@ -72,7 +74,7 @@ export default function SignupPage() {
         description: error?.message
       });
     } finally {
-      setIsLoading(false);
+      isLoading.value = false;
     }
   };
   
@@ -118,8 +120,8 @@ export default function SignupPage() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Loading..." : "Sign Up"}
+            <Button type="submit" className="w-full" disabled={isLoading.value}>
+              {isLoading.value ? "Loading..." : "Sign Up"}
             </Button>
           </form>
 
