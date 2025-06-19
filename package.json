@@ -12,7 +12,7 @@
     "check": "npm run build:cf && tsc && wrangler deploy --dry-run",
     "deploy:cf": "wrangler deploy",
     "cf:postbuild": "opennextjs-cloudflare build -s",
-    "cf:build": "next build && opennextjs-cloudflare build",
+    "cf:build": "rm -rf .next .open-next && opennextjs-cloudflare build",
     "cf:deploy": "opennextjs-cloudflare deploy",
     "preview:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
