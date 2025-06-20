@@ -11,6 +11,14 @@
   "build": {
     "command": "npm run cf:build"
   },
+
+  "routes": [
+    {
+      "pattern": "s2.daulric.dev",
+      "custom_domain": true
+    }
+  ],
+
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
