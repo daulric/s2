@@ -38,6 +38,7 @@ import { useAuth } from "@/context/AuthProvider"
 import { useSignal } from "@preact/signals-react"
 import { useSignals } from "@preact/signals-react/runtime"
 import upsert from "@/lib/supabase/upsert"
+import Link from "next/link"
 
 // Keyboard shortcuts help data
 const keyboardShortcuts = [
@@ -690,25 +691,27 @@ export default function VideoPage({ videoData, public_videos }) {
             <Separator className="my-4" />
 
             {/* Creator Info */}
-            <div className="flex items-start space-x-4">
-              <Avatar className="h-12 w-12">
-                <AvatarImage
-                  src={video_data_signal.value.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${videoData.username}`}
-                  alt={ video_data_signal.value.username}
-                />
-                <AvatarFallback>{video_data_signal.value.username?.[0]}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <h3 className="font-semibold">{videoData.username}</h3>
-                <p className="text-sm text-muted-foreground">{subscribers.value || 0} subscribers</p>
-                <p className="mt-2 text-sm">{videoData.description}</p>
+              <div className="flex items-start space-x-4">
+                <Link href={`/user/${videoData.creator_id}`} >
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage
+                      src={video_data_signal.value.avatar_url || `${process.env.NEXT_PUBLIC_PROFILE}${videoData.username}`}
+                      alt={ video_data_signal.value.username}
+                      />
+                    <AvatarFallback>{video_data_signal.value.username?.[0]}</AvatarFallback>
+                  </Avatar>
+                </Link>
+                <div className="flex-1">
+                  <Link href={`/user/${videoData.creator_id}`}><h3 className="font-semibold">{videoData.username}</h3></Link>
+                  <p className="text-sm text-muted-foreground">{subscribers.value || 0} subscribers</p>
+                  <p className="mt-2 text-sm">{videoData.description}</p>
+                </div>
+                {(user && user.id !== videoData.creator_id) && (
+                  <Button variant={ isSubscribed.value ? "outline" : "default" } onClick={handleSubscribe}>
+                    { isSubscribed.value ? "Subscribed" : "Subscribe" }
+                  </Button>
+                )}
               </div>
-              {(user && user.id !== videoData.creator_id) && (
-                <Button variant={ isSubscribed.value ? "outline" : "default" } onClick={handleSubscribe}>
-                  { isSubscribed.value ? "Subscribed" : "Subscribe" }
-                </Button>
-              )}
-            </div>
 
             <Separator className="my-6" />
 

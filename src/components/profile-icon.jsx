@@ -61,7 +61,7 @@ export function ProfileIcon() {
     )
   }
 
-  const avatar_url = profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.username || "G"}`
+  const avatar_url = profile?.avatar_url || `${process.env.NEXT_PUBLIC_PROFILE}${profile?.username || "G"}`
 
   return (
     <DropdownMenu>

@@ -13,44 +13,74 @@ import { Calendar, MapPin, Video, Eye, ThumbsUp, Users, UserPlus, UserMinus } fr
 import { useAuth } from "@/context/AuthProvider"
 import { VideoCard } from "@/components/video-card"
 import { useSignals } from "@preact/signals-react/runtime"
+import convert, { VideoData, VideoInfoProps } from "@/lib/videos/data-to-video-format"
+import upsert from "@/lib/supabase/upsert"
+
+interface VideoDataAdded extends VideoData {
+  video_likes?: { is_liked: boolean }[]
+}
 
 export default function UserProfilePage() {
   useSignals();
   const params = useParams();
   const router = useRouter();
-  const { user, supabase } = useAuth();
+  const { user: { user }, supabase } = useAuth();
   const userId = params.id as string;
-
+  
   // Preact Signals for state management
-  const userProfile = useSignal(null)
-  const userVideos = useSignal([])
+  const userProfile = useSignal<{ [key: string]: any } | null>(null);
+  const userVideos = useSignal<VideoInfoProps[]>([])
   const userStats = useSignal({
     totalVideos: 0,
     totalViews: 0,
     totalLikes: 0,
     subscribers: 0,
-  })
-  const isSubscribed = useSignal(false)
-  const isLoading = useSignal(true)
-  const isSubscribing = useSignal(false)
+  });
+  const isSubscribed = useSignal(false);
+  const isLoading = useSignal(true);
+  const isSubscribing = useSignal(false);
 
+  // For the various user status
   useEffect(() => {
-    if (userId) {
-      //loadUserProfile()
-      //loadUserVideos()
-      //loadUserStats()
-      if (user) {
-        //checkSubscriptionStatus()
+    if (!userId) return;
+    if (!supabase) return; // context may not be ready
+
+    let cancelled = false;
+
+    async function loadData() {
+      if (cancelled) return;
+
+      try {
+        await loadUserProfile();
+
+        if (!cancelled && userProfile.value?.id) {
+          await loadUserVideos();
+        }
+
+        if (!cancelled && user?.id && userProfile.value?.id) {
+          await checkSubscriptionStatus();
+        }
+
+      } catch (e) {
+        console.log("Profile Error", e);
+      } finally {
+        if (!cancelled) isLoading.value = false;
       }
     }
-  }, [userId, user])
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, user?.id]);
 
   const loadUserProfile = async () => {
     try {
       const { data, error } = await supabase.from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
+      .select("*, subscribers!subscibers_vendor_fkey1(*)")
+      .eq("id", userId)
+      .single();
 
       if (error) {
         if (error.code === "PGRST116") {
@@ -63,76 +93,78 @@ export default function UserProfilePage() {
         throw error
       }
 
-      userProfile.value = data
+      userProfile.value = data;
+      document.title = `${data.username}'s Profile - s2`;
+
+      if (data.subscribers) {
+        const total_subs = data.subscribers.filter((i: any) => i.is_subscribed && i.is_subscribed === true);
+        userStats.value = {...userStats.value, subscribers: total_subs.length};
+      }
+
+      return data;
     } catch (error) {
       console.error("Error loading user profile:", error)
       toast.error("Failed to load profile", {
         description: "Please try refreshing the page",
       })
-    } finally {
-      isLoading.value = false
     }
   }
 
   const loadUserVideos = async () => {
-    try {
-      // Mock data - replace with actual database query
-      const mockVideos = [
-        {
-          id: `${userId}-video-1`,
-          title: "Amazing Tutorial",
-          thumbnail: "/placeholder.svg?height=180&width=320",
-          views: "2.1K",
-          duration: "12:34",
-          creator:  "User",
-          createdAt: "1 week ago",
-        },
-        {
-          id: `${userId}-video-2`,
-          title: "How to Build Apps",
-          thumbnail: "/placeholder.svg?height=180&width=320",
-          views: "1.5K",
-          duration: "18:22",
-          creator: "User",
-          createdAt: "2 weeks ago",
-        },
-        {
-          id: `${userId}-video-3`,
-          title: "Tips and Tricks",
-          thumbnail: "/placeholder.svg?height=180&width=320",
-          views: "987",
-          duration: "8:15",
-          creator: "User",
-          createdAt: "1 month ago",
-        },
-      ]
+    let total_videos: VideoInfoProps[] = [];
 
-      //userVideos.value = mockVideos
+    try {
+      if (!userProfile.value) return;
+      
+      const { data, error } = await supabase.from("videos")
+        .select("*, video_likes(is_liked)")
+        .eq("userid", userProfile.value?.id);
+
+      if (error) throw error;
+
+      userStats.value = {...userStats.value, totalVideos: data.length};
+
+      data.map(async (i: VideoDataAdded) => {
+        const conversion = await convert(supabase, i, 30);
+        if (!conversion) throw `${i.video_id} failed to be converted to video format`;
+
+        if (i.views) {
+          userStats.value = {
+            ...userStats.value,
+            totalViews: userStats.value?.totalViews + i.views
+          }
+        }
+
+        userStats.value = { 
+          ...userStats.value, 
+          totalLikes: userStats.value.totalLikes + ((i.video_likes?.filter((i) => i.is_liked)?.length) ?? 0)
+        }
+
+        total_videos.push(conversion);
+      });
+
+      userVideos.value = total_videos;
+
     } catch (error) {
       console.error("Error loading user videos:", error)
     }
   }
 
-  const loadUserStats = async () => {
-    try {
-      // Mock data - replace with actual database queries
-      userStats.value = {
-        totalVideos: userVideos.value.length,
-        totalViews: 4587,
-        totalLikes: 342,
-        subscribers: 1250,
-      }
-    } catch (error) {
-      console.error("Error loading user stats:", error)
-    }
-  }
-
   const checkSubscriptionStatus = async () => {
-    if (!user || user.id === userId) return
+    if (!user || user.id === userId) return;
+    if (!userProfile.value?.id) return;
 
     try {
-      // Mock subscription check - replace with actual database query
-      isSubscribed.value = false
+
+      const { data, error } = await supabase.from("subscribers")
+        .select("*")
+        .eq("subscriber", user.id)
+        .eq("vendor", userProfile.value?.id)
+        .single();
+      
+      if (error) throw error;
+      
+      isSubscribed.value = data.is_subscribed;
     } catch (error) {
       console.error("Error checking subscription status:", error)
     }
@@ -159,12 +191,13 @@ export default function UserProfilePage() {
       if (isSubscribed.value) {
         // Unsubscribe logic
         isSubscribed.value = false
+
         userStats.value = {
           ...userStats.value,
           subscribers: userStats.value.subscribers - 1,
         }
         toast.success("Unsubscribed", {
-          description: `You've unsubscribed from User`,
+          description: `You've unsubscribed from ${userProfile.value?.username}`,
         })
       } else {
         // Subscribe logic
@@ -174,9 +207,16 @@ export default function UserProfilePage() {
           subscribers: userStats.value.subscribers + 1,
         }
         toast.success("Subscribed!", {
-          description: `You're now subscribed to User`,
+          description: `You're now subscribed to ${userProfile.value?.username}`,
         })
       }
+
+      upsert(
+        supabase,
+        "subscribers",
+        { vendor: userId, subscriber: user.id },
+        { is_subscribed: isSubscribed.value }
+      );
     } catch (error) {
       console.error("Error updating subscription:", error)
       toast.error("Failed to update subscription", {
@@ -187,7 +227,7 @@ export default function UserProfilePage() {
     }
   }
 
-  /*if (isLoading.value) {
+  if (isLoading.value) {
     return (
       <main className="min-h-screen pt-20 p-4 bg-background">
         <div className="max-w-6xl mx-auto">
@@ -215,7 +255,7 @@ export default function UserProfilePage() {
       </main>
     )
   }
-  */
+
   return (
     <main className="min-h-screen pt-20 p-4 bg-background">
       <div className="max-w-6xl mx-auto">
@@ -226,22 +266,22 @@ export default function UserProfilePage() {
               <Avatar className="h-24 w-24 sm:h-32 sm:w-32">
                 <AvatarImage
                   src={
-                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${"G"} || "/placeholder.svg"}`
+                    `${process.env.NEXT_PUBLIC_PROFILE}${userProfile.value?.username}`  || "/logo.jpeg"
                   }
                   alt={"G"}
                 />
                 <AvatarFallback className="text-2xl">
-                  {"G".charAt(0).toUpperCase() || "U"}
+                  {userProfile.value.username.charAt(0).toUpperCase() || "G"}
                 </AvatarFallback>
               </Avatar>
 
               <div className="flex-1">
-                <h1 className="text-3xl font-bold">{"userProfile.value.username"}</h1>
-                <p className="text-muted-foreground mt-2">{ "No bio available"}</p>
+                <h1 className="text-3xl font-bold">{userProfile.value?.username}</h1>
+                <p className="text-muted-foreground mt-2">{ userProfile.value?.description}</p>
                 <div className="flex items-center gap-4 mt-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4" />
-                    {userStats.value.subscribers.toLocaleString()} subscribers
+                    {userStats.value.subscribers} subscribers
                   </div>
                   <div className="flex items-center gap-2">
                     <Video className="h-4 w-4" />
@@ -250,7 +290,7 @@ export default function UserProfilePage() {
                 </div>
               </div>
 
-              {user && user.id !== userId && (
+              {(user && user.id !== userId) && (
                 <Button
                   onClick={handleSubscribe}
                   disabled={isSubscribing.value}
@@ -277,7 +317,7 @@ export default function UserProfilePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar className="h-4 w-4" />
-                Joined {new Date().toLocaleDateString()}
+                Joined {new Date(userProfile.value?.created_at).toLocaleDateString()}
               </div>
             </div>
           </CardContent>
@@ -370,13 +410,13 @@ export default function UserProfilePage() {
           <TabsContent value="about" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>About {"userProfile.value.username"}</CardTitle>
+                <CardTitle>About {userProfile.value?.username}</CardTitle>
                 <CardDescription>Learn more about this creator</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Description</h3>
-                  <p className="text-muted-foreground">{"G"}</p>
+                  <p className="text-muted-foreground">{userProfile.value?.description}</p>
                 </div>
 
                 <Separator />
@@ -387,7 +427,7 @@ export default function UserProfilePage() {
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm">
-                        Joined {"new Date(userProfile.value.created_at).toLocaleDateString()"}
+                        Joined {new Date(userProfile.value?.created_at).toLocaleDateString()}
                       </span>
                     </div>
                   </div>

@@ -284,7 +284,7 @@ export default function ProfilePage() {
                   <AvatarImage
                     src={
                       profileData.avatar_url ||
-                      `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData.username || user.email}`
+                      `${process.env.NEXT_PUBLIC_PROFILE}${profileData.username || user.email}`
                     }
                     alt={profileData.username || "User"}
                   />
