@@ -61,7 +61,7 @@ export default function ProfilePage() {
       return
     }
 
-    document.title = "s2 - Profile"
+    document.title = "s2 - Settings"
     // Load user profile data
     loadProfile();
     load_subs();

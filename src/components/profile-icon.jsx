@@ -86,21 +86,17 @@ export function ProfileIcon() {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link href="/profile" className="w-full cursor-pointer">
+            <Link href={`/user/${user.id}`} className="w-full cursor-pointer">
               <UserIcon className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </Link>
           </DropdownMenuItem>
-          {
-          /*
-            <DropdownMenuItem asChild>
-              <Link href="/settings" className="w-full cursor-pointer">
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </Link>
-            </DropdownMenuItem>
-          */
-          }
+          <DropdownMenuItem asChild>
+            <Link href="/settings" className="w-full cursor-pointer">
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </Link>
+          </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => handleLogout()} className="cursor-pointer">

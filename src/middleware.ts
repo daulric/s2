@@ -2,7 +2,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from 'next/server';
 
-const protectedRoutes = ['profile', 'settings', "upload"]; // Require Auth
+const protectedRoutes = ['settings', "upload"]; // Require Auth
 const authRoutes = ['auth', '']; //Doesnt Require Auth
 
 export async function middleware(req: NextRequest) {
@@ -38,8 +38,6 @@ export const config = {
     // Protected routes
     '/home',
     '/',
-    '/profile',
-    '/profile/:path*',
     '/upload',
     '/settings/:path*',
 
