@@ -9,7 +9,7 @@
     "binding": "ASSETS",
   },
   "build": {
-    "command": "rm -rf .next .open-next && npm run cf:build"
+    "command": "npm run cf:build"
   },
 
   "routes": [
