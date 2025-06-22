@@ -79,6 +79,7 @@ export default function VideoPage({ videoData, public_videos }) {
   const isSaved = useSignal(false);
   const showControls = useSignal(true);
   const isKeyboardShortcutsOpen = useSignal(false);
+  const isFullscreen= useSignal(false);
 
   async function setIsSubscribe() {
     if (!user) return;
@@ -318,14 +319,34 @@ export default function VideoPage({ videoData, public_videos }) {
   }
 
   const toggleFullscreen = () => {
-    if (containerRef.current) {
-      if (document.fullscreenElement) {
-        document.exitFullscreen()
+
+    const container = containerRef.current;
+    const video_player = videoRef.current;
+    
+    if (!container || !video_player) return;
+    
+    if (container.requestFullscreen) {
+      if (!document.fullscreenElement) {
+        container.requestFullscreen();
+        isFullscreen.value = true;
       } else {
-        containerRef.current.requestFullscreen()
+        document.exitFullscreen();
+        isFullscreen.value = false
       }
+    } else if (video_player.webkitEnterFullscreen) {
+      // iOS Safari specific fullscreen API
+      if (!isFullscreen.value) {
+        video_player.webkitEnterFullscreen();
+        isFullscreen.value = true;
+      } else {
+        video_player.webkitExitFullscreen();
+        isFullscreen.value = false
+      }
+    } else {
+      console.warn("Fullscreen is not supported in this browser.");
     }
-  }
+
+  };
 
   const seekBackward = () => {
     if (videoRef.current) {
