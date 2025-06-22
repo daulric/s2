@@ -119,6 +119,7 @@ export default function UserProfilePage() {
       
       const { data, error } = await supabase.from("videos")
         .select("*, video_likes(is_liked)")
+        .eq("visibility", "public")
         .eq("userid", userProfile.value?.id);
 
       if (error) throw error;

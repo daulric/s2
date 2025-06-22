@@ -12,7 +12,7 @@ import GetSearchDetails from "@/lib/videos/GetSearchDetails";
 import { useSignal } from "@preact/signals-react"
 import { useSignals } from "@preact/signals-react/runtime"
 import { ProfileCard } from "@/components/profile-card"
-import profile_convert,{ UserInfoProps } from "@/lib/user/data-to-user-format"
+import profile_convert,{ UserData, UserInfoProps } from "@/lib/user/data-to-user-format"
 import { useAuth } from "@/context/AuthProvider"
 import { SupabaseClient } from "@supabase/supabase-js"
 
@@ -29,7 +29,6 @@ export default function SearchPage() {
   const uploadTime = useSignal("any");
   const duration = useSignal("any");
   const showFilters = useSignal(false);
-  const is_active = useSignal(true);
 
   async function getVideoData() {
     if (query) {
@@ -45,33 +44,31 @@ export default function SearchPage() {
   async function getProfilesData() {
     const { data, error } = await supabase
       .from("profiles")
-      .select("*, subscribers!subscibers_vendor_fkey1(*), videos(video_id)")
+      .select("*, subscribers!subscibers_vendor_fkey1(*), videos(video_id, visibility)")
       .ilike("username", `%${query}%`);
     
     if (error) throw error;
 
     if (data) {
-      data.map(async (i) => {
+      let items: UserInfoProps[] = [];
+
+      await (data.map(async (i: UserData) => {
+        if (i.videos && i.videos.length > 0) {
+          const filtered = i.videos.filter((v) => v.visibility === "public");
+          i.videos = filtered;
+        }
         const p_format = await profile_convert(supabase, i, 10);
-        channels.value = [...channels.value, p_format];
-      });
+        items.push(p_format);
+      }));
+
+      channels.value = items;
     };
   }
 
   useEffect(() => {
     document.title = `Searching for ${query} - s2`;
-    is_active.value = true;
-
-    if (is_active.value) {
-      getProfilesData()
-      getVideoData();
-    }
-
-    return () => {
-      is_active.value = false
-      channels.value = [];
-      results.value = [];
-    }
+    getProfilesData()
+    getVideoData();
   }, [query]);
 
   const handleSortChange = (value: string) => {

@@ -1,4 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js"
+import { VideoData } from "../videos/data-to-video-format"
 
 export type UserInfoProps = {
     id: string
@@ -16,7 +17,7 @@ export type UserData = {
     avatar_url: string
     description: string
     subscribers: []
-    videos: []
+    videos: [] | VideoData[]
     created_at: string
 }
 
