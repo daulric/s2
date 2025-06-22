@@ -2,17 +2,10 @@ import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Users, Video, Calendar } from "lucide-react"
+import { UserInfoProps } from "@/lib/user/data-to-user-format"
 
 interface UserCardProps {
-  user: {
-    id: string
-    username: string
-    description?: string
-    avatar_url?: string
-    subscriber_count: number
-    video_count: number
-    created_at: string
-  }
+  user: UserInfoProps
   size?: "default" | "compact"
   compact?: boolean
 }

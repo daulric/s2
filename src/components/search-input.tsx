@@ -49,7 +49,7 @@ export function SearchInput({ mobile = false }: SearchInputProps) {
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Search videos..."
+          placeholder="Search..."
           onKeyDown={handleKeyDown}
           className="pr-10 bg-background/50 border-muted-foreground/20 focus:border-primary"
         />
@@ -86,7 +86,7 @@ export function SearchInput({ mobile = false }: SearchInputProps) {
               <Input
                 ref={inputRef}
                 type="text"
-                placeholder="Search videos..."
+                placeholder="Search..."
                 onKeyDown={handleKeyDown}
                 className="flex-1"
               />

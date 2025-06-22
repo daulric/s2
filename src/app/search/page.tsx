@@ -11,40 +11,68 @@ import { Filter, Search } from "lucide-react"
 import GetSearchDetails from "@/lib/videos/GetSearchDetails";
 import { useSignal } from "@preact/signals-react"
 import { useSignals } from "@preact/signals-react/runtime"
+import { ProfileCard } from "@/components/profile-card"
+import profile_convert,{ UserInfoProps } from "@/lib/user/data-to-user-format"
+import { useAuth } from "@/context/AuthProvider"
+import { SupabaseClient } from "@supabase/supabase-js"
 
 export default function SearchPage() {
   useSignals();
+  const { supabase }: { supabase: SupabaseClient } = useAuth();
   const searchParams = useSearchParams()
   const query = searchParams.get("q") || ""
 
   // Signals
   const results = useSignal<VideoProps[]>([]);
+  const channels = useSignal<UserInfoProps[]>([])
   const sortBy = useSignal("relevance");
   const uploadTime = useSignal("any");
   const duration = useSignal("any");
-  const type = useSignal("all");
   const showFilters = useSignal(false);
+  const is_active = useSignal(true);
 
-  // Simulate search results based on query
-  useEffect(() => {
-    async function getVideoData() {
-      if (query) {
-        // In a real app, this would be an API call
-        const filteredResults = await GetSearchDetails(query);
+  async function getVideoData() {
+    if (query) {
+      // In a real app, this would be an API call
+      const filteredResults = await GetSearchDetails(query);
 
-        if (filteredResults) {
-          results.value = filteredResults;
-        }
+      if (filteredResults) {
+        results.value = filteredResults;
       }
     }
+  }
 
-    document.title = `Searching for ${query} - s2`
-    getVideoData();
+  async function getProfilesData() {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*, subscribers!subscibers_vendor_fkey1(*), videos(video_id)")
+      .ilike("username", `%${query}%`);
+    
+    if (error) throw error;
+
+    if (data) {
+      data.map(async (i) => {
+        const p_format = await profile_convert(supabase, i, 10);
+        channels.value = [...channels.value, p_format];
+      });
+    };
+  }
+
+  useEffect(() => {
+    document.title = `Searching for ${query} - s2`;
+    is_active.value = true;
+
+    if (is_active.value) {
+      getProfilesData()
+      getVideoData();
+    }
 
     return () => {
-      document.title = "s2";
+      is_active.value = false
+      channels.value = [];
+      results.value = [];
     }
-  }, [query, results.value]);
+  }, [query]);
 
   const handleSortChange = (value: string) => {
     sortBy.value = value;
@@ -85,10 +113,9 @@ export default function SearchPage() {
     sortBy.value = "relevance"
     uploadTime.value = "any";
     duration.value = "any";
-    type.value = "all";
   }
 
-  const hasActiveFilters = sortBy.value !== "relevance" || uploadTime.value !== "any" || duration.value !== "any" || type.value !== "all"
+  const hasActiveFilters = sortBy.value !== "relevance" || uploadTime.value !== "any" || duration.value !== "any";
 
   return (
     <main className="min-h-screen pt-20 p-4 bg-background">
@@ -103,7 +130,7 @@ export default function SearchPage() {
               </h1>
               {query && (
                 <p className="text-muted-foreground mt-1">
-                  Results for "{query}" • {results.value.length} videos found
+                  Results for "{query}" • {results.value.length + channels.value.length} results found
                 </p>
               )}
             </div>
@@ -127,7 +154,6 @@ export default function SearchPage() {
                       <SelectItem value="relevance">Relevance</SelectItem>
                       <SelectItem value="upload_date">Upload date</SelectItem>
                       <SelectItem value="view_count">View count</SelectItem>
-                      <SelectItem value="duration">Duration</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -148,36 +174,6 @@ export default function SearchPage() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Duration</label>
-                  <Select value={duration.value} onValueChange={(value) => { duration.value = value }}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="any">Any duration</SelectItem>
-                      <SelectItem value="short">Under 4 minutes</SelectItem>
-                      <SelectItem value="medium">4-20 minutes</SelectItem>
-                      <SelectItem value="long">Over 20 minutes</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Type</label>
-                  <Select value={type.value} onValueChange={(value) => { type.value = value }}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="video">Video</SelectItem>
-                      <SelectItem value="channel">Channel</SelectItem>
-                      <SelectItem value="playlist">Playlist</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
 
               {hasActiveFilters && (
@@ -193,21 +189,15 @@ export default function SearchPage() {
           <Separator />
         </div>
 
-        {/* Search Results */}
-
-        { results.value.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            { results.value.map((video) => <VideoCard key={video.id} video={video} />) }
-          </div>
-        ) : (
+        { channels.value.length === 0 && results.value.length === 0 && (
           <div className="text-center py-12">
             <div className="max-w-md mx-auto">
               <Search className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">No results found</h3>
               <p className="text-muted-foreground mb-6">
                 {query
-                  ? `No videos found for "${query}". Try different keywords or check your spelling.`
-                  : "Enter a search term to find videos."}
+                  ? `No reuslts found for "${query}". Try different keywords or check your spelling.`
+                  : "Enter a search term to find videos or channels."}
               </p>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>Try searching for:</p>
@@ -226,6 +216,27 @@ export default function SearchPage() {
           </div>
         ) }
 
+        { channels.value.length > 0 && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              { channels.value.map((i) => <ProfileCard key={i.id} user={i} compact />) }
+            </div>
+
+            { results.value.length > 0 && (
+              <>
+                <br/>
+                <Separator />
+                <br/>
+              </>
+            ) }
+          </>
+        ) }
+
+        { results.value.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            { results.value.map((video) => <VideoCard key={video.id} video={video} />) }
+          </div>
+        )}
       </div>
     </main>
   )

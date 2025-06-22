@@ -15,6 +15,7 @@ import { VideoCard } from "@/components/video-card"
 import { useSignals } from "@preact/signals-react/runtime"
 import convert, { VideoData, VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import upsert from "@/lib/supabase/upsert"
+import Loading from "./loading"
 
 interface VideoDataAdded extends VideoData {
   video_likes?: { is_liked: boolean }[]
@@ -229,18 +230,7 @@ export default function UserProfilePage() {
 
   if (isLoading.value) {
     return (
-      <main className="min-h-screen pt-20 p-4 bg-background">
-        <div className="max-w-6xl mx-auto">
-          <div className="animate-pulse">
-            <div className="h-32 bg-muted rounded-lg mb-8"></div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-20 bg-muted rounded-lg"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </main>
+      <Loading />
     )
   }
 
@@ -399,7 +389,7 @@ export default function UserProfilePage() {
                     <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No videos yet</h3>
                     <p className="text-muted-foreground">
-                      {"userProfile.value.username"} hasn't uploaded any videos yet.
+                      {userProfile.value.username} hasn't uploaded any videos yet.
                     </p>
                   </div>
                 )}
