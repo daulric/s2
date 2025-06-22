@@ -9,7 +9,7 @@
     "binding": "ASSETS",
   },
   "build": {
-    "command": "npm run cf:build"
+    "command": "bun run cf:build"
   },
 
   "routes": [
