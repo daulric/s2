@@ -1,7 +1,5 @@
 # s2
 
-A simple video sharing platform.
-
 s2 is a modern, full-stack web application designed to let users upload, share, and view videos online. Inspired by popular video hosting services, s2 provides a streamlined experience for both content creators and viewers. The platform features user authentication, video uploads, public video listings, and individual video pages with view tracking and user interactions.
 
 Built with Next.js and leveraging Supabase for backend services, s2 offers a responsive and accessible user interface, including dark mode support. The application is designed for flexible deployment to a variety of hosting providers, including serverless platforms like Cloudflare Workers (via Wrangler), Vercel, and Netlify, making it scalable and cost-effective.
