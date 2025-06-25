@@ -52,7 +52,6 @@ export default async function convert(supabase: SupabaseClient, data: VideoData,
             }
         })();
 
-
         const [video_url, thumbnail_url, avatar_url] = await Promise.all([
             supabase.storage.from("videos").createSignedUrl(data.video_path || "", time_allowed).then(({data}) => data && data.signedUrl),
             supabase.storage.from("images").createSignedUrl(data.thumbnail_path || "", time_allowed).then(({data}) => data && data.signedUrl),
@@ -71,7 +70,7 @@ export default async function convert(supabase: SupabaseClient, data: VideoData,
             uploadDate: (new Date(data.created_at)).toDateString(),
             video: video_url || "",
             thumbnail:  thumbnail_url || placeholder,
-            avatar_url: avatar_url,
+            avatar_url: avatar_url || `${process.env.NEXT_PUBLIC_PROFILE}${user.username}`,
             visibility: data.visibility,
         } satisfies VideoInfoProps
     } catch (e) {

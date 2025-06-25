@@ -13,8 +13,15 @@ import { Play, VolumeX, Volume2, X } from "lucide-react"
 import type { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { useSignals } from "@preact/signals-react/runtime"
 
+interface shorts_extends extends VideoInfoProps {
+  likes?: number
+  is_liked?: boolean
+  is_subscribed?: boolean | null,
+  subscribers?: number
+}
+
 type ShortVideoProps = {
-  short: VideoInfoProps
+  short: shorts_extends
   isActive: boolean
   currentUser: any
 }
@@ -22,7 +29,7 @@ type ShortVideoProps = {
 export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
   useSignals()
   const isPlaying = useSignal(false)
-  const isMuted = useSignal(true)
+  const isMuted = useSignal(false)
   const showControls = useSignal(true)
   const isInteracting = useSignal(false)
 
@@ -77,8 +84,8 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
 
   const toggleMute = () => {
     if (videoRef.current) {
-      videoRef.current.muted = !isMuted.value
       isMuted.value = !isMuted.value
+      videoRef.current.muted = isMuted.value
     }
     handleInteraction()
   }
@@ -154,6 +161,7 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
             loop
             muted={isMuted.value}
             playsInline
+            disablePictureInPicture
           />
         </div>
 
@@ -210,7 +218,7 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
                 <div className="flex items-center gap-3 mb-3">
                   <Link href={`/user/${short.creator_id}`} onClick={(e) => e.stopPropagation()}>
                     <Avatar className="h-8 w-8 border-2 border-white">
-                      <AvatarImage src={short.avatar_url || "/placeholder.svg"} alt={short.username} />
+                      <AvatarImage src={short.avatar_url || "/logo.jpeg"} alt={short.username} />
                       <AvatarFallback>{short.username[0]}</AvatarFallback>
                     </Avatar>
                   </Link>
@@ -222,20 +230,22 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
                     >
                       @{short.username}
                     </Link>
-                    <p className="text-white/80 text-xs">{formatNumber(100)} subscribers</p>
+                    <p className="text-white/80 text-xs">{formatNumber(short.subscribers || 0)} subscribers</p>
                   </div>
                   {/* Subscribe button - Always visible */}
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="ml-2 bg-white text-black hover:bg-white/90 text-xs px-3 py-1 h-7"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleInteraction()
-                    }}
-                  >
-                    Subscribe
-                  </Button>
+                  { short.is_subscribed !== null && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className={`ml-2 ${short.is_subscribed ? "bg-gray-800 text-white hover:bg-white/90 hover:text-gray-800/90" : "bg-white text-black hover:bg-black/90 hover:text-white/90"} text-xs px-3 py-1 h-7`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleInteraction()
+                      }}
+                    >
+                      {short.is_subscribed ? "Subscribed" : "Subscribe"}
+                    </Button>
+                  )}
                 </div>
 
                 {/* Video title and description */}

@@ -7,18 +7,26 @@ import { useAuth } from "@/context/AuthProvider"
 import { useSignals } from "@preact/signals-react/runtime"
 import converttoVideo, { type VideoData, type VideoInfoProps } from "@/lib/videos/data-to-video-format"
 
+interface shorts_extends extends VideoInfoProps {
+  likes?: number
+  is_liked?: boolean
+  is_subscribed?: boolean | null,
+  subscribers?: number
+}
+
 export default function ShortsPage() {
   useSignals()
   const { user: { user },  supabase } = useAuth()
   const containerRef = useRef<HTMLDivElement>(null)
   const currentIndex = useSignal(0)
-  const shorts = useSignal<VideoInfoProps[]>([])
-  const isLoading = useSignal(true)
+  const shorts = useSignal<shorts_extends[]>([])
+  const isLoading = useSignal(true);
 
   useEffect(() => {
     async function fetchShorts() {
       try {
-        const { data, error } = await supabase.from("videos").select("*")
+        const { data, error } = await supabase.from("videos")
+        .select("*, video_likes(*)")
 
         if (error) {
           console.error("Error fetching shorts:", error)
@@ -26,22 +34,61 @@ export default function ShortsPage() {
         }
 
         if (data) {
-          const formattedShorts: VideoInfoProps[] = []
+          const formattedShorts: shorts_extends[] = []
 
           // Process videos sequentially to avoid race conditions
           for (const short of data) {
             try {
-              const formattedShort = await converttoVideo(supabase, short as VideoData, 3600)
+              const formattedShort = await converttoVideo(supabase, short as VideoData, 3600);
+
               if (formattedShort) {
-                formattedShorts.push(formattedShort)
+                let subscriberData = null;
+                let user_liked = false;
+
+                const { data: total_subs } = await supabase
+                  .from("subscribers")
+                  .select("*")
+                  .eq("vendor", formattedShort.creator_id)
+                  .eq("is_subscribed", true);
+
+                if (user) {
+                  if (user.id !== formattedShort.creator_id) {
+                  
+                    const { data: dd} = await supabase
+                      .from("subscribers")
+                      .select("*")
+                      .eq("subscriber", user.id)
+                      .eq("vendor", formattedShort.creator_id)
+                      .single()
+                    
+                    if (dd) {
+                      subscriberData = dd;
+                    }
+                    
+                  };
+                  
+                  const is_user_liked = short.video_likes.filter((i:  { userid: string, is_liked: boolean }) => ( i.userid === user.id && i.is_liked === true));
+                  
+                  if (is_user_liked) {
+                    user_liked = true;
+                  }
+                }
+               
+                formattedShorts.push({
+                  ...formattedShort,
+                  likes: short.video_likes.filter((v: { is_liked: boolean }) => v.is_liked === true).length,
+                  is_liked: user_liked,
+                  is_subscribed: subscriberData?.is_subscribed ?? null,
+                  subscribers: total_subs ? total_subs.length : 0,
+                });
+
               }
             } catch (error) {
               console.error("Error converting video:", error)
             }
           }
 
-          shorts.value = formattedShorts
-          console.log("Fetched Shorts:", formattedShorts)
+          shorts.value = formattedShorts;
         }
       } catch (error) {
         console.error("Error in fetchShorts:", error)
@@ -50,8 +97,8 @@ export default function ShortsPage() {
       }
     }
 
-    fetchShorts()
-  }, [])
+    fetchShorts();
+  }, [user])
 
   // Handle keyboard navigation
   useEffect(() => {

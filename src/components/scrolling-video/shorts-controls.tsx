@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useSignal } from "@preact/signals-react"
+import { useSignal, effect } from "@preact/signals-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Heart, MessageCircle, Share, MoreHorizontal } from "lucide-react"
@@ -10,32 +10,35 @@ import { toast } from "sonner"
 import type { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { useSignals } from "@preact/signals-react/runtime"
 
+interface shorts_extends extends VideoInfoProps {
+  likes?: number
+  is_liked?: boolean
+  is_subscribed?: boolean | null,
+  subscribers?: number
+}
+
 type ShortsControlsProps = {
-  short: VideoInfoProps
+  short: shorts_extends
   currentUser: any
   onInteraction?: () => void
   alwaysVisible?: boolean
 }
 
-// Create signals for each short's state
-const createShortSignals = (shortId: string, initialLikes: number) => {
-  return {
-    isLiked: useSignal(false),
-    likeCount: useSignal(initialLikes),
-  }
-}
-
-// Store signals for each short
-const shortSignals = new Map<string, ReturnType<typeof createShortSignals>>()
 
 export function ShortsControls({ short, currentUser, onInteraction, alwaysVisible = false }: ShortsControlsProps) {
   useSignals();
   // Get or create signals for this short
-  if (!shortSignals.has(short.id)) {
-    shortSignals.set(short.id, createShortSignals(short.id, short.views || 0))
+  console.log("Initializing controls for short:", short.id);
+  const isLiked = useSignal(false);
+  const likeCount = useSignal(0);
+
+  if (short.is_liked) {
+    isLiked.value = short.is_liked;
   }
 
-  const signals = shortSignals.get(short.id)!
+  if (short.likes) {
+    likeCount.value = short.likes;
+  }
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) {
@@ -48,20 +51,26 @@ export function ShortsControls({ short, currentUser, onInteraction, alwaysVisibl
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onInteraction?.()
 
     if (!currentUser) {
       toast.error("Please sign in to like videos")
       return
     }
 
-    signals.isLiked.value = !signals.isLiked.value
-    signals.likeCount.value = signals.isLiked.value ? signals.likeCount.value + 1 : signals.likeCount.value - 1
+    isLiked.value = !(isLiked.value);
 
-    toast.success(signals.isLiked.value ? "Added to liked videos" : "Removed from liked videos")
+    likeCount.value = isLiked.value
+      ? likeCount.value + 1 
+      : Math.max(0, likeCount.value - 1);
+
+    toast.success(isLiked.value ? "Added to liked videos" : "Removed from liked videos")
   }
 
-  const handleComment = (e: React.MouseEvent) => {
+  effect(() => {
+    console.log(`Like status for ${short.id}: ${isLiked.value}`);
+  })
+
+  /*const handleComment = (e: React.MouseEvent) => {
     e.stopPropagation()
     onInteraction?.()
 
@@ -70,13 +79,13 @@ export function ShortsControls({ short, currentUser, onInteraction, alwaysVisibl
       return
     }
     toast.info("Comments feature coming soon!")
-  }
+  }*/
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation()
     onInteraction?.()
 
-    navigator.clipboard.writeText(window.location.href)
+    navigator.clipboard.writeText(window.location.origin + `/video/${short.id}`)
     toast.success("Link copied to clipboard")
   }
 
@@ -96,15 +105,16 @@ export function ShortsControls({ short, currentUser, onInteraction, alwaysVisibl
           variant="ghost"
           size="icon"
           className={`rounded-full h-12 w-12 backdrop-blur-sm ${
-            signals.isLiked.value ? "bg-red-500/20 hover:bg-red-500/30" : "bg-white/20 hover:bg-white/30"
+            isLiked.value ? "bg-red-500/20 hover:bg-red-500/30" : "bg-white/20 hover:bg-white/30"
           }`}
         >
-          <Heart className={`h-6 w-6 ${signals.isLiked.value ? "text-red-500 fill-red-500" : "text-white"}`} />
+          <Heart className={`h-6 w-6 ${isLiked.value ? "text-red-500 fill-red-500" : "text-white"}`} />
         </Button>
-        <span className="text-white text-xs mt-1 font-medium">{formatNumber(signals.likeCount.value)}</span>
+        <span className="text-white text-xs mt-1 font-medium">{formatNumber(likeCount.value)}</span>
       </div>
 
       {/* Comment button - Always visible */}
+      {/*
       <div className="flex flex-col items-center">
         <Button
           onClick={handleComment}
@@ -116,6 +126,7 @@ export function ShortsControls({ short, currentUser, onInteraction, alwaysVisibl
         </Button>
         <span className="text-white text-xs mt-1 font-medium">{formatNumber(0)}</span>
       </div>
+      */}
 
       {/* Share button - Always visible */}
       <div className="flex flex-col items-center">
@@ -127,7 +138,6 @@ export function ShortsControls({ short, currentUser, onInteraction, alwaysVisibl
         >
           <Share className="h-6 w-6 text-white" />
         </Button>
-        <span className="text-white text-xs mt-1 font-medium">{formatNumber(0)}</span>
       </div>
 
       {/* More options - Always visible */}
@@ -143,7 +153,7 @@ export function ShortsControls({ short, currentUser, onInteraction, alwaysVisibl
       {/* Creator avatar - Always visible */}
       <div className="mt-2">
         <Avatar className="h-12 w-12 border-2 border-white">
-          <AvatarImage src={short.avatar_url || "/placeholder.svg"} alt={short.username} />
+          <AvatarImage src={short.avatar_url || "/logo.jpeg"} alt={short.username} />
           <AvatarFallback>{short.username[0]}</AvatarFallback>
         </Avatar>
       </div>
