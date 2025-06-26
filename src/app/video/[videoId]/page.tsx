@@ -4,6 +4,10 @@ import { notFound as NotFound } from "next/navigation";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
+type PageProps = {
+  params: { videoId: string };
+};
+
 const CachedVideo = cache(async (id: string) => await GetVideoDetails(id));
 
 export async function generateMetadata({params}: { params: { videoId: string } }) {
@@ -24,7 +28,7 @@ export async function generateMetadata({params}: { params: { videoId: string } }
 
 }
 
-export default async function PAGE({params}: { params: { videoId: string } }) {
+export default async function PAGE({params}: PageProps) {
     const id = (await params).videoId;
     const supabase = await createClient();
     const data = await CachedVideo(id)
