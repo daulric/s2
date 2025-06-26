@@ -1,47 +1,50 @@
-import VideoPage from "./VideoPage"
-import { GetVideoDetails, GetPublicVideos } from "@/serverActions/GetVideoDetails"
+import VideoPage from "./VideoPage";
+import { GetVideoDetails, GetPublicVideos } from "@/serverActions/GetVideoDetails";
 import { notFound as NotFound } from "next/navigation";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
+// Updated type to use Promise
 type PageProps = {
-  params: { videoId: string };
+  params: Promise<{ videoId: string }>;
 };
 
 const CachedVideo = cache(async (id: string) => await GetVideoDetails(id));
 
-export async function generateMetadata({params}: { params: { videoId: string } }) {
-    const id = (await params).videoId;
-    const data = await CachedVideo(id);
+export async function generateMetadata({ params }: PageProps) {
+  // Await the params promise
+  const { videoId } = await params;
+  const data = await CachedVideo(videoId);
 
-    if (!data) {
-        return {
-            title: "video not found",
-            description: "no found",
-        }
-    }
-
+  if (!data) {
     return {
-        title: `${data.title} - s2`,
-        description: data.description,
-    }
+      title: "Video not found",
+      description: "This video could not be found",
+    };
+  }
 
+  return {
+    title: `${data.title} - s2`,
+    description: data.description,
+  };
 }
 
-export default async function PAGE({params}: PageProps) {
-    const id = (await params).videoId;
-    const supabase = await createClient();
-    const data = await CachedVideo(id)
+export default async function PAGE({ params }: PageProps) {
+  // Await the params promise
+  const { videoId } = await params;
+  const supabase = await createClient();
+  const data = await CachedVideo(videoId);
 
-    if (!data) return (<NotFound />);
+  if (!data) return <NotFound />;
 
-    const PublicVideos = await GetPublicVideos();
+  const PublicVideos = await GetPublicVideos();
 
-    const {  error } = await supabase
-        .from("videos")
-        .update({views: (Number(data.views) + 1)})
-        .eq("video_id", id)
+  const { error } = await supabase
+    .from("videos")
+    .update({ views: (Number(data.views) + 1) })
+    .eq("video_id", videoId);
 
-    if (error) return ( <div>Vue Problem</div> );
-    return (<VideoPage videoData={data} public_videos={PublicVideos ?? []}/>)
+  if (error) return <div>View update problem</div>;
+
+  return <VideoPage videoData={data} public_videos={PublicVideos ?? []} />;
 }
