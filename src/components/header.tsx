@@ -10,7 +10,7 @@ import { Upload } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
 
 export function Header() {
-  const { user } = useAuth()
+  const { user: { user } } = useAuth()
 
   return (
     <header className="sticky top-0 z-10 w-full flex items-center justify-between p-3 sm:p-4 bg-background/80 backdrop-blur-sm border-b h-14 sm:h-16">

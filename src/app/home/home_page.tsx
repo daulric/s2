@@ -3,9 +3,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/context/AuthProvider"
 import { VideoCard } from "@/components/video-card"
+import { VideoInfoProps } from "@/lib/videos/data-to-video-format";
 
-export default function HomePage({videos}) {
-  const { user: {profile} } = useAuth();
+export default function HomePage({videos}: { videos: VideoInfoProps[] }) {
+  const { user: { profile } } = useAuth();
 
   return (
     <>

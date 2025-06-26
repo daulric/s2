@@ -3,19 +3,45 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { User, Provider  } from "@supabase/supabase-js"
 
-const AuthContext = createContext();
+type UserProfile = {
+  id: string;
+  username: string;
+  avatar_url?: string;
+};
 
-export function useAuth() {
-  return useContext(AuthContext);
+type UserState = {
+  user: User | null;
+  profile: UserProfile | null;
+};
+
+type credentials = {
+  email: string;
+  password: string;
 }
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState({
-    user: null, 
-    profile: null
-  });
+type AuthContextType = {
+  user: UserState;
+  loading: boolean;
+  error: string | null;
+  signIn: (credentials: credentials) => Promise<any>;
+  signUp: (credentials: credentials) => Promise<any>;
+  signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  oauth: (provider: Provider, redirectTo?: string) => Promise<any>;
+  supabase: ReturnType<typeof createClient>;
+};
 
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function useAuth(): AuthContextType {
+  return useContext(AuthContext) as AuthContextType;
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+
+  const [user, setUser] = useState<UserState>({ user: null, profile: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const supabase = createClient();
@@ -56,7 +82,7 @@ export function AuthProvider({ children }) {
         }
         
         
-      } catch (error) {
+      } catch (error: any) {
         setError(error.message);
       } finally {
         setLoading(false);
@@ -68,7 +94,7 @@ export function AuthProvider({ children }) {
     // Set up listener for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
-        const temp_profile = JSON.parse(sessionStorage.getItem("profile_user"));
+        const temp_profile = JSON.parse(sessionStorage.getItem("profile_user") || "null");
 
         if (!temp_profile) {
 
@@ -116,7 +142,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Login function
-  const signIn = async ({ email, password }) => {
+  const signIn = async ({ email, password }: credentials) => {
     try {
       setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -129,7 +155,7 @@ export function AuthProvider({ children }) {
       }
 
       return data;
-    } catch (error) {
+    } catch (error: any) {
       setError(error.message);
       throw error;
     } finally {
@@ -140,7 +166,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const oauth = async (provider, redirectTo = "") => {
+  const oauth = async (provider: Provider, redirectTo = "") => {
     if (!provider) {
       throw new Error("No Providers Mentioned");
     }
@@ -168,7 +194,7 @@ export function AuthProvider({ children }) {
       }
       
       return data;
-    } catch(e) {
+    } catch(e: any) {
       setError(e.message);
       throw e;
     } finally {
@@ -177,7 +203,7 @@ export function AuthProvider({ children }) {
   }
 
   // Signup function
-  const signUp = async ({ email, password }) => {
+  const signUp = async ({ email, password }: credentials) => {
     try {
       setLoading(true);
       const { data, error } = await supabase.auth.signUp({
@@ -190,8 +216,8 @@ export function AuthProvider({ children }) {
       }
 
       return data;
-    } catch (error) {
-      setError(error.message);
+    } catch (error: any) {
+      setError(error.message || error);
       throw error;
     } finally {
       setLoading(false);
@@ -212,15 +238,15 @@ export function AuthProvider({ children }) {
       }
 
       router.refresh();
-    } catch (error) {
-      setError(error.message);
+    } catch (error: any) {
+      setError(error.message || error);
     } finally {
       setLoading(false);
     }
   };
 
   // Password reset function
-  const resetPassword = async (email) => {
+  const resetPassword = async (email: string) => {
     try {
       setLoading(true);
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -230,8 +256,8 @@ export function AuthProvider({ children }) {
       if (error) {
         throw error;
       }
-    } catch (error) {
-      setError(error.message);
+    } catch (error: any) {
+      setError(error.message || error);
       throw error;
     } finally {
       setLoading(false);
@@ -249,7 +275,7 @@ export function AuthProvider({ children }) {
     resetPassword,
     supabase,
     oauth
-  };
+   };
 
   return (
     <AuthContext.Provider value={value}>
@@ -257,4 +283,3 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   );
 }
-
