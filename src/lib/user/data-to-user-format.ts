@@ -21,7 +21,7 @@ export type UserData = {
     created_at: string
 }
 
-export default async function convert(supabase: SupabaseClient, data: UserData, time_allowed: number = 10) {
+export default async function convert(supabase: SupabaseClient<any, string, any>, data: UserData, time_allowed: number = 10) {
     const placeholder = "/logo.jpeg"
 
     try {

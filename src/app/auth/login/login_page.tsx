@@ -28,19 +28,24 @@ export default function LoginPage() {
     redirect("/home");
   }
 
-  const handleEmailLogin = async (e) => {
+  const handleEmailLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     isLoading.value = true;
 
     try {
-      const data = await signIn({email: email.current.value, password: password.current.value});
+      if (!email.current || !password.current) {
+        toast.error("Email or password input is missing.");
+        isLoading.value = false;
+        return;
+      }
+      const data = await signIn({email: (email.current as HTMLInputElement).value, password: (password.current as HTMLInputElement).value});
 
       if (data) {
         router.back();
       }
     } catch (error) {
       toast.error("Login Failed", {
-        description: error?.message,
+        description: (error instanceof Error && error.message) ? error.message : "An unknown error occurred.",
       });
     } finally {
       isLoading.value = false

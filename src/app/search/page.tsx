@@ -14,11 +14,10 @@ import { useSignals } from "@preact/signals-react/runtime"
 import { ProfileCard } from "@/components/profile-card"
 import profile_convert,{ UserData, UserInfoProps } from "@/lib/user/data-to-user-format"
 import { useAuth } from "@/context/AuthProvider"
-import { SupabaseClient } from "@supabase/supabase-js"
 
 export default function SearchPage() {
   useSignals();
-  const { supabase }: { supabase: SupabaseClient } = useAuth();
+  const { supabase } = useAuth();
   const searchParams = useSearchParams()
   const query = searchParams.get("q") || ""
 

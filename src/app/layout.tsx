@@ -8,7 +8,7 @@ import { Header } from "@/components/header"
 import {Toaster} from "@/components/ui/sonner"
 import NextTopLoader from "nextjs-toploader"
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"], display: "swap" })
 
 export const metadata: Metadata = {
   title: "s2",
@@ -16,7 +16,6 @@ export const metadata: Metadata = {
   
   icons: {
     icon: [ { url: "/logo.jpeg" } ]
-    
   }
 }
 
@@ -27,11 +26,7 @@ export const viewport = {
   userScalable: true,
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>

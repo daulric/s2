@@ -1,44 +1,22 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useRef, useEffect } from "react"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
-import {
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Maximize,
-  ThumbsUp,
-  ThumbsDown,
-  Share,
-  MessageSquare,
-  Clock,
-  Bookmark,
-  MoreHorizontal,
-  Flame,
-  Heart,
-  Keyboard,
-} from "lucide-react"
+import { Play, Pause, Volume2, VolumeX, Maximize, ThumbsUp,ThumbsDown, Share, MessageSquare, Clock, Bookmark, MoreHorizontal, Flame, Heart, Keyboard } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,} from "@/components/ui/dialog"
 import { VideoCard } from "@/components/video-card"
 import { useAuth } from "@/context/AuthProvider"
 import { useSignal } from "@preact/signals-react"
 import { useSignals } from "@preact/signals-react/runtime"
 import upsert from "@/lib/supabase/upsert"
 import Link from "next/link"
+import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 
 // Keyboard shortcuts help data
 const keyboardShortcuts = [
@@ -56,16 +34,16 @@ const keyboardShortcuts = [
   { key: "L", action: "Forward 10 seconds" },
 ]
 
-export default function VideoPage({ videoData, public_videos }) {
+export default function VideoPage({ videoData, public_videos }: { videoData: VideoInfoProps, public_videos: VideoInfoProps[] }) {
   useSignals();
   const { user: { user }, supabase } = useAuth();
 
-  const videoRef = useRef(null)
-  const containerRef = useRef(null)
-  const controlsTimeoutRef = useRef(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const subscribers = useSignal(0);
-  const video_data_signal = useSignal(0);
+  const video_data_signal = useSignal<VideoInfoProps>();
   const total_likes = useSignal(0);
   const isLiked = useSignal(false);
   const isDisliked = useSignal(false);
@@ -105,7 +83,9 @@ export default function VideoPage({ videoData, public_videos }) {
       .eq("vendor", videoData.creator_id)
       .eq("is_subscribed", true);
 
-    subscribers.value = total_amount.length;
+      if (total_amount) {
+        subscribers.value = total_amount.length;
+      }
   }
 
   async function getIsUserLikedVideo() {
@@ -183,9 +163,13 @@ export default function VideoPage({ videoData, public_videos }) {
 
   // Effect to set up keyboard controls
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+
       // Only handle keyboard shortcuts if not typing in an input or textarea
-      if (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA") {
+      if (
+        document && document.activeElement && document.activeElement.tagName === "INPUT" ||
+        document && document.activeElement && document.activeElement.tagName === "TEXTAREA") 
+      {
         return
       }
 
@@ -235,6 +219,7 @@ export default function VideoPage({ videoData, public_videos }) {
     }
 
     window.addEventListener("keydown", handleKeyDown)
+    
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
@@ -302,7 +287,7 @@ export default function VideoPage({ videoData, public_videos }) {
   }
 
   // Format time in MM:SS format
-  const formatTime = (timeInSeconds) => {
+  const formatTime = (timeInSeconds: number) => {
     if (isNaN(timeInSeconds)) return "00:00"
 
     const minutes = Math.floor(timeInSeconds / 60)
@@ -333,13 +318,16 @@ export default function VideoPage({ videoData, public_videos }) {
         document.exitFullscreen();
         isFullscreen.value = false
       }
-    } else if (video_player.webkitEnterFullscreen) {
+    // @ts-ignore: webkitEnterFullscreen is not standard but used in some browsers (iOS Safari)
+    } else if ((video_player as any).webkitEnterFullscreen) {
       // iOS Safari specific fullscreen API
       if (!isFullscreen.value) {
-        video_player.webkitEnterFullscreen();
+        // @ts-ignore
+        (video_player as any).webkitEnterFullscreen();
         isFullscreen.value = true;
       } else {
-        video_player.webkitExitFullscreen();
+        // @ts-ignore
+        (video_player as any).webkitExitFullscreen();
         isFullscreen.value = false
       }
     } else {
@@ -399,8 +387,8 @@ export default function VideoPage({ videoData, public_videos }) {
       isLiked.value = false;
       total_likes.value = Math.max(0, total_likes.value - 1);
       await upsert(
-        supabase, 
-        "video_likes", 
+        supabase,
+        "video_likes",
         { video_id: videoData.id, userid: user.id}, 
         {  is_liked: null }
       )
@@ -501,7 +489,7 @@ export default function VideoPage({ videoData, public_videos }) {
     })
   }
 
-  const handleCommentSubmit = (e) => {
+  const handleCommentSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     if (!user) {
@@ -534,7 +522,7 @@ export default function VideoPage({ videoData, public_videos }) {
     .slice(0, 4);
   
   const new_vids = [...public_videos]
-    .sort((a, b) => ( (new Date(a.created_at)) - (new Date(b.created_at)) ) )
+    .sort((a, b) => (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()))
     .filter(d => d.id !== videoData.id)
     .slice(0, 12);
   
@@ -716,10 +704,10 @@ export default function VideoPage({ videoData, public_videos }) {
                 <Link href={`/user/${videoData.creator_id}`} >
                   <Avatar className="h-12 w-12">
                     <AvatarImage
-                      src={video_data_signal.value.avatar_url || `${process.env.NEXT_PUBLIC_PROFILE}${videoData.username}`}
-                      alt={ video_data_signal.value.username}
+                      src={video_data_signal.value?.avatar_url || `${process.env.NEXT_PUBLIC_PROFILE}${videoData.username}`}
+                      alt={video_data_signal.value?.username}
                       />
-                    <AvatarFallback>{video_data_signal.value.username?.[0]}</AvatarFallback>
+                    <AvatarFallback>{video_data_signal.value?.username?.[0]}</AvatarFallback>
                   </Avatar>
                 </Link>
                 <div className="flex-1">
@@ -736,14 +724,15 @@ export default function VideoPage({ videoData, public_videos }) {
 
             <Separator className="my-6" />
 
-            {/* Comments */}
-            <div>
+            {/*
+
+            {Comment Section}
+              <div>
               <h3 className="font-semibold flex items-center">
                 <MessageSquare className="h-5 w-5 mr-2" />
                 {videoData?.comments?.length || 0} Comments
               </h3>
 
-              {/* Comment Form */}
               <form onSubmit={handleCommentSubmit} className="mt-4 flex items-start space-x-4">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>{user ? user.email?.charAt(0).toUpperCase() || "U" : "G"}</AvatarFallback>
@@ -766,7 +755,7 @@ export default function VideoPage({ videoData, public_videos }) {
                 </div>
               </form>
 
-              {/* Comment List */}
+              {Comment List}
               <div className="mt-6 space-y-6">
                 {(videoData.comments || []).map((comment, index) => (
                   <div key={comment.id || index} className="flex space-x-4">
@@ -797,6 +786,9 @@ export default function VideoPage({ videoData, public_videos }) {
                 ))}
               </div>
             </div>
+            
+            */}
+
           </div>
         </div>
 

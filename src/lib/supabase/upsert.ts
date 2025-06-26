@@ -3,7 +3,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 // This is a custom upsert where the user checks to see if a current data exisit and update it or insert the data
 // The supabase upsert method doesn't do this.
 
-export default async function upsert(supabase: SupabaseClient, table: string, key: object, newData: object) {
+export default async function upsert(supabase: SupabaseClient<any, string, any>, table: string, key: object, newData: object) {
     // newData: fields to update or insert
 
     // 1. Check if row exists

@@ -16,9 +16,9 @@ import { useSignal, useSignals } from "@preact/signals-react/runtime"
 
 export default function SignupPage() {
   useSignals();
-  const email = useRef(null);
-  const username = useRef(null);
-  const  password = useRef(null);
+  const email = useRef<HTMLInputElement>(null);
+  const username = useRef<HTMLInputElement>(null);
+  const password = useRef<HTMLInputElement>(null);
   const isLoading = useSignal(false);
   const {signUp, supabase, user: { user }} = useAuth();
   const router = useRouter();
@@ -27,7 +27,7 @@ export default function SignupPage() {
     redirect("/home");
   }
 
-  const handleEmailSignup = async (e) => {
+  const handleEmailSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     isLoading.value = true;
 
@@ -71,7 +71,7 @@ export default function SignupPage() {
       }
     } catch (error) {
       toast.error("Sign Up Failed", {
-        description: error?.message
+        description: (error instanceof Error ? error.message : "An unknown error occurred")
       });
     } finally {
       isLoading.value = false;

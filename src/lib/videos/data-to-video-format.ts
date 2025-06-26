@@ -29,7 +29,7 @@ export type VideoData = {
     category: string,
 }
 
-export default async function convert(supabase: SupabaseClient, data: VideoData, time_allowed: number = 10) {
+export default async function convert(supabase: SupabaseClient<any, string, any>, data: VideoData, time_allowed: number = 10) {
     const placeholder = "/placeholder.png"
 
     try {

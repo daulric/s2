@@ -3,7 +3,7 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
-import { User, Provider  } from "@supabase/supabase-js"
+import { User, Provider, SupabaseClient  } from "@supabase/supabase-js"
 
 type UserProfile = {
   id: string;
@@ -30,7 +30,7 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   oauth: (provider: Provider, redirectTo?: string) => Promise<any>;
-  supabase: ReturnType<typeof createClient>;
+  supabase: SupabaseClient<any, string, any>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

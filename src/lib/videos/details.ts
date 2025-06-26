@@ -11,13 +11,16 @@ export const categories = [
     'Other',
 ]
 
+export type Categories = (typeof categories)[number];
+export type Visibilites = (typeof visibilites)[number];
+
 export const visibilites = [
-    {type: 'Public', icon: Globe},
-    {type: 'Unlisted', icon: Link},
-    {type: 'Private', icon: Lock},
+  {type: 'Public', icon: Globe},
+  {type: 'Unlisted', icon: Link},
+  {type: 'Private', icon: Lock},
 ]
 
-export function capitalizeFirstLetter(word) {
+export function capitalizeFirstLetter(word: string) {
   if (!word) {
     return ""; // Handle empty string
   }

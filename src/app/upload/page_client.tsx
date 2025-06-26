@@ -22,20 +22,18 @@ export default function UploadPage() {
   const { supabase } = useAuth()
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
-  const [videoFile, setVideoFile] = useState(null)
-  const [thumbnailFile, setThumbnailFile] = useState(null)
-  const [thumbnailPreview, setThumbnailPreview] = useState(null)
-  const [videoPreview, setVideoPreview] = useState(null)
+  const [videoFile, setVideoFile] = useState<File | null>(null)
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
+  const [videoPreview, setVideoPreview] = useState<string | null>(null)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("education")
   const [visibility, setVisibility] = useState("public")
-  const [tags, setTags] = useState([])
-  const [currentTag, setCurrentTag] = useState("")
-  const fileInputRef = useRef(null)
-  const thumbnailInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
-  const handleVideoChange = (e) => {
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -68,7 +66,7 @@ export default function UploadPage() {
     }
   }
 
-  const handleThumbnailChange = (e) => {
+  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -85,17 +83,6 @@ export default function UploadPage() {
     // Create thumbnail preview URL
     const imageURL = URL.createObjectURL(file)
     setThumbnailPreview(imageURL)
-  }
-
-  const handleAddTag = () => {
-    if (currentTag && !tags.includes(currentTag) && tags.length < 5) {
-      setTags([...tags, currentTag])
-      setCurrentTag("")
-    }
-  }
-
-  const handleRemoveTag = (tagToRemove) => {
-    setTags(tags.filter((tag) => tag !== tagToRemove))
   }
 
   const handleUpload = async () => {
@@ -123,7 +110,7 @@ export default function UploadPage() {
       toast.promise(promised_uplaod, {
         loading: "Uploading...",
         success: () => "Upload Finished",
-        error: (err) => ({ title: 'Upload Failed', description: err.message }),
+        error: (err) => `Upload Failed: ${err.message}`,
       });
 
       promised_uplaod.then(async ([video_path, thumbnail_path]) => {
@@ -144,7 +131,7 @@ export default function UploadPage() {
 
     } catch (error) {
       toast.error("Upload Failed", {
-        description: error.message || "An error occurred during upload",
+        description: (error instanceof Error ? error.message : "An error occurred during upload"),
       })
     } finally {
       setIsUploading(false)

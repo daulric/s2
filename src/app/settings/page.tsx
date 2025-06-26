@@ -57,16 +57,18 @@ export default function ProfilePage() {
   const user_videos = useSignal<VideoInfoProps[]>([]);
 
   useEffect(() => {
-    if (!user) {
+    if (user) {
+      document.title = "s2 - Settings"
+      // Load user profile data
+      loadProfile();
+      load_subs();
+      load_videos();
+      load_liked_video();
       return
+    } else {
+      document.title = "s2 - 401"
     }
 
-    document.title = "s2 - Settings"
-    // Load user profile data
-    loadProfile();
-    load_subs();
-    load_videos();
-    load_liked_video();
 
     return () => {
       user_videos.value = [];
@@ -79,8 +81,7 @@ export default function ProfilePage() {
   }, [user])
 
   const loadProfile = async () => {
-    if (!user) return
-
+    if (!user) return;
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -121,6 +122,7 @@ export default function ProfilePage() {
   }
 
   const load_subs = async () => {
+    if (!user) return;
     const { data, error } = await supabase
       .from("subscribers")
       .select("*")
@@ -131,6 +133,8 @@ export default function ProfilePage() {
   }
 
   const load_videos = async () => {
+    if (!user) return;
+
     const { data, error } = await supabase
       .from("videos")
       .select("*, video_likes(is_liked)")
@@ -261,7 +265,7 @@ export default function ProfilePage() {
 
     if (error) {
       toast.error("Details Upload Error", {
-        description: error?.message || error,
+        description: typeof error === "string" ? error : error?.message || String(error),
       });
     }
 

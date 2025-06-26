@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Shield, UserPlus, LogIn, Video, ThumbsUp, MessageSquare } from "lucide-react"
+import { Metadata } from "next"
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "s2 - Authorization Required",
   description: "Authorization is required for the feature",
 }

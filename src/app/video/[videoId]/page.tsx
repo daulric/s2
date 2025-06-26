@@ -4,9 +4,9 @@ import { notFound as NotFound } from "next/navigation";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
-const CachedVideo = cache(async (id) => await GetVideoDetails(id));
+const CachedVideo = cache(async (id: string) => await GetVideoDetails(id));
 
-export async function generateMetadata({params}) {
+export async function generateMetadata({params}: { params: { videoId: string } }) {
     const id = (await params).videoId;
     const data = await CachedVideo(id);
 
@@ -24,7 +24,7 @@ export async function generateMetadata({params}) {
 
 }
 
-export default async function PAGE({params}) {
+export default async function PAGE({params}: { params: { videoId: string } }) {
     const id = (await params).videoId;
     const supabase = await createClient();
     const data = await CachedVideo(id)
@@ -39,5 +39,5 @@ export default async function PAGE({params}) {
         .eq("video_id", id)
 
     if (error) return ( <div>Vue Problem</div> );
-    return (<VideoPage videoData={data} public_videos={PublicVideos}/>)
+    return (<VideoPage videoData={data} public_videos={PublicVideos ?? []}/>)
 }
