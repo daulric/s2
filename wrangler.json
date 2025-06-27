@@ -6,23 +6,38 @@
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": ".open-next/assets",
-    "binding": "ASSETS",
+    "binding": "ASSETS"
   },
   "build": {
     "command": "bun run cf:build"
   },
-
   "routes": [
     {
       "pattern": "s2.daulric.dev",
       "custom_domain": true
     }
   ],
-
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "s2",
-    },
-  ]
+      "service": "s2"
+    }
+  ],
+  "env": {
+    "preview": {
+      "name": "s2-preview",
+      "routes": [
+        {
+          "pattern": "preview.s2.daulric.dev",
+          "custom_domain": true
+        }
+      ],
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "s2-preview"
+        }
+      ]
+    }
+  }
 }
