@@ -202,7 +202,6 @@ export default function ProfilePage() {
         description: "Your profile has been saved successfully",
       })
     } catch (error) {
-      console.error("Error saving profile:", error)
       toast.error("Failed to save profile", {
         description: "Please try again",
       })
@@ -242,7 +241,6 @@ export default function ProfilePage() {
         description: "Don't forget to save your profile",
       })
     } catch (error) {
-      console.error("Error uploading avatar:", error)
       toast.error("Failed to upload avatar", {
         description: "Please try again",
       })

@@ -141,7 +141,6 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     if (videoRef.current) {
       if (isPlaying.value) {
         videoRef.current.play().catch((error) => {
-          console.error("Error playing video:", error)
           isPlaying.value = false;
           toast.error("Error playing video", {
             description: "The video could not be played. Please try again.",
@@ -330,8 +329,6 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
         (video_player as any).webkitExitFullscreen();
         isFullscreen.value = false
       }
-    } else {
-      console.warn("Fullscreen is not supported in this browser.");
     }
 
   };

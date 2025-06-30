@@ -95,7 +95,6 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
         description: "Don't forget to save your changes",
       })
     } catch (error) {
-      console.error("Error uploading thumbnail:", error)
       toast.error("Failed to upload thumbnail", {
         description: "Please try again",
       })
@@ -135,7 +134,6 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
         description: "Your video information has been saved",
       })
     } catch (error) {
-      console.error("Error saving video:", error)
       toast.error("Failed to save video", {
         description: "Please try again",
       })

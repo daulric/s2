@@ -7,9 +7,9 @@ const authRoutes = ['auth', '']; //Doesnt Require Auth
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  const supabase = await createClient(req);
-
+  
   try {
+    const supabase = await createClient(req);
     const { data: { user } } = await supabase.auth.getUser();
   
     const path = req.nextUrl.pathname;

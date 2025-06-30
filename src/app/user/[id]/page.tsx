@@ -62,8 +62,6 @@ export default function UserProfilePage() {
           await checkSubscriptionStatus();
         }
 
-      } catch (e) {
-        console.log("Profile Error", e);
       } finally {
         if (!cancelled) isLoading.value = false;
       }
@@ -104,7 +102,6 @@ export default function UserProfilePage() {
 
       return data;
     } catch (error) {
-      console.error("Error loading user profile:", error)
       toast.error("Failed to load profile", {
         description: "Please try refreshing the page",
       })
@@ -147,9 +144,7 @@ export default function UserProfilePage() {
 
       userVideos.value = total_videos;
 
-    } catch (error) {
-      console.error("Error loading user videos:", error)
-    }
+    } catch {}
   }
 
   const checkSubscriptionStatus = async () => {
@@ -167,9 +162,7 @@ export default function UserProfilePage() {
       if (error) throw error;
       
       isSubscribed.value = data.is_subscribed;
-    } catch (error) {
-      console.error("Error checking subscription status:", error)
-    }
+    } catch {};
   }
 
   const handleSubscribe = async () => {
@@ -220,7 +213,6 @@ export default function UserProfilePage() {
         { is_subscribed: isSubscribed.value }
       );
     } catch (error) {
-      console.error("Error updating subscription:", error)
       toast.error("Failed to update subscription", {
         description: "Please try again",
       })
