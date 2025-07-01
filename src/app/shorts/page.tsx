@@ -28,10 +28,7 @@ export default function ShortsPage() {
         const { data, error } = await supabase.from("videos")
         .select("*, video_likes(*)")
 
-        if (error) {
-          console.error("Error fetching shorts:", error)
-          return
-        }
+        if (error) return;
 
         if (data) {
           const formattedShorts: shorts_extends[] = []
@@ -84,14 +81,12 @@ export default function ShortsPage() {
 
               }
             } catch (error) {
-              console.error("Error converting video:", error)
+              throw error;
             }
           }
 
           shorts.value = formattedShorts;
         }
-      } catch (error) {
-        console.error("Error in fetchShorts:", error)
       } finally {
         isLoading.value = false
       }

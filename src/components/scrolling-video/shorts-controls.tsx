@@ -28,7 +28,6 @@ type ShortsControlsProps = {
 export function ShortsControls({ short, currentUser, onInteraction, alwaysVisible = false }: ShortsControlsProps) {
   useSignals();
   // Get or create signals for this short
-  console.log("Initializing controls for short:", short.id);
   const isLiked = useSignal(false);
   const likeCount = useSignal(0);
 
@@ -65,10 +64,6 @@ export function ShortsControls({ short, currentUser, onInteraction, alwaysVisibl
 
     toast.success(isLiked.value ? "Added to liked videos" : "Removed from liked videos")
   }
-
-  effect(() => {
-    console.log(`Like status for ${short.id}: ${isLiked.value}`);
-  })
 
   /*const handleComment = (e: React.MouseEvent) => {
     e.stopPropagation()
