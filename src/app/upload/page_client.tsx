@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useRef } from "react"
 import { redirect, useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Upload, X, ImageIcon, Tag, Globe, Lock, Link } from "lucide-react"
@@ -16,24 +16,29 @@ import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/context/AuthProvider"
 import { compressAndUpload, uploadThumbnail } from "./MediaManager"
 import { categories, visibilites } from "@/lib/videos/details"
+import captureThumbnail from "@/lib/videos/captureThumbnail"
+import { useSignals, useSignal } from "@preact/signals-react/runtime"
 
 export default function UploadPage() {
+  useSignals();
   const router = useRouter()
-  const { supabase } = useAuth()
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [videoFile, setVideoFile] = useState<File | null>(null)
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
-  const [videoPreview, setVideoPreview] = useState<string | null>(null)
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [category, setCategory] = useState("education")
-  const [visibility, setVisibility] = useState("public")
+  const { supabase } = useAuth();
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
-  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const videoFile = useSignal<File | null>(null);
+  const videoPreview = useSignal<string | null>(null);
+  const thumbnailFile = useSignal<File | null>(null);
+  const thumbnailPreview = useSignal<string | null>(null);
+  const isUploading = useSignal(false);
+  const title = useSignal<string>("");
+  const description = useSignal<string>("");
+  const uploadProgress = useSignal(0);
+  const category = useSignal<string>("education");
+  const visibility = useSignal<string>("public");
+
+  const handleVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -53,17 +58,18 @@ export default function UploadPage() {
       return
     }
 
-    setVideoFile(file)
+    const { thumbnailFile: thumb, thumbUrl } = await captureThumbnail(file);
+
+    videoFile.value = file;
+    thumbnailFile.value = thumb;
+    thumbnailPreview.value = thumbUrl;
 
     // Create video preview URL
     const videoURL = URL.createObjectURL(file)
-    setVideoPreview(videoURL)
+    videoPreview.value = videoURL;
 
-    // Auto-generate title from filename if empty
-    if (!title) {
-      const fileName = file.name.replace(/\.[^/.]+$/, "") // Remove extension
-      setTitle(fileName)
-    }
+    const fileName = file.name.replace(/\.[^/.]+$/, "") // Remove extension
+    title.value = fileName
   }
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,34 +84,34 @@ export default function UploadPage() {
       return
     }
 
-    setThumbnailFile(file)
+    thumbnailFile.value = file;
 
     // Create thumbnail preview URL
     const imageURL = URL.createObjectURL(file)
-    setThumbnailPreview(imageURL)
+    thumbnailPreview.value = imageURL;
   }
 
   const handleUpload = async () => {
-    if (!videoFile) {
+    if (!videoFile.value) {
       toast.error("No video selected", {
         description: "Please select a video to upload",
       })
       return
     }
 
-    if (!title.trim()) {
+    if (!title.value.trim()) {
       toast.error("Title required", {
         description: "Please provide a title for your video",
       })
       return
     }
 
-    setIsUploading(true)
-    setUploadProgress(0)
+    isUploading.value = true;
+    uploadProgress.value = 0;
 
     try {
 
-      const promised_uplaod = Promise.all([ compressAndUpload(videoFile), thumbnailFile && uploadThumbnail(thumbnailFile)]);
+      const promised_uplaod = Promise.all([ compressAndUpload(videoFile.value), thumbnailFile.value && uploadThumbnail(thumbnailFile.value)]);
 
       toast.promise(promised_uplaod, {
         loading: "Uploading...",
@@ -115,12 +121,12 @@ export default function UploadPage() {
 
       promised_uplaod.then(async ([video_path, thumbnail_path]) => {
         const { data, error } = await supabase.from("videos").insert({
-          title,
-          description,
+          title: title.value,
+          description: description.value,
           video_path,
           thumbnail_path,
-          visibility,
-          category
+          visibility: visibility.value,
+          category: category.value,
         }).select().single();
 
         if (error) throw new Error("Upload Data Failed");
@@ -134,7 +140,7 @@ export default function UploadPage() {
         description: (error instanceof Error ? error.message : "An error occurred during upload"),
       })
     } finally {
-      setIsUploading(false)
+      isUploading.value = false;
     }
   }
 
@@ -159,7 +165,7 @@ export default function UploadPage() {
               </TabsList>
 
               <TabsContent value="file" className="space-y-4 py-4">
-                {!videoFile ? (
+                {!videoFile.value ? (
                   <div
                     className="border-2 border-dashed rounded-lg p-12 text-center cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => fileInputRef.current?.click()}
@@ -184,8 +190,8 @@ export default function UploadPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          setVideoFile(null)
-                          setVideoPreview(null)
+                          videoFile.value = null;
+                          videoPreview.value = null;
                         }}
                       >
                         <X className="h-4 w-4 mr-2" />
@@ -194,26 +200,26 @@ export default function UploadPage() {
                     </div>
 
                     <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                      {videoPreview && (
-                        <video src={videoPreview} controls className="w-full h-full object-contain"></video>
+                      {videoPreview.value && (
+                        <video src={videoPreview.value} controls className="w-full h-full object-contain"></video>
                       )}
                     </div>
 
                     <div className="text-sm text-muted-foreground">
-                      <p>Filename: {videoFile.name}</p>
-                      <p>Size: {(videoFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                      <p>Filename: {videoFile.value.name}</p>
+                      <p>Size: {(videoFile.value.size / (1024 * 1024)).toFixed(2)} MB</p>
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <h3 className="font-medium">Thumbnail</h3>
-                        {thumbnailPreview && (
+                        {thumbnailPreview.value && (
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              setThumbnailFile(null)
-                              setThumbnailPreview(null)
+                              thumbnailFile.value = null;
+                              thumbnailPreview.value = null;
                             }}
                           >
                             <X className="h-4 w-4 mr-2" />
@@ -222,10 +228,10 @@ export default function UploadPage() {
                         )}
                       </div>
 
-                      {thumbnailPreview ? (
+                      {thumbnailPreview.value ? (
                         <div className="relative aspect-video w-48 rounded-lg overflow-hidden">
                           <img
-                            src={thumbnailPreview}
+                            src={thumbnailPreview.value}
                             alt="Thumbnail preview"
                             className="w-full h-full object-cover"
                           />
@@ -260,30 +266,30 @@ export default function UploadPage() {
                   <Label htmlFor="title">Title</Label>
                   <Input
                     id="title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    value={title.value}
+                    onChange={(e) => { title.value = e.target.value } }
                     placeholder="Add a title that describes your video"
                     maxLength={100}
                   />
-                  <div className="text-xs text-muted-foreground text-right">{title.length}/100</div>
+                  <div className="text-xs text-muted-foreground text-right">{title.value.length}/100</div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    value={description.value}
+                    onChange={(e) => { description.value = e.target.value } }
                     placeholder="Tell viewers about your video"
                     className="min-h-32"
                     maxLength={5000}
                   />
-                  <div className="text-xs text-muted-foreground text-right">{description.length}/5000</div>
+                  <div className="text-xs text-muted-foreground text-right">{description.value.length}/5000</div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="category">Category</Label>
-                  <Select value={category} onValueChange={setCategory}>
+                  <Select value={category.value} onValueChange={(e) => { category.value = e }}>
                     <SelectTrigger id="category">
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
@@ -295,7 +301,7 @@ export default function UploadPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="visibility">Visibility</Label>
-                  <Select value={visibility} onValueChange={setVisibility}>
+                  <Select value={visibility.value} onValueChange={(e) => { visibility.value = e }}>
                     <SelectTrigger id="visibility">
                       <SelectValue placeholder="Select visibility" />
                     </SelectTrigger>
@@ -315,13 +321,13 @@ export default function UploadPage() {
             </Tabs>
           </CardContent>
 
-          {isUploading && (
+          {isUploading.value && (
             <div className="px-6 py-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">Uploading...</span>
-                <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
+                <span className="text-sm text-muted-foreground">{uploadProgress.value}%</span>
               </div>
-              <Progress value={uploadProgress} className="h-2" />
+              <Progress value={uploadProgress.value} className="h-2" />
             </div>
           )}
 
@@ -331,8 +337,8 @@ export default function UploadPage() {
             <Button variant="ghost" onClick={() => router.back()}>
               Cancel
             </Button>
-            <Button onClick={handleUpload} disabled={isUploading || !videoFile}>
-              {isUploading ? "Uploading..." : "Upload Video"}
+            <Button onClick={handleUpload} disabled={isUploading.value || !videoFile.value}>
+              {isUploading.value ? "Uploading..." : "Upload Video"}
             </Button>
           </CardFooter>
         </Card>
