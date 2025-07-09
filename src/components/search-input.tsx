@@ -2,18 +2,20 @@
 
 import type React from "react"
 
-import { useState, useRef, useEffect } from "react"
+import { useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search, X } from "lucide-react"
+import { useSignals, useSignal } from "@preact/signals-react/runtime"
 
 interface SearchInputProps {
   mobile?: boolean
 }
 
 export function SearchInput({ mobile = false }: SearchInputProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  useSignals();
+  const isOpen = useSignal(false);
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -23,24 +25,24 @@ export function SearchInput({ mobile = false }: SearchInputProps) {
     if (trimed_key_search) {
       router.push(`/search?q=${encodeURIComponent(trimed_key_search)}`)
       if (mobile) {
-        setIsOpen(false)
+        isOpen.value = false;
       }
     }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
-      setIsOpen(false)
+      isOpen.value = false;
       inputRef.current!.value = ""
     }
   }
 
   // Focus input when opened on mobile
   useEffect(() => {
-    if (isOpen && mobile && inputRef.current) {
+    if (isOpen.value && mobile && inputRef.current) {
       inputRef.current.focus()
     }
-  }, [isOpen, mobile])
+  }, [isOpen.value, mobile])
 
   // Desktop search bar
   if (!mobile) {
@@ -72,14 +74,14 @@ export function SearchInput({ mobile = false }: SearchInputProps) {
         variant="ghost"
         size="icon"
         className="h-8 w-8 sm:h-9 sm:w-9"
-        onClick={() => setIsOpen(true)}
+        onClick={() => (isOpen.value = true)}
         aria-label="Search"
       >
         <Search className="h-4 w-4 sm:h-5 sm:w-5" />
       </Button>
 
       {/* Mobile search overlay */}
-      {isOpen && (
+      {isOpen.value && (
         <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm">
           <div className="flex items-center p-4 border-b">
             <form onSubmit={handleSearch} className="flex-1 flex items-center gap-2">
@@ -94,7 +96,7 @@ export function SearchInput({ mobile = false }: SearchInputProps) {
                 <Search className="h-4 w-4" />
               </Button>
             </form>
-            <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="ml-2">
+            <Button variant="ghost" size="icon" onClick={() => (isOpen.value = false)} className="ml-2">
               <X className="h-4 w-4" />
             </Button>
           </div>

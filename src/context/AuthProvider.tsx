@@ -1,9 +1,10 @@
 "use client"
 
-import { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useEffect, useContext } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { User, Provider, SupabaseClient  } from "@supabase/supabase-js"
+import { useSignal, useSignals } from '@preact/signals-react/runtime';
 
 type UserProfile = {
   id: string;
@@ -40,10 +41,11 @@ export function useAuth(): AuthContextType {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  useSignals();
+  const user = useSignal<UserState>({ user: null, profile: null });
+  const loading = useSignal<boolean>(true);
+  const errorState = useSignal<string | null>(null);
 
-  const [user, setUser] = useState<UserState>({ user: null, profile: null });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const supabase = createClient();
   const router = useRouter();
 
@@ -51,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Get the current session on component mount
     const getInitialSession = async () => {
       try {
-        setLoading(true);
+        loading.value = true;
         
         const { data: { session }, error } = await supabase.auth.getSession();
         
@@ -68,24 +70,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             sessionStorage.setItem("profile_user", JSON.stringify(profile_data))
           }
 
-          setUser(prev => {
-            prev.user = session_user;
-            prev.profile = profile_data;
-            return prev;
-          });
+          user.value = {
+            ...user.value,
+            user: session_user,
+            profile: profile_data
+          }
         } else {
-          setUser(prev => {
-            prev.profile = null;
-            prev.user = null;
-            return prev;
-          })
+          user.value = {
+            ...user.value,
+            user: null,
+            profile: null
+          }
         }
         
         
       } catch (error: any) {
-        setError(error.message);
+        errorState.value = error.message;
       } finally {
-        setLoading(false);
+        loading.value = false;
       }
     };
 
@@ -106,33 +108,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .single();
         
             sessionStorage.setItem("profile_user", JSON.stringify(profile_data));
-        
-            setUser(prev => ({
-              ...prev,
+
+            user.value = {
+              ...user.value,
               profile: profile_data
-            }));
+            }
           };
         
           fetchProfile();
         }
         
-        setUser(prev => ({
-          ...prev,
+        user.value = {
+          ...user.value,
           user: session.user,
           profile: temp_profile
-        }));
+        }
         
 
       } else {
-        setUser(prev => ({
-          ...prev,
+        user.value = {
+          ...user.value,
           user: null,
           profile: null
-        }));
+        }
         
       }
 
-      setLoading(false);
+      loading.value = false;
     });
 
     // Cleanup function
@@ -144,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Login function
   const signIn = async ({ email, password }: credentials) => {
     try {
-      setLoading(true);
+      loading.value = true;
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -156,10 +158,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return data;
     } catch (error: any) {
-      setError(error.message);
+      errorState.value = error.message || error;
       throw error;
     } finally {
-      setLoading(false);
+      loading.value = false;
       setTimeout(() => {
         router.refresh();
       }, 100);
@@ -172,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     
     try {
-      setLoading(true);
+      loading.value = true;
   
       const formattedRedirectTo = redirectTo.startsWith('/') 
         ? redirectTo.substring(1) 
@@ -195,17 +197,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       return data;
     } catch(e: any) {
-      setError(e.message);
+      errorState.value = e.message || e;
       throw e;
     } finally {
-      setLoading(false);
+      loading.value = false;
     }
   }
 
   // Signup function
   const signUp = async ({ email, password }: credentials) => {
     try {
-      setLoading(true);
+      loading.value = true;
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password
@@ -217,10 +220,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return data;
     } catch (error: any) {
-      setError(error.message || error);
+      errorState.value = error.message || error;
       throw error;
     } finally {
-      setLoading(false);
+      loading.value = false;
       setTimeout(() => {
         router.refresh();
       }, 100);
@@ -230,7 +233,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Signout function
   const signOut = async () => {
     try {
-      setLoading(true);
+      loading.value = true;
+
       const { error } = await supabase.auth.signOut();
       
       if (error) {
@@ -239,16 +243,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       router.refresh();
     } catch (error: any) {
-      setError(error.message || error);
+      errorState.value = error.message || error;
     } finally {
-      setLoading(false);
+      loading.value = false;
     }
   };
 
   // Password reset function
   const resetPassword = async (email: string) => {
     try {
-      setLoading(true);
+      loading.value = true;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`
       });
@@ -257,18 +261,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
     } catch (error: any) {
-      setError(error.message || error);
+      errorState.value = error.message || error;
       throw error;
     } finally {
-      setLoading(false);
+      loading.value = false;
     }
   };
 
   // Value object that will be provided to consumers of this context
   const value = {
-    user,
-    loading,
-    error,
+    user: user.value,
+    loading: loading.value,
+    error: errorState.value,
     signIn,
     signUp,
     signOut,
