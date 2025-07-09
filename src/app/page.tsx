@@ -2,8 +2,20 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/context/AuthProvider"
 
 export default function Home() {
+
+  const { user: { user } } = useAuth();
+  const router = useRouter();
+
+  if (user) {
+    router.push("/home");
+    return null;
+  }
+
+
   return (
     <>
       <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-background">
