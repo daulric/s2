@@ -12,11 +12,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,} from "@/components/ui/dialog"
 import { VideoCard } from "@/components/video-card"
 import { useAuth } from "@/context/AuthProvider"
-import { useSignal } from "@preact/signals-react"
-import { useSignals } from "@preact/signals-react/runtime"
+import { useSignals, useSignal } from "@preact/signals-react/runtime"
 import upsert from "@/lib/supabase/upsert"
 import Link from "next/link"
 import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
+import { useRouter } from "next/navigation"
 
 // Keyboard shortcuts help data
 const keyboardShortcuts = [
@@ -41,6 +41,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const router = useRouter();
 
   const subscribers = useSignal(0);
   const video_data_signal = useSignal<VideoInfoProps>();
@@ -374,8 +375,12 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
   const handleLike = async () => {
     if (!user) {
-      toast.error("Authentication required", {
+      toast.error("Authentication Required", {
         description: "Please sign in to like videos",
+        action: {
+          label: "Sign In",
+          onClick: () => router.push("/auth/login"),
+        }
       })
       return
     }
@@ -405,8 +410,12 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
   const handleDislike = async () => {
     if (!user) {
-      toast.error("Authentication required", {
+      toast.error("Authentication Required", {
         description: "Please sign in to dislike videos",
+        action: {
+          label: "Sign In",
+          onClick: () => router.push("/auth/login"),
+        },
       })
       return
     }
@@ -434,7 +443,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
   const handleSubscribe = async () => {
     if (!user) {
-      toast.error("Authentication required", {
+      toast.error("Authentication Required", {
         description: "Please sign in to subscribe to channels",
       })
       return
@@ -459,8 +468,12 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
   const handleSave = () => {
     if (!user) {
-      toast.error("Authentication required", {
+      toast.error("Authentication Required", {
         description: "Please sign in to save videos",
+        action: {
+          label: "Sign In",
+          onClick: () => router.push("/auth/login"),
+        }
       })
       return
     }
@@ -490,7 +503,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     e.preventDefault()
 
     if (!user) {
-      toast.error("Authentication required", {
+      toast.error("Authentication Required", {
         description: "Please sign in to comment",
       })
       return
