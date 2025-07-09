@@ -14,6 +14,8 @@ export type VideoInfoProps = {
     category: string,
     created_at: Date | string,
     visibility?: string,
+    video_path?: string,
+    thumbnail_path?: string | null,
 }
 
 export type VideoData = {
@@ -29,7 +31,7 @@ export type VideoData = {
     category: string,
 }
 
-export default async function convert(supabase: SupabaseClient<any, string, any>, data: VideoData, time_allowed: number = 10) {
+export default async function convert(supabase: SupabaseClient<any, string, any>, data: VideoData, time_allowed: number = 10, signedAllowed: boolean = true): Promise<VideoInfoProps> {
     const placeholder = "/placeholder.png"
 
     try {
@@ -53,8 +55,8 @@ export default async function convert(supabase: SupabaseClient<any, string, any>
         })();
 
         const [video_url, thumbnail_url, avatar_url] = await Promise.all([
-            supabase.storage.from("videos").createSignedUrl(data.video_path || "", time_allowed).then(({data}) => data && data.signedUrl),
-            supabase.storage.from("images").createSignedUrl(data.thumbnail_path || "", time_allowed).then(({data}) => data && data.signedUrl),
+            signedAllowed && supabase.storage.from("videos").createSignedUrl(data.video_path || "", time_allowed).then(({data}) => data && data.signedUrl),
+            signedAllowed && supabase.storage.from("images").createSignedUrl(data.thumbnail_path || "", time_allowed).then(({data}) => data && data.signedUrl),
             user.avatar_url && supabase.storage.from("images").createSignedUrl(user.avatar_url, time_allowed).then(({data}) => data && data.signedUrl),
         ]);
     
@@ -72,6 +74,8 @@ export default async function convert(supabase: SupabaseClient<any, string, any>
             thumbnail:  thumbnail_url || placeholder,
             avatar_url: avatar_url || `${process.env.NEXT_PUBLIC_PROFILE}${user.username}`,
             visibility: data.visibility,
+            video_path: data.video_path || "",
+            thumbnail_path: data.thumbnail_path || null,
         } satisfies VideoInfoProps
     } catch (e) {
         throw e;

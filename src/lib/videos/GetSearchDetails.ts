@@ -57,10 +57,6 @@ export default async function GetSearchVideos(search: string, time_allowed: numb
             return acc;
           }, {})
       ).map(async (item): Promise<VideoProps> => {
-        const { data } = await supabase
-          .storage
-          .from("images")
-          .createSignedUrl(item.thumbnail_path, time_allowed);
 
         const readableDate = new Date(item.created_at).toLocaleDateString("en-US", {
           year: "numeric",
@@ -71,10 +67,11 @@ export default async function GetSearchVideos(search: string, time_allowed: numb
         return {
           id: item.video_id,
           title: item.title,
-          thumbnail: data?.signedUrl ?? "",
+          thumbnail: "",
           views: item.views.toString(),
           uploadDate: readableDate,
           username: item.profiles.username,
+          thumbnail_path: item.thumbnail_path,
         };
       })
     );

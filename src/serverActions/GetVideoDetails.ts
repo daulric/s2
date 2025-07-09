@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import converttoVideo, { VideoInfoProps } from "@/lib/videos/data-to-video-format";
 import { SupabaseClient } from "@supabase/supabase-js";
 
-export async function GetVideoDetails(id: string, time_allowed: number = 30) {
+export async function GetVideoDetails(id: string, time_allowed: number = 30): Promise<VideoInfoProps | null> {
     const supabase = (await createClient()) as SupabaseClient;
     const { data: {user} } = await supabase.auth.getUser();
 
@@ -16,7 +16,7 @@ export async function GetVideoDetails(id: string, time_allowed: number = 30) {
 
     if (error) return null;
 
-    const return_data = await converttoVideo(supabase, data, time_allowed);
+    const return_data = await converttoVideo(supabase, data, time_allowed, false);
 
     if (user && data.visibility === "private" && data.userid !== user.id) return null;
     return return_data;

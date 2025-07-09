@@ -6,7 +6,7 @@ import { VideoCard } from "@/components/video-card"
 import { VideoInfoProps } from "@/lib/videos/data-to-video-format";
 
 export default function HomePage({videos}: { videos: VideoInfoProps[] }) {
-  const { user: { profile } } = useAuth();
+  const { user: { profile }, supabase } = useAuth();
 
   return (
     <>
@@ -21,7 +21,7 @@ export default function HomePage({videos}: { videos: VideoInfoProps[] }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
             {videos.map((video) => (
-              <VideoCard key={video.id} video={video} />
+              <VideoCard key={video.id} video={video} supabase={supabase} />
             ))}
           </div>
 

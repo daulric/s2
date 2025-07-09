@@ -60,6 +60,17 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
   const isKeyboardShortcutsOpen = useSignal(false);
   const isFullscreen= useSignal(false);
 
+  // Video Data
+  const video_url = useSignal<string | null >(null);
+  const thumbnail_url = useSignal<string | null>(null);
+
+  async function getVideoBlobs() {
+    return Promise.all([
+      supabase.storage.from("videos").download(videoData.video_path || "").then(({ data }) => data ? URL.createObjectURL(data) : null),
+      supabase.storage.from("images").download(videoData.thumbnail_path || "").then(({ data }) => data ? URL.createObjectURL(data) : null),
+    ])
+  }
+
   async function setIsSubscribe() {
     if (!user) return;
 
@@ -118,9 +129,27 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
   }
 
   useEffect(() => {
-
     if (videoData) {
       video_data_signal.value = videoData;
+      getVideoBlobs().then(([vid, thumb]) => {
+        video_url.value = vid;
+        thumbnail_url.value = thumb;
+      })
+    }
+
+    return () => {
+      if (video_url.value) {
+        URL.revokeObjectURL(video_url.value)
+      }
+
+      if (thumbnail_url.value) {
+        URL.revokeObjectURL(thumbnail_url.value)
+      }
+    }
+  }, [videoData]);
+
+  useEffect(() => {
+    if (videoData) {
       getTotalLikes();
       getTotalSubs();
     }
@@ -518,12 +547,12 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     }
   }
 
-  const trending_vids = [...public_videos]
+  const trending_vids = public_videos
     .sort((a, b) => ( b.views - a.views) )
     .filter((d) => d.id !== videoData.id)
     .slice(0, 4);
 
-  const related_vids = [...public_videos]
+  const related_vids = public_videos
     .filter((d) => d.category === videoData.category)
     .map(d => ({ value: d, sort: Math.random() }))
     .sort((a, b) => a.sort - b.sort)
@@ -531,10 +560,10 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     .filter((d) => d.id !== videoData.id)
     .slice(0, 4);
   
-  const new_vids = [...public_videos]
+  const new_vids = public_videos
     .sort((a, b) => (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()))
     .filter(d => d.id !== videoData.id)
-    .slice(0, 12);
+    .slice(0, 8);
   
   return (
     <main className="min-h-screen pt-5 p-4 bg-background">
@@ -549,13 +578,23 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
             <div className="aspect-video flex items-center justify-center">
               <video
                 ref={videoRef}
-                src={videoData.video}
+                src={video_url.value ?? undefined}
                 className="w-full h-full object-contain"
-                poster={videoData.thumbnail}
+                poster={thumbnail_url.value ?? undefined}
                 onLoadedMetadata={handleMetadataLoaded}
                 onTimeUpdate={handleTimeUpdate}
                 onClick={togglePlay}
                 onEnded={() => { isPlaying.value = false }}
+                onLoadedData={() => {
+                  if (video_url.value) {
+                    URL.revokeObjectURL(video_url.value)
+                  }
+
+                  if (thumbnail_url.value) {
+                    URL.revokeObjectURL(thumbnail_url.value)
+                  }
+
+                }}
                 playsInline
                 preload="auto"
               />
@@ -804,12 +843,8 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
         {/* Video Recommendations */}
         <div className="mt-12">
-          <Tabs defaultValue="related" className="w-full">
+          <Tabs defaultValue="trending" className="w-full">
             <TabsList className="grid w-full grid-cols-4 mb-6">
-              <TabsTrigger value="related">
-                <Bookmark className="h-4 w-4 mr-2" />
-                Related
-              </TabsTrigger>
               <TabsTrigger value="trending">
                 <Flame className="h-4 w-4 mr-2" />
                 Trending
@@ -820,18 +855,10 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="related" className="mt-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {related_vids.map((video) => (
-                  <VideoCard key={video.id} video={video} quick_load />
-                ))}
-              </div>
-            </TabsContent>
-
             <TabsContent value="trending" className="mt-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {trending_vids.map((video) => (
-                  <VideoCard key={video.id} video={video} quick_load/>
+                  <VideoCard key={video.id} video={video} quick_load supabase={supabase}/>
                 ))}
               </div>
             </TabsContent>
@@ -839,7 +866,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
             <TabsContent value="new" className="mt-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {new_vids.map((video) => (
-                  <VideoCard key={video.id} video={video} quick_load />
+                  <VideoCard key={video.id} video={video} quick_load supabase={supabase}/>
                 ))}
               </div>
             </TabsContent>

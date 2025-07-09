@@ -374,7 +374,7 @@ export default function UserProfilePage() {
                 {userVideos.value.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {userVideos.value.map((video) => (
-                      <VideoCard key={Math.random()} video={video} />
+                      <VideoCard key={Math.random()} video={video} supabase={supabase} />
                     ))}
                   </div>
                 ) : (
