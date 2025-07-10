@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,19 +34,19 @@ interface VideoLikes {
 export default function ProfilePage() {
   useSignals();
   const { user: { user }, supabase } = useAuth();
-  const [isEditing, setIsEditing] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [profileData, setProfileData] = useState({
+  const isEditing = useSignal(false);
+  const isLoading = useSignal(false);
+  const profileData = useSignal({
     id: "",
     username: "",
     email: "",
     description: "",
     created_at: "",
     avatar_url: "",
-  });
-
-  const [editingVideo, setEditingVideo] = useState<any>(null)
-  const [isVideoEditOpen, setIsVideoEditOpen] = useState(false)
+  })
+  
+  const editingVideo = useSignal(null);
+  const isVideoEditOpen = useSignal(false);
 
   // Signals
   const subscribers = useSignal(0);
@@ -94,25 +94,26 @@ export default function ProfilePage() {
       }
 
       if (data) {
-        setProfileData({
+        profileData.value = {
+          ...profileData.value,
           id: user.id,
           username: data.username || "",
           email: user.email || "",
           description: data.description || "",
           created_at: new Date(user.created_at).toLocaleDateString('en-GB'),
           avatar_url: data.avatar_url || "",
-        })
-      
+        }
       } else {
         // Create profile if it doesn't exist
-        setProfileData({
+        profileData.value = {
+          ...profileData.value,
           id: user.id,
           username: "",
           email: user.email || "",
           description: "",
           created_at: new Date(user.created_at).toLocaleDateString('en-GB'),
           avatar_url: "",
-        })
+        }
       }
     } catch (error) {
       toast.error("Failed to load profile", {
@@ -186,18 +187,18 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     if (!user) return
 
-    setIsLoading(true)
+    isLoading.value = true;
     try {
       const { error } = await supabase.from("profiles").upsert({
         id: user.id,
-        username: profileData.username,
-        description: profileData.description,
-        avatar_url: profileData.avatar_url,
+        username: profileData.value.username,
+        description: profileData.value.description,
+        avatar_url: profileData.value.avatar_url,
       })
 
       if (error) throw error
 
-      setIsEditing(false)
+      isEditing.value = false
       toast.success("Profile updated", {
         description: "Your profile has been saved successfully",
       })
@@ -206,7 +207,7 @@ export default function ProfilePage() {
         description: "Please try again",
       })
     } finally {
-      setIsLoading(false)
+      isLoading.value = false;
     }
   }
 
@@ -221,7 +222,7 @@ export default function ProfilePage() {
       return
     }
 
-    setIsLoading(true)
+    isLoading.value = true
     try {
       const fileExt = file.name.split(".").pop()
       const fileName = `${user.id}-${Math.random()}.${fileExt}`
@@ -235,7 +236,7 @@ export default function ProfilePage() {
         data: { publicUrl },
       } = supabase.storage.from("avatars").getPublicUrl(filePath)
 
-      setProfileData((prev) => ({ ...prev, avatar_url: publicUrl }))
+      profileData.value = {...profileData.value, avatar_url: publicUrl}
 
       toast.success("Avatar uploaded", {
         description: "Don't forget to save your profile",
@@ -245,13 +246,13 @@ export default function ProfilePage() {
         description: "Please try again",
       })
     } finally {
-      setIsLoading(false)
+      isLoading.value = false;
     }
   }
 
   const handleEditVideo = (video: any) => {
-    setEditingVideo({...video})
-    setIsVideoEditOpen(true)
+    editingVideo.value = { ...video };
+    isVideoEditOpen.value = true;
   }
 
   const handleSaveVideo = async (updatedVideo: any) => {
@@ -267,7 +268,7 @@ export default function ProfilePage() {
       });
     }
 
-    setEditingVideo(null)
+    editingVideo.value = null;
   }
 
   if (!user) {
@@ -285,16 +286,16 @@ export default function ProfilePage() {
                 <Avatar className="h-24 w-24 sm:h-32 sm:w-32">
                   <AvatarImage
                     src={
-                      profileData.avatar_url ||
-                      `${process.env.NEXT_PUBLIC_PROFILE}${profileData.username || user.email}`
+                      profileData.value.avatar_url ||
+                      `${process.env.NEXT_PUBLIC_PROFILE}${profileData.value.username || user.email}`
                     }
-                    alt={profileData.username || "User"}
+                    alt={profileData.value.username || "User"}
                   />
                   <AvatarFallback className="text-2xl">
-                    {(profileData.username || user.email || "G").charAt(0).toUpperCase()}
+                    {(profileData.value.username || user.email || "G").charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                {isEditing && (
+                {isEditing.value && (
                   <label className="absolute -bottom-2 -right-2 bg-primary text-primary-foreground rounded-full p-2 cursor-pointer hover:bg-primary/90 transition-colors">
                     <Camera className="h-4 w-4" />
                     <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
@@ -303,14 +304,14 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex-1">
-                {isEditing ? (
+                {isEditing.value ? (
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="username">Username</Label>
                       <Input
                         id="username"
-                        value={profileData.username}
-                        onChange={(e) => setProfileData((prev) => ({ ...prev, username: e.target.value }))}
+                        value={profileData.value.username}
+                        onChange={(e) => { profileData.value = { ...profileData.value, username: e.target.value } }}
                         placeholder="Enter your username"
                       />
                     </div>
@@ -318,8 +319,8 @@ export default function ProfilePage() {
                       <Label htmlFor="description">Description</Label>
                       <Textarea
                         id="description"
-                        value={profileData.description}
-                        onChange={(e) => setProfileData((prev) => ({ ...prev, description: e.target.value }))}
+                        value={profileData.value.description}
+                        onChange={(e) =>{profileData.value = { ...profileData.value,  description: e.target.value } }}
                         placeholder="Tell us about yourself..."
                         rows={3}
                       />
@@ -327,26 +328,26 @@ export default function ProfilePage() {
                   </div>
                 ) : (
                   <div>
-                    <h1 className="text-3xl font-bold">{profileData.username || "Set your username"}</h1>
-                    <p className="text-muted-foreground mt-2">{profileData.description || "No bio added yet"}</p>
+                    <h1 className="text-3xl font-bold">{profileData.value.username || "Set your username"}</h1>
+                    <p className="text-muted-foreground mt-2">{profileData.value.description || "No bio added yet"}</p>
                   </div>
                 )}
               </div>
 
               <div className="flex gap-2">
-                {isEditing ? (
+                {isEditing.value ? (
                   <>
-                    <Button onClick={handleSaveProfile} disabled={isLoading}>
+                    <Button onClick={handleSaveProfile} disabled={isLoading.value}>
                       <Save className="h-4 w-4 mr-2" />
-                      {isLoading ? "Saving..." : "Save"}
+                      {isLoading.value ? "Saving..." : "Save"}
                     </Button>
-                    <Button variant="outline" onClick={() => setIsEditing(false)}>
+                    <Button variant="outline" onClick={() => {isEditing.value = false}}>
                       <X className="h-4 w-4 mr-2" />
                       Cancel
                     </Button>
                   </>
                 ) : (
-                  <Button onClick={() => setIsEditing(true)}>
+                  <Button onClick={() => {isEditing.value = true}}>
                     <Edit3 className="h-4 w-4 mr-2" />
                     Edit Profile
                   </Button>
@@ -355,16 +356,16 @@ export default function ProfilePage() {
             </div>
           </CardHeader>
 
-          {!isEditing && (
+          {!isEditing.value && (
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Mail className="h-4 w-4" />
-                  {profileData.email}
+                  {profileData.value.email}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4" />
-                  Joined {profileData.created_at}
+                  Joined {profileData.value.created_at}
                 </div>
               </div>
             </CardContent>
@@ -539,9 +540,9 @@ export default function ProfilePage() {
           </TabsContent>
         </Tabs>
         <VideoEditDialog
-          video={editingVideo}
-          isOpen={isVideoEditOpen}
-          onClose={() => setIsVideoEditOpen(false)}
+          video={editingVideo.value}
+          isOpen={isVideoEditOpen.value}
+          onClose={() => {isVideoEditOpen.value = false;}}
           onSave={handleSaveVideo}
         />
       </div>

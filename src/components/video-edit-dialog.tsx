@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useRef, useState, useEffect } from "react"
+import { useRef, useEffect } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,8 +19,9 @@ import {
 } from "@/components/ui/dialog"
 import { Camera, Upload } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
-import { categories, visibilites, capitalizeFirstLetter } from "@/lib/videos/details"
+import { categories, visibilites } from "@/lib/videos/details"
 import type { VideoData, VideoInfoProps } from "@/lib/videos/data-to-video-format"
+import { useSignals, useSignal } from "@preact/signals-react/runtime"
 
 type VideoEditDialogProps = {
   video: VideoInfoProps | null
@@ -30,16 +31,17 @@ type VideoEditDialogProps = {
 }
 
 export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDialogProps) {
+  useSignals();
   const { supabase } = useAuth()
-  const [isLoading, setIsLoading] = useState(false)
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
-  const [formData, setFormData] = useState({
+  const isLoading = useSignal(false);
+  const thumbnailFile = useSignal<File | null>(null);
+  const formData = useSignal({
     title: "",
     description: "",
     thumbnail: "",
     category: "",
     visibility: "",
-  })
+  });
 
   const thumbnail_ref = useRef<HTMLImageElement | null>(null)
   const thumb_name = useRef("");
@@ -47,14 +49,15 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
   // Initialize form data when video changes
   useEffect(() => {
     if (video) {
-      setFormData({
+      formData.value = {
+        ...formData.value,
         title: video.title || "",
         description: video.description || "",
         thumbnail: video.thumbnail || "",
         category: video.category || "",
         visibility: video.visibility || "public",
-      })
-      setThumbnailFile(null);
+      }
+      thumbnailFile.value = null;
     }
   }, [video])
 
@@ -74,8 +77,8 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
       thumbnail_ref.current.src = URL.createObjectURL(file)
     }
 
-    setThumbnailFile(file)
-    setIsLoading(true)
+    thumbnailFile.value = file;
+    isLoading.value = true;
 
     try {
       const fileExt = file.name.split(".").pop()
@@ -88,7 +91,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
 
       if (uploadError) throw uploadError
 
-      setFormData((prev) => ({ ...prev, thumbnail: fileName }));
+      formData.value = { ...formData.value, thumbnail: fileName };
       thumb_name.current = fileName;
 
       toast.success("Thumbnail uploaded", {
@@ -99,35 +102,35 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
         description: "Please try again",
       })
     } finally {
-      setIsLoading(false)
+      isLoading.value = false;
     }
   }
 
   const handleSave = async () => {
     if (!video) return
 
-    if (!formData.title.trim()) {
+    if (!formData.value.title.trim()) {
       toast.error("Title is required", {
         description: "Please enter a title for your video",
       })
       return
     }
 
-    setIsLoading(true)
+    isLoading.value = true;
     try {
       const updatedVideo: VideoData = {
         video_id: video.id,
         userid: video.creator_id,
-        title: formData.title, // Fixed: was using formData.description
-        description: formData.description,
-        category: formData.category.length !== 0 ? formData.category : video.category,
-        visibility: formData.visibility.length !== 0 ? formData.visibility : video.visibility || "public",
+        title: formData.value.title, // Fixed: was using formData.description
+        description: formData.value.description,
+        category: formData.value.category.length !== 0 ? formData.value.category : video.category,
+        visibility: formData.value.visibility.length !== 0 ? formData.value.visibility : video.visibility || "public",
         views: video.views,
         created_at: video.created_at,
         ...(thumb_name.current.length !== 0 && { thumbnail_path: thumb_name.current }),
       }
 
-      onSave(updatedVideo, thumbnailFile || undefined)
+      onSave(updatedVideo, thumbnailFile.value || undefined)
       onClose()
 
       toast.success("Video updated", {
@@ -138,22 +141,24 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
         description: "Please try again",
       })
     } finally {
-      setIsLoading(false)
+      isLoading.value = false;
     }
   }
 
   const handleClose = () => {
     // Reset form when closing
     if (video) {
-      setFormData({
+      formData.value = {
+        ...formData.value,
         title: video.title || "",
         description: video.description || "",
         thumbnail: video.thumbnail || "",
         category: video.category || "",
         visibility: video.visibility || "public",
-      })
+      }
     }
-    setThumbnailFile(null)
+
+    thumbnailFile.value = null
     onClose()
   }
 
@@ -175,7 +180,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
               <div className="relative w-full sm:w-48 h-32 bg-muted rounded-lg overflow-hidden">
                 <img
                   ref={thumbnail_ref}
-                  src={formData.thumbnail || video.thumbnail}
+                  src={formData.value.thumbnail || video.thumbnail}
                   alt="Video thumbnail"
                   className="w-full h-full object-cover"
                 />
@@ -191,9 +196,9 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
                   Upload a custom thumbnail for your video. Recommended size: 1280x720px
                 </p>
                 <label>
-                  <Button variant="outline" size="sm" disabled={isLoading}>
+                  <Button variant="outline" size="sm" disabled={isLoading.value}>
                     <Upload className="h-4 w-4 mr-2" />
-                    {isLoading ? "Uploading..." : "Upload Thumbnail"}
+                    {isLoading.value ? "Uploading..." : "Upload Thumbnail"}
                   </Button>
                   <input type="file" accept="image/*" onChange={handleThumbnailUpload} className="hidden" />
                 </label>
@@ -206,12 +211,12 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
             <Label htmlFor="title">Title *</Label>
             <Input
               id="title"
-              value={formData.title}
-              onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+              value={formData.value.title}
+              onChange={(e) => {formData.value = { ...formData.value, title: e.target.value } }}
               placeholder="Enter video title"
               maxLength={100}
             />
-            <p className="text-xs text-muted-foreground mt-1">{formData.title.length}/100 characters</p>
+            <p className="text-xs text-muted-foreground mt-1">{formData.value.title.length}/100 characters</p>
           </div>
 
           {/* Description */}
@@ -219,13 +224,13 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
-              value={formData.description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              value={formData.value.description}
+              onChange={(e) =>{formData.value = { ...formData.value, description: e.target.value } }}
               placeholder="Describe your video..."
               rows={4}
               maxLength={5000}
             />
-            <p className="text-xs text-muted-foreground mt-1">{formData.description.length}/5000 characters</p>
+            <p className="text-xs text-muted-foreground mt-1">{formData.value.description.length}/5000 characters</p>
           </div>
 
           {/* Category and Visibility */}
@@ -233,8 +238,8 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
             <div>
               <Label>Category</Label>
               <Select
-                value={ formData.category }
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
+                value={ formData.value.category }
+                onValueChange={(value) =>{formData.value = { ...formData.value, category: value } }}
               >
                 <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Select category" />
@@ -252,8 +257,8 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
             <div>
               <Label>Visibility</Label>
               <Select
-                value={formData.visibility}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, visibility: value }))}
+                value={formData.value.visibility}
+                onValueChange={(value) =>{formData.value = { ...formData.value, visibility: value } }}
               >
                 <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Select visibility" />
@@ -277,8 +282,8 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
           <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isLoading}>
-            {isLoading ? "Saving..." : "Save Changes"}
+          <Button onClick={handleSave} disabled={isLoading.value}>
+            {isLoading.value ? "Saving..." : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>
