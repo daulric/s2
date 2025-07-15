@@ -858,7 +858,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
             <TabsContent value="trending" className="mt-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {trending_vids.map((video) => (
-                  <VideoCard key={video.id} video={video} quick_load supabase={supabase}/>
+                  <VideoCard key={video.id} video={video} supabase={supabase}/>
                 ))}
               </div>
             </TabsContent>
@@ -866,7 +866,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
             <TabsContent value="new" className="mt-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {new_vids.map((video) => (
-                  <VideoCard key={video.id} video={video} quick_load supabase={supabase}/>
+                  <VideoCard key={video.id} video={video} supabase={supabase}/>
                 ))}
               </div>
             </TabsContent>
