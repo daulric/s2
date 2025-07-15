@@ -139,10 +139,8 @@ export default function UserProfilePage() {
           totalLikes: userStats.value.totalLikes + ((i.video_likes?.filter((i) => i.is_liked)?.length) ?? 0)
         }
 
-        total_videos.push(conversion);
+        userVideos.value = [...userVideos.value, conversion]
       });
-
-      userVideos.value = total_videos;
 
     } catch {}
   }
