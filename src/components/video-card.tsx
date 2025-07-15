@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -7,7 +9,7 @@ import Image from "next/image"
 import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { SupabaseClient } from "@supabase/supabase-js"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
-import { type Signal } from "@preact/signals-react"
+import { useEffect } from "react"
 
 export type VideoProps = {
   id: string
@@ -29,8 +31,8 @@ type VideoCardProps = {
 const globalCache = new Map<string, Blob>()
 
 export async function getImage( video: VideoProps, supabase: SupabaseClient<any, string, any> ) {
-  if (supabase) {
-    if (video.thumbnail_path && !globalCache.has(video.thumbnail_path)) {
+  if (supabase && video.id && video.thumbnail_path) {
+    if (!globalCache.has(video.thumbnail_path)) {
 
       const { data, error } = await supabase.storage
         .from("images")
@@ -40,14 +42,15 @@ export async function getImage( video: VideoProps, supabase: SupabaseClient<any,
         return null
       }
 
-      globalCache.set(video.thumbnail_path, data)
-      console.log("cached", video.id);
+      if (data){
+        globalCache.set(video.thumbnail_path, data);
+        return URL.createObjectURL(data)
+      };
     } else {
-        console.log("downloading", video.id);
+      const cached_file = globalCache.get(video.thumbnail_path);
+      return cached_file && URL.createObjectURL(cached_file);
     }
 
-    const selected_file = globalCache.get(video.thumbnail_path!);
-    if (selected_file) return URL.createObjectURL(selected_file);
   }
 }
 
@@ -55,20 +58,22 @@ export function VideoCard({ video, compact = false, quick_load = false, supabase
   useSignals();
   const thumbURL = useSignal<string | null>(null);
 
-  if (video.thumbnail_path && supabase) {
-    const videoForImage: VideoProps =
-      typeof video.views === "number"
-        ? { ...video, views: video.views.toString() }
-        : (video as VideoProps);
-    
-    (async () => {
-      let uri = await getImage(videoForImage, supabase);
+  useEffect(() => {
+    if (video.thumbnail_path && supabase) {
+      const videoForImage: VideoProps =
+        typeof video.views === "number"
+          ? { ...video, views: video.views.toString() }
+          : (video as VideoProps);
+      
+      (async () => {
+        let uri = await getImage(videoForImage, supabase);
 
-      if (uri) {
-        thumbURL.value = uri;
-      }
-    })()
-  }
+        if (uri) {
+          thumbURL.value = uri;
+        }
+      })()
+    }
+  }, [])
 
   if (compact) {
     return (

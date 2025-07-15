@@ -247,11 +247,11 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
       }
     }
 
-    window.addEventListener("keydown", handleKeyDown)
+    globalThis.addEventListener("keydown", handleKeyDown)
     
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown)
+      globalThis.removeEventListener("keydown", handleKeyDown)
     }
   }, [])
 
@@ -522,7 +522,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
   const handleShare = () => {
     // In a real app, this would open a share dialog
-    navigator.clipboard.writeText(window.location.href)
+    navigator.clipboard.writeText(globalThis.location.href)
     toast.success("Link copied to clipboard", {
       description: "Share this video with your friends",
     })

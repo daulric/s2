@@ -181,8 +181,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         : redirectTo;
       
       const redirectUrl = formattedRedirectTo 
-        ? `${window.location.origin}/${formattedRedirectTo}`
-        : window.location.origin;
+        ? `${globalThis.location.origin}/${formattedRedirectTo}`
+        : globalThis.location.origin;
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: provider,
@@ -254,7 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       loading.value = true;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
+        redirectTo: `${globalThis.location.origin}/reset-password`
       });
 
       if (error) {

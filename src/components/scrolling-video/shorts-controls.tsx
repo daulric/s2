@@ -80,7 +80,7 @@ export function ShortsControls({ short, currentUser, onInteraction, alwaysVisibl
     e.stopPropagation()
     onInteraction?.()
 
-    navigator.clipboard.writeText(window.location.origin + `/video/${short.id}`)
+    navigator.clipboard.writeText(globalThis.location.origin + `/video/${short.id}`)
     toast.success("Link copied to clipboard")
   }
 
