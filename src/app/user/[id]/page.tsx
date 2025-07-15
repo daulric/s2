@@ -109,8 +109,6 @@ export default function UserProfilePage() {
   }
 
   const loadUserVideos = async () => {
-    let total_videos: VideoInfoProps[] = [];
-
     try {
       if (!userProfile.value) return;
       
