@@ -26,32 +26,34 @@ type VideoCardProps = {
   supabase?: SupabaseClient<any,string, any>
 }
 
-export async function getImage(
-  video: VideoProps,
-  supabase: SupabaseClient<any, string, any>,
-  ref: Signal<File | null>
-) {
+const globalCache = new Map<string, Blob>()
+
+export async function getImage( video: VideoProps, supabase: SupabaseClient<any, string, any> ) {
   if (supabase) {
-    if (!ref.value) {
+    if (video.thumbnail_path && !globalCache.has(video.thumbnail_path)) {
+
       const { data, error } = await supabase.storage
         .from("images")
         .download(video.thumbnail_path || "");
-
+  
       if (error) {
         return null
       }
 
-      ref.value = data as File;
+      globalCache.set(video.thumbnail_path, data)
+      console.log("cached", video.id);
+    } else {
+        console.log("downloading", video.id);
     }
 
-    return URL.createObjectURL(ref.value);
+    const selected_file = globalCache.get(video.thumbnail_path!);
+    if (selected_file) return URL.createObjectURL(selected_file);
   }
 }
 
 export function VideoCard({ video, compact = false, quick_load = false, supabase }: VideoCardProps) {
   useSignals();
-  const _ref = useSignal(null);
-  const thumbURL = useSignal<string>("");
+  const thumbURL = useSignal<string | null>(null);
 
   if (video.thumbnail_path && supabase) {
     const videoForImage: VideoProps =
@@ -60,11 +62,10 @@ export function VideoCard({ video, compact = false, quick_load = false, supabase
         : (video as VideoProps);
     
     (async () => {
-      if (!_ref.value) {
-        let uri = await getImage(videoForImage, supabase, _ref);
-        if (uri) {
-          thumbURL.value = uri;
-        }
+      let uri = await getImage(videoForImage, supabase);
+
+      if (uri) {
+        thumbURL.value = uri;
       }
     })()
   }
