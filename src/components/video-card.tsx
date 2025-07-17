@@ -24,7 +24,6 @@ export type VideoProps = {
 type VideoCardProps = {
   video: VideoInfoProps | VideoProps
   compact?: boolean
-  quick_load?: boolean
   supabase?: SupabaseClient<any,string, any>
 }
 
@@ -54,7 +53,7 @@ export async function getImage( video: VideoProps, supabase: SupabaseClient<any,
   }
 }
 
-export function VideoCard({ video, compact = false, quick_load = false, supabase }: VideoCardProps) {
+export function VideoCard({ video, compact = false,  supabase }: VideoCardProps) {
   useSignals();
   const thumbURL = useSignal<string | null>(null);
 
@@ -88,7 +87,7 @@ export function VideoCard({ video, compact = false, quick_load = false, supabase
                   className="w-full h-full object-cover"
                   width={1000}
                   height={1000}
-                  loading={quick_load ? "eager" : "lazy"}
+                  loading="lazy"
                   onLoad={() => { if (thumbURL.value) URL.revokeObjectURL(thumbURL.value) }}
                 />
               )}
@@ -118,7 +117,7 @@ export function VideoCard({ video, compact = false, quick_load = false, supabase
               width={1000} height={1000}
               alt={video.title}
               className="w-full h-40 object-cover"
-              loading={quick_load ? "eager" : "lazy"}
+              loading="lazy"
               onLoad={() => { if (thumbURL.value) URL.revokeObjectURL(thumbURL.value) }}
             />
           )}
