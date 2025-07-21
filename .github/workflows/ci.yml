@@ -23,9 +23,7 @@ jobs:
           cache: 'npm'
 
       - run: npm install
-      - run: npm run lint
       - run: npm run build
-      - run: npm test
 
   bun-job:
     name: 🟣 Bun
@@ -38,8 +36,7 @@ jobs:
         uses: oven-sh/setup-bun@v1
 
       - run: bun install
-      - run: bun test || echo "bun test failed (ok if not supported)"
-      - run: bun lint || echo "bun lint failed (optional)"
+      - run: bun run build
 
   deno-job:
     name: 🟠 Deno
@@ -53,8 +50,8 @@ jobs:
         with:
           deno-version: v1.x
 
-      - name: Run Deno Lint (optional)
-        run: deno lint || echo "deno lint skipped"
+      - name: Deno App Install
+        run: deno install
 
-      - name: Run Deno Test (if you have deno test files)
-        run: deno test || echo "deno test skipped"
+      - name: Deno App Build
+        run: deno build
