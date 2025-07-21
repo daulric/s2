@@ -12,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: supabase-anon-key # replace if using real .env
 
     steps:
       - name: 🧾 Checkout code
@@ -25,7 +24,7 @@ jobs:
         run: bunx supabase init || echo "already initialized"
 
       - name: ▶️ Start Supabase
-        run: supabase start &
+        run: bunx supabase start &
       
       - name: ⏱ Wait for Supabase to boot
         run: |
