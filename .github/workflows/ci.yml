@@ -21,11 +21,8 @@ jobs:
       - name: 🛠️ Install Bun
         uses: oven-sh/setup-bun@v1
 
-      - name: 📦 Install Supabase CLI
-        run: bunx npm install -g supabase
-
       - name: ⚙️ Initialize Supabase
-        run: supabase init || echo "already initialized"
+        run: bunx supabase init || echo "already initialized"
 
       - name: ▶️ Start Supabase
         run: supabase start &
