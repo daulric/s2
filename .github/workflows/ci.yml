@@ -7,24 +7,6 @@ on:
     branches: ["**"]
 
 jobs:
-  node-job:
-    name: 🔵 Node.js ${{ matrix.node-version }}
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [16.x, 18.x, 20.x]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-
-      - run: npm install
-      - run: npm run build
-
   bun-job:
     name: 🟣 Bun
     runs-on: ubuntu-latest
@@ -37,21 +19,3 @@ jobs:
 
       - run: bun install
       - run: bun run build
-
-  deno-job:
-    name: 🟠 Deno
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v1
-        with:
-          deno-version: v1.x
-
-      - name: Deno App Install
-        run: deno install
-
-      - name: Deno App Build
-        run: deno build
