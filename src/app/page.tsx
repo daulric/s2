@@ -1,20 +1,17 @@
-"use client"
-
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/context/AuthProvider"
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation";
 
-export default function Home() {
-
-  const { user: { user } } = useAuth();
-  const router = useRouter();
+export default async function Home() {
+  const supabase = await createClient();
+  
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (user) {
-    router.push("/home");
+    redirect("/home");
     return null;
   }
-
 
   return (
     <>
