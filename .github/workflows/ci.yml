@@ -12,21 +12,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: supabase-anon-key 
 
     steps:
-      - name: 🧾 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🛠️ Install Bun
+      - name: Install Bun
         uses: oven-sh/setup-bun@v1
 
-      - name: ⚙️ Initialize Supabase
+      - name: Initialize Supabase
         run: bunx supabase init || echo "already initialized"
 
-      - name: ▶️ Start Supabase
+      - name: Starting Supabase
         run: bunx supabase start &
       
-      - name: ⏱ Wait for Supabase to boot
+      - name: Wait for Supabase To Boot
         run: |
           echo "Waiting for Supabase at http://localhost:54321..."
           for i in {1..30}; do
@@ -34,14 +35,14 @@ jobs:
             sleep 2
           done
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: bun install
 
-      - name: 🧹 Lint (optional)
+      - name: Lint (optional)
         run: bun run lint || echo "No lint script"
 
-      - name: 🛠️ Build Next.js app
+      - name: Build Next.js app
         run: bun run build
 
-      - name: ✅ Run tests (uses local Supabase)
+      - name: Run tests (uses local Supabase)
         run: bun test || echo "No tests"
