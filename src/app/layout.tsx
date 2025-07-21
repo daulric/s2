@@ -8,6 +8,7 @@ import { Header } from "@/components/header"
 import {Toaster} from "@/components/ui/sonner"
 import NextTopLoader from "nextjs-toploader"
 import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" })
 
@@ -37,7 +38,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <NextTopLoader showSpinner={false}/>
             {children}
             <Toaster position="top-right" />
-             <Analytics />
+            <Analytics />
+            <SpeedInsights />
           </AuthProvider>
         </ThemeProvider>
       </body>
