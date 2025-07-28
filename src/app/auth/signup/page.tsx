@@ -1,5 +1,7 @@
 import { Metadata } from "next"
 import SignupPage from "./signup_page"
+import Loading from "@/app/loading"
+import { Suspense } from "react"
 
 export const metadata: Metadata = {
     title: "s2 - Signup",
@@ -7,5 +9,9 @@ export const metadata: Metadata = {
 }
 
 export default async function PAGE() {
-    return ( <SignupPage /> )
+    return ( 
+        <Suspense fallback={<Loading />}>
+            <SignupPage />
+        </Suspense>
+    )
 }

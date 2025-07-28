@@ -3,7 +3,7 @@ import { GetVideoDetails, GetPublicVideos } from "@/serverActions/GetVideoDetail
 import { notFound as NotFound } from "next/navigation";
 import { cache, Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { LoadingSpinner } from "@/components/loading-spinner";
+import Loading from "@/app/loading";
 
 // Updated type to use Promise
 type PageProps = {
@@ -48,7 +48,7 @@ export default async function PAGE({ params }: PageProps) {
   if (error) return <div>View update problem</div>;
   
   return (
-    <Suspense fallback={<LoadingSpinner />}>
+    <Suspense fallback={<Loading />}>
       <VideoPage videoData={data} public_videos={PublicVideos ?? []} />;
     </Suspense>
   )

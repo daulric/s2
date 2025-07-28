@@ -2,7 +2,7 @@ import { GetPublicVideos } from "@/serverActions/GetVideoDetails"
 import { notFound as NotFound } from "next/navigation";
 import HomePage from "./home_page"
 import { Suspense } from "react";
-import { LoadingSpinner } from "@/components/loading-spinner";
+import Loading from "@/app/loading";
 
 export const metadata = {
     title: "s2 - Home",
@@ -16,7 +16,7 @@ export default async function HOMEPAGE() {
 
     return (
         <main className="min-h-screen pt-15 p-4 bg-background">
-            <Suspense fallback={<LoadingSpinner />}>
+            <Suspense fallback={<Loading />}>
                 <HomePage videos={public_videos} />
             </Suspense>
         </main>
