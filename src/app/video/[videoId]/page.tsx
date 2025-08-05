@@ -34,11 +34,13 @@ export default async function PAGE({ params }: PageProps) {
   // Await the params promise
   const { videoId } = await params;
   const supabase = await createClient();
-  const data = await CachedVideo(videoId);
+
+  const [data, PublicVideos] = await Promise.all([
+    CachedVideo(videoId),
+    GetPublicVideos()
+  ]);
 
   if (!data) return <NotFound />;
-
-  const PublicVideos = await GetPublicVideos();
 
   const { error } = await supabase
     .from("videos")
