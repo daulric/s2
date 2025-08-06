@@ -42,7 +42,7 @@ jobs:
         run: bun run lint || echo "No lint script"
 
       - name: Build Next.js app
-        run: bun run build
+        run: next build --turbopack
 
       - name: Run tests (uses local Supabase)
         run: bun test || echo "No tests"
