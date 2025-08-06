@@ -9,13 +9,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
-import { Calendar, MapPin, Video, Eye, ThumbsUp, Users, UserPlus, UserMinus } from "lucide-react"
+import { Calendar, Video, Eye, ThumbsUp, Users, UserPlus, UserMinus } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
 import { VideoCard } from "@/components/video-card"
 import { useSignals } from "@preact/signals-react/runtime"
 import convert, { VideoData, VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import upsert from "@/lib/supabase/upsert"
 import Loading from "./loading"
+import { BadgeCheckIcon } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 interface VideoDataAdded extends VideoData {
   video_likes?: { is_liked: boolean }[]
@@ -52,6 +54,7 @@ export default function UserProfilePage() {
       if (cancelled) return;
 
       try {
+
         await loadUserProfile();
 
         if (!cancelled && userProfile.value?.id) {
@@ -244,9 +247,7 @@ export default function UserProfilePage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
               <Avatar className="h-24 w-24 sm:h-32 sm:w-32">
                 <AvatarImage
-                  src={
-                    `${process.env.NEXT_PUBLIC_PROFILE}${userProfile.value?.username}`  || "/logo.jpeg"
-                  }
+                  src={`${process.env.NEXT_PUBLIC_PROFILE}${userProfile.value?.username}`  || "/logo.jpeg"}
                   alt={"G"}
                 />
                 <AvatarFallback className="text-2xl">
@@ -255,7 +256,21 @@ export default function UserProfilePage() {
               </Avatar>
 
               <div className="flex-1">
-                <h1 className="text-3xl font-bold">{userProfile.value?.username}</h1>
+                <h1 className="text-3xl font-bold flex items-center gap-2">
+                  {userProfile.value?.username}
+                  {
+                    userProfile.value?.is_verified && (
+                      <Badge
+                        variant="secondary"
+                        className="bg-blue-500 text-white dark:bg-blue-600 flex items-center gap-1"
+                      >
+                        <BadgeCheckIcon className="w-4 h-4" />
+                        Verified
+                      </Badge>
+                    )
+                  }
+                  
+                </h1>
                 <p className="text-muted-foreground mt-2">{ userProfile.value?.description}</p>
                 <div className="flex items-center gap-4 mt-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">

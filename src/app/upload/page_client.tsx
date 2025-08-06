@@ -3,7 +3,7 @@
 import { useRef } from "react"
 import { redirect, useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Upload, X, ImageIcon, Tag, Globe, Lock, Link } from "lucide-react"
+import { Upload, X, ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
