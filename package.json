@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build -turbopack",
     "start": "next start",
     "lint": "next lint",
-    "prod": "next build && next start",
+    "prod": "next build --turbopack && next start",
     "preview": "next build && next start",
     "build:cf": "NEXT_PRIVATE_STANDALONE=true next build",
     "check": "npm run build:cf && tsc && wrangler deploy --dry-run",
