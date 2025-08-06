@@ -269,7 +269,6 @@ export default function UserProfilePage() {
                       </Badge>
                     )
                   }
-                  
                 </h1>
                 <p className="text-muted-foreground mt-2">{ userProfile.value?.description}</p>
                 <div className="flex items-center gap-4 mt-4 text-sm text-muted-foreground">
