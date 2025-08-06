@@ -17,6 +17,8 @@ import upsert from "@/lib/supabase/upsert"
 import Link from "next/link"
 import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { useRouter } from "next/navigation"
+import { Badge } from "@/components/ui/badge"
+import { BadgeCheckIcon } from "lucide-react"
 
 // Keyboard shortcuts help data
 const keyboardShortcuts = [
@@ -760,7 +762,18 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
                   </Avatar>
                 </Link>
                 <div className="flex-1">
-                  <Link href={`/user/${videoData.creator_id}`}><h3 className="font-semibold">{videoData.username}</h3></Link>
+                  <Link href={`/user/${videoData.creator_id}`}><h3 className="font-semibold flex items-center gap-2">
+                    {videoData.username}
+                    {videoData.is_verified && (
+                      <Badge
+                        variant="secondary"
+                        className="bg-blue-500 text-white dark:bg-blue-600 flex items-center gap-1"
+                      >
+                        <BadgeCheckIcon className="w-4 h-4" />
+                        Verified
+                      </Badge>
+                    )}
+                    </h3></Link>
                   <p className="text-sm text-muted-foreground">{subscribers.value || 0} subscribers</p>
                   <p className="mt-2 text-sm">{videoData.description}</p>
                 </div>

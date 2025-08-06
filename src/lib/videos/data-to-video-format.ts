@@ -16,6 +16,7 @@ export type VideoInfoProps = {
     visibility?: string,
     video_path?: string,
     thumbnail_path?: string | null,
+    is_verified?: boolean, // Optional field for verification status
 }
 
 export type VideoData = {
@@ -29,6 +30,7 @@ export type VideoData = {
     views?: number,
     created_at: Date | string,
     category: string,
+    is_verified?: boolean, // Optional field for verification status
 }
 
 export default async function convert(supabase: SupabaseClient<any, string, any>, data: VideoData, time_allowed: number = 10, signedAllowed: boolean = true): Promise<VideoInfoProps> {
@@ -43,11 +45,11 @@ export default async function convert(supabase: SupabaseClient<any, string, any>
                 
                 const { data: u, error } = await supabase
                     .from("profiles")
-                    .select("username, avatar_url")
+                    .select("username, avatar_url, is_verified")
                     .eq("id", data.userid)
                     .single();
                 
-                if (u === null) throw "No Data on User";
+                if (u === null || error) throw "No Data on User";
                 return u
             } catch (e) {
                 throw e;
@@ -76,6 +78,7 @@ export default async function convert(supabase: SupabaseClient<any, string, any>
             visibility: data.visibility,
             video_path: data.video_path || "",
             thumbnail_path: data.thumbnail_path || null,
+            is_verified: user.is_verified || false, // Include verification status if available
         } satisfies VideoInfoProps
     } catch (e) {
         throw e;
