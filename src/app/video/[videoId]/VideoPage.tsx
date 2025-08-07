@@ -5,11 +5,18 @@ import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Textarea } from "@/components/ui/textarea"
+//import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
-import { Play, Pause, Volume2, VolumeX, Maximize, ThumbsUp,ThumbsDown, Share, MessageSquare, Clock, Bookmark, MoreHorizontal, Flame, Heart, Keyboard } from "lucide-react"
+import { Play, Pause, Volume2, VolumeX, Maximize, ThumbsUp, ThumbsDown, Share, MessageSquare, Clock, Bookmark, MoreHorizontal, Flame, Heart, Keyboard } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,} from "@/components/ui/dialog"
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { VideoCard } from "@/components/video-card"
 import { useAuth } from "@/context/AuthProvider"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
@@ -18,7 +25,8 @@ import Link from "next/link"
 import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
-import { BadgeCheckIcon } from "lucide-react"
+import { BadgeCheckIcon } from 'lucide-react'
+import { effect } from "@preact/signals-react"
 
 // Keyboard shortcuts help data
 const keyboardShortcuts = [
@@ -39,7 +47,6 @@ const keyboardShortcuts = [
 export default function VideoPage({ videoData, public_videos }: { videoData: VideoInfoProps, public_videos: VideoInfoProps[] }) {
   useSignals();
   const { user: { user }, supabase } = useAuth();
-
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -60,10 +67,10 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
   const isSaved = useSignal(false);
   const showControls = useSignal(true);
   const isKeyboardShortcutsOpen = useSignal(false);
-  const isFullscreen= useSignal(false);
+  const isFullscreen = useSignal(false);
 
   // Video Data
-  const video_url = useSignal<string | null >(null);
+  const video_url = useSignal<string | null>(null);
   const thumbnail_url = useSignal<string | null>(null);
 
   async function getVideoBlobs() {
@@ -75,36 +82,33 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
   async function setIsSubscribe() {
     if (!user) return;
-
     const { data: subed } = await supabase
       .from("subscribers")
       .select("*")
       .eq("subscriber", user.id)
       .eq("vendor", videoData.creator_id)
       .single();
-    
-      if (subed) {
-        isSubscribed.value = subed.is_subscribed;
-      }
+
+    if (subed) {
+      isSubscribed.value = subed.is_subscribed;
+    }
   }
 
-  async function  getTotalSubs() {
+  async function getTotalSubs() {
     if (!videoData.creator_id) return;
-
     const { data: total_amount } = await supabase
       .from("subscribers")
       .select("*")
       .eq("vendor", videoData.creator_id)
       .eq("is_subscribed", true);
 
-      if (total_amount) {
-        subscribers.value = total_amount.length;
-      }
+    if (total_amount) {
+      subscribers.value = total_amount.length;
+    }
   }
 
   async function getIsUserLikedVideo() {
     if (!user) return;
-
     const { data, error } = await supabase.from("video_likes")
       .select("*")
       .eq("userid", user.id)
@@ -112,6 +116,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
       .single();
 
     if (error || !data) return;
+
     if (data.is_liked === true) {
       isLiked.value = true;
     } else if (data.is_liked === false) {
@@ -120,12 +125,11 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
   }
 
   async function getTotalLikes() {
-
     const { data, error } = await supabase.from("video_likes")
       .select("is_liked")
       .eq("video_id", videoData.id)
       .eq("is_liked", true);
-    
+
     if (error) return;
     total_likes.value = data.length;
   }
@@ -139,13 +143,15 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
       })
     }
 
+    // Cleanup function - only revoke URLs when component unmounts or videoData changes
     return () => {
       if (video_url.value) {
         URL.revokeObjectURL(video_url.value)
+        video_url.value = null;
       }
-
       if (thumbnail_url.value) {
         URL.revokeObjectURL(thumbnail_url.value)
+        thumbnail_url.value = null;
       }
     }
   }, [videoData]);
@@ -155,7 +161,6 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
       getTotalLikes();
       getTotalSubs();
     }
-
     setIsSubscribe();
     getIsUserLikedVideo();
 
@@ -168,39 +173,35 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     }
   }, [user, videoData])
 
-  // Effect to handle video play/pause
-  useEffect(() => {
+  isPlaying.subscribe((value) => {
     if (videoRef.current) {
-      if (isPlaying.value) {
-        videoRef.current.play().catch((error) => {
-          isPlaying.value = false;
-          toast.error("Error playing video", {
-            description: "The video could not be played. Please try again.",
-          })
-        })
+      if (value) {
+        videoRef.current.play()
       } else {
         videoRef.current.pause()
       }
     }
-  }, [isPlaying.value])
+  })
 
-  // Effect to handle video mute/unmute and volume
-  useEffect(() => {
+  isMuted.subscribe((value) => {
+    if (videoRef.current) {
+      videoRef.current.muted = value;
+    }
+  })
+
+  effect(() => {
     if (videoRef.current) {
       videoRef.current.muted = isMuted.value
       videoRef.current.volume = volume.value
     }
-  }, [isMuted.value, volume.value])
+  })
 
   // Effect to set up keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-
       // Only handle keyboard shortcuts if not typing in an input or textarea
-      if (
-        document && document.activeElement && document.activeElement.tagName === "INPUT" ||
-        document && document.activeElement && document.activeElement.tagName === "TEXTAREA") 
-      {
+      if (document && document.activeElement && document.activeElement.tagName === "INPUT" ||
+        document && document.activeElement && document.activeElement.tagName === "TEXTAREA") {
         return
       }
 
@@ -243,6 +244,9 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
             if (videoRef.current) {
               const seekTime = (videoRef.current.duration * num) / 10
               videoRef.current.currentTime = seekTime
+              if (!isPlaying.value) {
+                isPlaying.value = true; // Start playing if not already
+              }
             }
           }
           break
@@ -250,7 +254,6 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     }
 
     globalThis.addEventListener("keydown", handleKeyDown)
-    
 
     return () => {
       globalThis.removeEventListener("keydown", handleKeyDown)
@@ -335,12 +338,11 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
   }
 
   const toggleFullscreen = () => {
-
     const container = containerRef.current;
     const video_player = videoRef.current;
-    
+
     if (!container || !video_player) return;
-    
+
     if (container.requestFullscreen) {
       if (!document.fullscreenElement) {
         container.requestFullscreen();
@@ -349,7 +351,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
         document.exitFullscreen();
         isFullscreen.value = false
       }
-    // @ts-ignore: webkitEnterFullscreen is not standard but used in some browsers (iOS Safari)
+      // @ts-ignore: webkitEnterFullscreen is not standard but used in some browsers (iOS Safari)
     } else if ((video_player as any).webkitEnterFullscreen) {
       // iOS Safari specific fullscreen API
       if (!isFullscreen.value) {
@@ -362,14 +364,14 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
         isFullscreen.value = false
       }
     }
-
   };
 
   const seekBackward = () => {
     if (videoRef.current) {
       videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10)
-
-      // Show a visual indicator for seeking backward
+      if (!isPlaying.value) {
+        isPlaying.value = true;
+      }
       toast.info("⏪ -10 seconds", { duration: 1000 })
     }
   }
@@ -377,8 +379,9 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
   const seekForward = () => {
     if (videoRef.current) {
       videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 10)
-
-      // Show a visual indicator for seeking forward
+      if (!isPlaying.value) {
+        isPlaying.value = true;
+      }
       toast.info("⏩ +10 seconds", { duration: 1000 })
     }
   }
@@ -387,15 +390,14 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     if (isMuted.value) {
       isMuted.value = false;
     }
-
     volume.value = Math.min(1, volume.value + 0.1);
+
     // Show a visual indicator for volume change
     toast.info(`🔊 Volume: ${Math.round(volume.value * 100)}%`, { duration: 500 })
   }
 
   const decreaseVolume = () => {
     volume.value = Math.max(0, volume.value - 0.1);
-    
     if (volume.value <= 0) {
       isMuted.value = true;
     }
@@ -419,22 +421,18 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     if (isLiked.value) {
       isLiked.value = false;
       total_likes.value = Math.max(0, total_likes.value - 1);
-      await upsert(
-        supabase,
+      await upsert(supabase,
         "video_likes",
-        { video_id: videoData.id, userid: user.id}, 
-        {  is_liked: null }
+        { video_id: videoData.id, userid: user.id },
+        { is_liked: null }
       )
     } else {
       isLiked.value = true;
       isDisliked.value = false;
       total_likes.value += 1;
-
-      await upsert(
-        supabase, 
-        "video_likes", 
-        { video_id: videoData.id,userid: user.id,}, 
-        {  is_liked: true }
+      await upsert(supabase, "video_likes",
+        { video_id: videoData.id, userid: user.id, },
+        { is_liked: true }
       )
     }
   }
@@ -454,9 +452,8 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     if (isDisliked.value) {
       isDisliked.value = false
       await upsert(
-        supabase, 
-        "video_likes", 
-        { video_id: videoData.id,userid: user.id,}, 
+        supabase, "video_likes",
+        { video_id: videoData.id, userid: user.id, },
         { is_liked: null }
       )
     } else {
@@ -464,10 +461,9 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
       isLiked.value = false;
       total_likes.value = Math.max(0, total_likes.value - 1);
       await upsert(
-        supabase, 
-        "video_likes", 
-        { video_id: videoData.id,userid: user.id,}, 
-        {  is_liked: false }
+        supabase, "video_likes",
+        { video_id: videoData.id, userid: user.id, },
+        { is_liked: false }
       )
     }
   }
@@ -481,7 +477,6 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     }
 
     isSubscribed.value = !isSubscribed.value;
-
     await upsert(
       supabase,
       "subscribers",
@@ -494,7 +489,6 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
         description: "You'll be notified about new uploads",
       })
     }
-
   }
 
   const handleSave = () => {
@@ -510,7 +504,6 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     }
 
     isSaved.value = !isSaved.value;
-
     if (isSaved.value) {
       toast.success("Video saved", {
         description: "Added to your Watch Later playlist",
@@ -544,13 +537,37 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
       toast.success("Comment posted", {
         description: "Your comment has been added",
       })
-
       comment.value = "";
     }
   }
 
+  // Fixed progress bar click handler
+  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (videoRef.current && duration.value > 0) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pos = (e.clientX - rect.left) / rect.width;
+      const newTime = pos * duration.value;
+      
+      // Store the current playing state
+      const wasPlaying = isPlaying.value;
+      
+      // Set the new time
+      videoRef.current.currentTime = newTime;
+      
+      // If the video was playing before seeking, make sure it continues playing
+      if (wasPlaying) {
+        // Use a small timeout to ensure the seek operation completes
+        setTimeout(() => {
+          if (videoRef.current && !isPlaying.value) {
+            isPlaying.value = true;
+          }
+        }, 100);
+      }
+    }
+  };
+
   const trending_vids = public_videos
-    .sort((a, b) => ( b.views - a.views) )
+    .sort((a, b) => (b.views - a.views))
     .filter((d) => d.id !== videoData.id)
     .slice(0, 4);
 
@@ -558,15 +575,15 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     .filter((d) => d.category === videoData.category)
     .map(d => ({ value: d, sort: Math.random() }))
     .sort((a, b) => a.sort - b.sort)
-    .map(({value}) => value)
+    .map(({ value }) => value)
     .filter((d) => d.id !== videoData.id)
     .slice(0, 4);
-  
+
   const new_vids = public_videos
     .sort((a, b) => (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()))
     .filter(d => d.id !== videoData.id)
     .slice(0, 8);
-  
+
   return (
     <main className="min-h-screen pt-5 p-4 bg-background">
       <div className="max-w-6xl mx-auto">
@@ -587,16 +604,6 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
                 onTimeUpdate={handleTimeUpdate}
                 onClick={togglePlay}
                 onEnded={() => { isPlaying.value = false }}
-                onLoadedData={() => {
-                  if (video_url.value) {
-                    URL.revokeObjectURL(video_url.value)
-                  }
-
-                  if (thumbnail_url.value) {
-                    URL.revokeObjectURL(thumbnail_url.value)
-                  }
-
-                }}
                 playsInline
                 preload="auto"
               />
@@ -617,20 +624,13 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
               {/* Video controls - show based on showControls state */}
               <div
-                className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300 ${
-                  showControls.value ? "opacity-100" : "opacity-0"
-                }`}
+                className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300 ${showControls.value ? "opacity-100" : "opacity-0"
+                  }`}
               >
                 {/* Progress bar */}
                 <div
                   className="w-full bg-gray-600 h-2 mb-2 rounded-full overflow-hidden cursor-pointer"
-                  onClick={(e) => {
-                    if (videoRef.current) {
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      const pos = (e.clientX - rect.left) / rect.width
-                      videoRef.current.currentTime = pos * videoRef.current.duration
-                    }
-                  }}
+                  onClick={handleProgressBarClick}
                 >
                   <div className="bg-primary h-full" style={{ width: `${(currentTime.value / duration.value) * 100 || 0}%` }}></div>
                 </div>
@@ -720,11 +720,11 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
                   className="flex items-center"
                   onClick={handleLike}
                 >
-                  <ThumbsUp className={ `h-4 w-4 mr-1 ${isLiked.value ? "fill-current" : ""}` }/>
+                  <ThumbsUp className={`h-4 w-4 mr-1 ${isLiked.value ? "fill-current" : ""}`} />
                   {total_likes}
                 </Button>
                 <Button
-                  variant={isDisliked.value ? "default": "ghost"}
+                  variant={isDisliked.value ? "default" : "ghost"}
                   size="sm"
                   className="flex items-center"
                   onClick={handleDislike}
@@ -751,18 +751,19 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
             <Separator className="my-4" />
 
             {/* Creator Info */}
-              <div className="flex items-start space-x-4">
-                <Link href={`/user/${videoData.creator_id}`} >
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage
-                      src={video_data_signal.value?.avatar_url || `${process.env.NEXT_PUBLIC_PROFILE}${videoData.username}`}
-                      alt={video_data_signal.value?.username}
-                      />
-                    <AvatarFallback>{video_data_signal.value?.username?.[0]}</AvatarFallback>
-                  </Avatar>
-                </Link>
-                <div className="flex-1">
-                  <Link href={`/user/${videoData.creator_id}`}><h3 className="font-semibold flex items-center gap-2">
+            <div className="flex items-start space-x-4">
+              <Link href={`/user/${videoData.creator_id}`} >
+                <Avatar className="h-12 w-12">
+                  <AvatarImage
+                    src={video_data_signal.value?.avatar_url || `${process.env.NEXT_PUBLIC_PROFILE}${videoData.username}`}
+                    alt={video_data_signal.value?.username}
+                  />
+                  <AvatarFallback>{video_data_signal.value?.username?.[0]}</AvatarFallback>
+                </Avatar>
+              </Link>
+              <div className="flex-1">
+                <Link href={`/user/${videoData.creator_id}`}>
+                  <h3 className="font-semibold flex items-center gap-2">
                     {videoData.username}
                     {videoData.is_verified && (
                       <Badge
@@ -773,91 +774,26 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
                         Verified
                       </Badge>
                     )}
-                    </h3></Link>
-                  <p className="text-sm text-muted-foreground">{subscribers.value || 0} subscribers</p>
-                  <p className="mt-2 text-sm">{videoData.description}</p>
-                </div>
-                {(user && user.id !== videoData.creator_id) && (
-                  <Button variant={ isSubscribed.value ? "outline" : "default" } onClick={handleSubscribe}>
-                    { isSubscribed.value ? "Subscribed" : "Subscribe" }
-                  </Button>
-                )}
+                  </h3>
+                </Link>
+                <p className="text-sm text-muted-foreground">{subscribers.value || 0} subscribers</p>
+                <p className="mt-2 text-sm">{videoData.description}</p>
               </div>
+              {(user && user.id !== videoData.creator_id) && (
+                <Button variant={isSubscribed.value ? "outline" : "default"} onClick={handleSubscribe}>
+                  {isSubscribed.value ? "Subscribed" : "Subscribe"}
+                </Button>
+              )}
+            </div>
 
             <Separator className="my-6" />
-
-            {/*
-
-            {Comment Section}
-              <div>
-              <h3 className="font-semibold flex items-center">
-                <MessageSquare className="h-5 w-5 mr-2" />
-                {videoData?.comments?.length || 0} Comments
-              </h3>
-
-              <form onSubmit={handleCommentSubmit} className="mt-4 flex items-start space-x-4">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback>{user ? user.email?.charAt(0).toUpperCase() || "U" : "G"}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <Textarea
-                    placeholder="Add a comment..."
-                    value={comment.value}
-                    onChange={(e) => { comment.value = e.target.value } }
-                    className="resize-none"
-                  />
-                  <div className="flex justify-end mt-2 space-x-2">
-                    <Button type="button" variant="ghost" onClick={() => { comment.value = "" }}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={!comment.value.trim()}>
-                      Comment
-                    </Button>
-                  </div>
-                </div>
-              </form>
-
-              {Comment List}
-              <div className="mt-6 space-y-6">
-                {(videoData.comments || []).map((comment, index) => (
-                  <div key={comment.id || index} className="flex space-x-4">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={comment?.avatar } alt={comment.user} />
-                      <AvatarFallback>{comment.user?.[0] || "U"}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="flex items-center">
-                        <span className="font-medium">{comment.user}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">{comment.time}</span>
-                      </div>
-                      <p className="mt-1 text-sm">{comment.text}</p>
-                      <div className="mt-2 flex items-center space-x-4 text-sm">
-                        <Button variant="ghost" size="sm" className="h-auto py-0">
-                          <ThumbsUp className="h-3.5 w-3.5 mr-1" />
-                          {comment.likes || 0}
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-auto py-0">
-                          <ThumbsDown className="h-3.5 w-3.5 mr-1" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-auto py-0">
-                          Reply
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            */}
-
           </div>
         </div>
 
         {/* Video Recommendations */}
         <div className="mt-12">
           <Tabs defaultValue="trending" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="trending">
                 <Flame className="h-4 w-4 mr-2" />
                 Trending
@@ -871,7 +807,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
             <TabsContent value="trending" className="mt-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {trending_vids.map((video) => (
-                  <VideoCard key={video.id} video={video} supabase={supabase}/>
+                  <VideoCard key={video.id} video={video} supabase={supabase} />
                 ))}
               </div>
             </TabsContent>
@@ -879,7 +815,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
             <TabsContent value="new" className="mt-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {new_vids.map((video) => (
-                  <VideoCard key={video.id} video={video} supabase={supabase}/>
+                  <VideoCard key={video.id} video={video} supabase={supabase} />
                 ))}
               </div>
             </TabsContent>

@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
-import { use, useEffect, useState } from "react"
+import { useEffect } from "react"
 import NextTopLoader from "nextjs-toploader"
 
 export default function TopLoader() {
@@ -18,5 +18,5 @@ export default function TopLoader() {
         }
     }, [resolvedTheme])
 
-    return <NextTopLoader color={loaderColorSignal.value} />
+    return <NextTopLoader color={loaderColorSignal.value} showSpinner={false} />
 }
