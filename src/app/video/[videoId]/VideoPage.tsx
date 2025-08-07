@@ -608,7 +608,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
                     onClick={togglePlay}
                     variant="secondary"
                     size="icon"
-                    className="rounded-full h-16 w-16 bg-black/50 hover:bg-black/70"
+                    className="rounded-full h-16 w-16"
                   >
                     <Play className="h-8 w-8" />
                   </Button>

@@ -294,7 +294,7 @@ export default function UploadPage() {
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent>
-                      { categories.map((detail) => <SelectItem value={detail.toLowerCase()}>{detail}</SelectItem>) }
+                      { categories.map((detail) => <SelectItem key={`${Math.random()}-${detail.toLowerCase()}`} value={detail.toLowerCase()}>{detail}</SelectItem>) }
                     </SelectContent>
                   </Select>
                 </div>

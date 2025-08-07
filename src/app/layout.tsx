@@ -6,7 +6,7 @@ import { ThemeProvider } from "@/context/theme-provider"
 import { AuthProvider } from "@/context/AuthProvider"
 import { Header } from "@/components/header"
 import {Toaster} from "@/components/ui/sonner"
-import NextTopLoader from "nextjs-toploader"
+import NextTopLoader from "@/components/theme-top-loader"
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -35,7 +35,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>
             <Header />
-            <NextTopLoader showSpinner={false}/>
+            <NextTopLoader />
             {children}
             <Toaster position="top-right" />
             <Analytics />
