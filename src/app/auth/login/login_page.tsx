@@ -2,7 +2,8 @@
 
 import { useRef } from "react"
 import Link from "next/link"
-//import { Github } from "lucide-react"
+import { Github, Gitlab } from "lucide-react"
+import { FcGoogle } from "react-icons/fc"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,7 +23,7 @@ export default function LoginPage() {
   const isLoading = useSignal(false);
   const router = useRouter();
 
-  const { signIn, user: {user} } = useAuth();
+  const { signIn, user: {user}, oauth } = useAuth();
 
   if (user) {
     redirect("/home");
@@ -99,6 +100,28 @@ export default function LoginPage() {
             <Separator className="flex-1" />
             <span className="px-3 text-sm text-muted-foreground">OR</span>
             <Separator className="flex-1" />
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1 flex items-center justify-center gap-2"
+              onClick={() => oauth("github", "home")}
+              disabled={isLoading.value}
+            >
+              <Github className="h-4 w-4" />
+              GitHub
+            </Button>
+
+            <Button
+              variant="outline"
+              className="flex-1 flex items-center justify-center gap-2"
+              onClick={() => oauth("google", "home")}
+              disabled={isLoading.value}
+            >
+              <FcGoogle className="h-4 w-4" />
+              Google
+            </Button>
           </div>
         </CardContent>
         <CardFooter className="flex justify-center">

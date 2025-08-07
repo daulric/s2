@@ -50,40 +50,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Get the current session on component mount
     const getInitialSession = async () => {
       try {
         loading.value = true;
-        
+
         const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          throw error;
-        }
+
+        if (error) throw error;
 
         if (session) {
           const session_user = session.user;
+          let profile_data;
 
-          const {data: profile_data} = await supabase.from("profiles").select().eq("id", session_user.id).single();
+          // Fetch profile
+          const { data, error: fetchError } = await supabase
+            .from("profiles")
+            .select()
+            .eq("id", session_user.id)
+            .single();
 
-          if (!sessionStorage.getItem("profile_user")) {
-            sessionStorage.setItem("profile_user", JSON.stringify(profile_data))
+          if (fetchError && fetchError.code === "PGRST116") {
+            // Profile doesn't exist yet – insert it
+            const { data: newProfile, error: insertError } = await supabase
+              .from("profiles")
+              .insert({
+                id: session_user.id,
+                username: session_user.user_metadata?.full_name || (session_user.email ? session_user.email.split("@")[0] : "unknown"),
+                avatar_url: session_user.user_metadata?.avatar_url || null,
+                description: null,
+                is_verified: false
+              })
+              .select()
+              .single();
+
+            if (insertError) throw insertError;
+
+            profile_data = newProfile;
+          } else {
+            profile_data = data;
           }
+
+          sessionStorage.setItem("profile_user", JSON.stringify(profile_data));
 
           user.value = {
             ...user.value,
             user: session_user,
             profile: profile_data
-          }
+          };
         } else {
           user.value = {
             ...user.value,
             user: null,
             profile: null
-          }
+          };
         }
-        
-        
       } catch (error: any) {
         errorState.value = error.message;
       } finally {
@@ -93,51 +113,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     getInitialSession();
 
-    // Set up listener for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        const temp_profile = JSON.parse(sessionStorage.getItem("profile_user") || "null");
+      const fetchOrCreateProfile = async () => {
+        const user_id = session?.user?.id;
+        if (!user_id) return;
 
-        if (!temp_profile) {
+        let profile_data;
 
-          const fetchProfile = async () => {
-            const { data: profile_data } = await supabase
-              .from("profiles")
-              .select()
-              .eq("id", session.user.id)
-              .single();
-        
-            sessionStorage.setItem("profile_user", JSON.stringify(profile_data));
+        const { data, error: fetchError } = await supabase
+          .from("profiles")
+          .select()
+          .eq("id", user_id)
+          .single();
 
-            user.value = {
-              ...user.value,
-              profile: profile_data
-            }
-          };
-        
-          fetchProfile();
+        if (fetchError && fetchError.code === "PGRST116") {
+          // New user, insert profile
+          const { data: newProfile, error: insertError } = await supabase
+            .from("profiles")
+            .insert({
+              id: user_id,
+              username: session.user.user_metadata?.full_name || (session.user.email ? session.user.email.split("@")[0] : "unknown"),
+              avatar_url: session.user.user_metadata?.avatar_url || null,
+              description: null,
+              is_verified: false
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error("Failed to insert profile:", insertError.message);
+            return;
+          }
+
+          profile_data = newProfile;
+        } else {
+          profile_data = data;
         }
-        
+
+        sessionStorage.setItem("profile_user", JSON.stringify(profile_data));
+
         user.value = {
           ...user.value,
           user: session.user,
-          profile: temp_profile
-        }
-        
+          profile: profile_data
+        };
+      };
 
+      if (session) {
+        fetchOrCreateProfile();
       } else {
         user.value = {
           ...user.value,
           user: null,
           profile: null
-        }
-        
+        };
       }
 
       loading.value = false;
     });
 
-    // Cleanup function
     return () => {
       subscription?.unsubscribe();
     };
