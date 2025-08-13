@@ -147,7 +147,7 @@ export default function ShortsPage() {
   if (isLoading.value) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
-        <div className="text-white text-lg">Loading shorts...</div>
+        <div className="text-white text-lg">shorts incomming...</div>
       </div>
     )
   }
@@ -155,7 +155,7 @@ export default function ShortsPage() {
   if (shorts.value.length === 0) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
-        <div className="text-white text-lg">No shorts available</div>
+        <div className="text-white text-lg">no shorts available</div>
       </div>
     )
   }
@@ -188,7 +188,7 @@ export default function ShortsPage() {
       </div>
 
       {/* Navigation indicators */}
-      {shorts.value.length > 1 && (
+      {/*shorts.value.length > 1 && (
         <div className="fixed right-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-2 z-20">
           {shorts.value.map((_, index) => (
             <button
@@ -201,7 +201,7 @@ export default function ShortsPage() {
             />
           ))}
         </div>
-      )}
+      )*/}
     </div>
   )
 }

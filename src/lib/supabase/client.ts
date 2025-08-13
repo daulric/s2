@@ -13,6 +13,11 @@ export function createClient() {
     {
       db: {
         schema: db_schema,
+      },
+
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       }
     }
   )

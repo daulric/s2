@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -29,7 +29,7 @@ export default function SearchPage() {
   const duration = useSignal("any");
   const showFilters = useSignal(false);
 
-  async function getVideoData() {
+  const getVideoData = useCallback(async () => {
     if (query) {
       // In a real app, this would be an API call
       const filteredResults = await GetSearchDetails(query);
@@ -37,38 +37,48 @@ export default function SearchPage() {
       if (filteredResults) {
         results.value = filteredResults;
       }
+    } else {
+      results.value = []; // Clear results when query is empty
     }
-  }
+  }, [query]);
 
-  async function getProfilesData() {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*, subscribers!subscibers_vendor_fkey1(*), videos(video_id, visibility)")
-      .ilike("username", `%${query}%`);
-    
-    if (error) throw error;
+  const getProfilesData = useCallback(async () => {
+    if (!query) {
+      channels.value = []; // Clear channels when query is empty
+      return;
+    }
 
-    if (data) {
-      let items: UserInfoProps[] = [];
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*, subscribers!subscribers_subscriber_fkey1(*), videos(video_id, visibility)")
+        .ilike("username", `%${query}%`);
+      
+      if (error) {
+        return;
+      }
 
-      await (data.map(async (i: UserData) => {
-        if (i.videos && i.videos.length > 0) {
-          const filtered = i.videos.filter((v) => v.visibility === "public");
-          i.videos = filtered;
-        }
-        const p_format = await profile_convert(supabase, i, 10);
-        items.push(p_format);
-      }));
+      if (Array.isArray(data) && data.every((i) => i && typeof i === "object" && "id" in i && "username" in i)) {
+        const items: UserInfoProps[] = await Promise.all(
+          (data as UserData[]).map(async (i) => {
+            if (i.videos && i.videos.length > 0) {
+              const filtered = i.videos.filter((v) => v.visibility === "public");
+              i.videos = filtered;
+            }
+            return await profile_convert(supabase, i, 10);
+          })
+        );
 
-      channels.value = items;
-    };
-  }
+        channels.value = items;
+      }
+    } catch {}
+  }, [query, supabase]);
 
   useEffect(() => {
     document.title = `Searching for ${query} - s2`;
     getProfilesData()
     getVideoData();
-  }, [query]);
+  }, [query, getVideoData, getProfilesData]);
 
   const handleSortChange = (value: string) => {
     sortBy.value = value;
@@ -90,13 +100,6 @@ export default function SearchPage() {
           return bViews - aViews
         })
         break
-      /*case "duration":
-        sortedResults.sort((a, b) => {
-          const aDuration = a.duration.split(":").reduce((acc, time) => 60 * acc + +time, 0)
-          const bDuration = b.duration.split(":").reduce((acc, time) => 60 * acc + +time, 0)
-          return bDuration - aDuration
-        })
-        break*/
       default:
         // Keep original order for relevance
         break

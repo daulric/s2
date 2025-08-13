@@ -13,29 +13,47 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Mail, Calendar, Camera, Edit3, Save, X, Video, Eye, ThumbsUp, Users } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Mail, Calendar, Camera, Edit3, Save, X, Video, Eye, ThumbsUp, Users, AlertTriangle } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
 import { VideoCard } from "@/components/video-card"
 import { VideoEditDialog } from "@/components/video-edit-dialog"
 import { useSignal } from "@preact/signals-react"
 import Link from "next/link"
-import converttovideoformat, { VideoData, VideoInfoProps } from "@/lib/videos/data-to-video-format"
+import converttovideoformat, { type VideoData, type VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { useSignals } from "@preact/signals-react/runtime"
+import { useRouter } from "next/navigation"
+import { deleteAccount } from "./user-management"
 
 interface VideoWithLikes extends VideoData {
-  video_likes: { is_liked: boolean, videos?: VideoData }[];
+  video_likes: { is_liked: boolean; videos?: VideoData }[]
 }
 
 interface VideoLikes {
-  is_liked: boolean, 
-  videos?: VideoData,
+  is_liked: boolean
+  videos?: VideoData
 }
 
 export default function ProfilePage() {
-  useSignals();
-  const { user: { user }, supabase } = useAuth();
-  const isEditing = useSignal(false);
-  const isLoading = useSignal(false);
+  useSignals()
+  const {
+    user: { user },
+    supabase,
+  } = useAuth()
+  const router = useRouter()
+  const isEditing = useSignal(false)
+  const isLoading = useSignal(false)
+  const isDeleteDialogOpen = useSignal(false)
+  const isDeleting = useSignal(false)
+  const deleteConfirmation = useSignal("")
   const profileData = useSignal({
     id: "",
     username: "",
@@ -44,50 +62,45 @@ export default function ProfilePage() {
     created_at: "",
     avatar_url: "",
   })
-  
-  const editingVideo = useSignal(null);
-  const isVideoEditOpen = useSignal(false);
+
+  const editingVideo = useSignal(null)
+  const isVideoEditOpen = useSignal(false)
 
   // Signals
-  const subscribers = useSignal(0);
-  const views = useSignal(0);
-  const total_video_count = useSignal(0);
-  const total_likes = useSignal(0);
-  const total_liked_videos = useSignal<VideoInfoProps[]>([]);
-  const user_videos = useSignal<VideoInfoProps[]>([]);
+  const subscribers = useSignal(0)
+  const views = useSignal(0)
+  const total_video_count = useSignal(0)
+  const total_likes = useSignal(0)
+  const total_liked_videos = useSignal<VideoInfoProps[]>([])
+  const user_videos = useSignal<VideoInfoProps[]>([])
 
   useEffect(() => {
     if (user) {
       document.title = "s2 - Settings"
       // Load user profile data
-      loadProfile();
-      load_subs();
-      load_videos();
-      load_liked_video();
+      loadProfile()
+      load_subs()
+      load_videos()
+      load_liked_video()
       return
     } else {
       document.title = "s2 - 401"
     }
 
-
     return () => {
-      user_videos.value = [];
-      total_liked_videos.value = [];
-      total_likes.value = 0;
-      total_video_count.value = 0;
-      subscribers.value = 0;
-      views.value = 0;
+      user_videos.value = []
+      total_liked_videos.value = []
+      total_likes.value = 0
+      total_video_count.value = 0
+      subscribers.value = 0
+      views.value = 0
     }
   }, [user])
 
   const loadProfile = async () => {
-    if (!user) return;
+    if (!user) return
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single()
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
 
       if (error && error.code !== "PGRST116") {
         throw error
@@ -100,7 +113,7 @@ export default function ProfilePage() {
           username: data.username || "",
           email: user.email || "",
           description: data.description || "",
-          created_at: new Date(user.created_at).toLocaleDateString('en-GB'),
+          created_at: new Date(user.created_at).toLocaleDateString("en-GB"),
           avatar_url: data.avatar_url || "",
         }
       } else {
@@ -111,7 +124,7 @@ export default function ProfilePage() {
           username: "",
           email: user.email || "",
           description: "",
-          created_at: new Date(user.created_at).toLocaleDateString('en-GB'),
+          created_at: new Date(user.created_at).toLocaleDateString("en-GB"),
           avatar_url: "",
         }
       }
@@ -123,71 +136,68 @@ export default function ProfilePage() {
   }
 
   const load_subs = async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from("subscribers")
-      .select("*")
-      .eq("vendor", user.id);
-    
-    if (error) return;
-    subscribers.value = data.length;
+    if (!user) return
+    const { data, error } = await supabase.from("subscribers").select("*").eq("vendor", user.id)
+
+    if (error) return
+    subscribers.value = data.length
   }
 
   const load_videos = async () => {
-    if (!user) return;
+    if (!user) return
 
-    const { data, error } = await supabase
-      .from("videos")
-      .select("*, video_likes(is_liked)")
-      .eq("userid", user.id);
-    
+    const { data, error } = await supabase.from("videos").select("*, video_likes(is_liked)").eq("userid", user.id)
+
     if (error || !data) return
-    
-    let view_count: number = 0;
+
+    let view_count = 0
 
     data.map(async (i: VideoData) => {
-      if (i.views)
-      view_count += i.views;
-      
-      const video =  await(converttovideoformat(supabase, i, 120));
-  
-      if (!user_videos.value.some(item => item.id === video.id)) {
-        user_videos.value = [...user_videos.value, video];
+      if (i.views) view_count += i.views
+
+      const video = await converttovideoformat(supabase, i, 120)
+
+      if (!user_videos.value.some((item) => item.id === video.id)) {
+        user_videos.value = [...user_videos.value, video]
       }
-    });
+    })
 
-    const totalLikesCount: number = data?.reduce((total: number, video: VideoWithLikes) => 
-      total + video.video_likes.filter(like => like.is_liked === true).length, 0
-    ) || 0;
+    const totalLikesCount: number =
+      data?.reduce(
+        (total: number, video: VideoWithLikes) =>
+          total + video.video_likes.filter((like) => like.is_liked === true).length,
+        0,
+      ) || 0
 
-    views.value = view_count;
+    views.value = view_count
     total_likes.value = totalLikesCount
-    total_video_count.value = data.length;
+    total_video_count.value = data.length
   }
 
   const load_liked_video = async () => {
-    if (!user) return;
+    if (!user) return
 
-    const { data, error } = await supabase.from("video_likes")
+    const { data, error } = await supabase
+      .from("video_likes")
       .select("*, videos(*)")
       .eq("userid", user.id)
-      .eq("is_liked", true);
-    
-    if (error) return;
-    data.map(async (i: VideoLikes) => {
-      if (!i.videos) return;
+      .eq("is_liked", true)
 
-      const contered = await (converttovideoformat(supabase,  i.videos, 120));
-      if (!total_liked_videos.value.find(i => i.id === contered.id)) {
-        total_liked_videos.value = [...total_liked_videos.value, contered];
+    if (error) return
+    data.map(async (i: VideoLikes) => {
+      if (!i.videos) return
+
+      const contered = await converttovideoformat(supabase, i.videos, 120)
+      if (!total_liked_videos.value.find((i) => i.id === contered.id)) {
+        total_liked_videos.value = [...total_liked_videos.value, contered]
       }
-    });
+    })
   }
 
   const handleSaveProfile = async () => {
     if (!user) return
 
-    isLoading.value = true;
+    isLoading.value = true
     try {
       const { error } = await supabase.from("profiles").upsert({
         id: user.id,
@@ -207,7 +217,7 @@ export default function ProfilePage() {
         description: "Please try again",
       })
     } finally {
-      isLoading.value = false;
+      isLoading.value = false
     }
   }
 
@@ -236,7 +246,7 @@ export default function ProfilePage() {
         data: { publicUrl },
       } = supabase.storage.from("avatars").getPublicUrl(filePath)
 
-      profileData.value = {...profileData.value, avatar_url: publicUrl}
+      profileData.value = { ...profileData.value, avatar_url: publicUrl }
 
       toast.success("Avatar uploaded", {
         description: "Don't forget to save your profile",
@@ -246,29 +256,57 @@ export default function ProfilePage() {
         description: "Please try again",
       })
     } finally {
-      isLoading.value = false;
+      isLoading.value = false
     }
   }
 
   const handleEditVideo = (video: any) => {
-    editingVideo.value = { ...video };
-    isVideoEditOpen.value = true;
+    editingVideo.value = { ...video }
+    isVideoEditOpen.value = true
   }
 
   const handleSaveVideo = async (updatedVideo: any) => {
-
-    const { error } = await supabase
-      .from("videos")
-      .update(updatedVideo)
-      .eq("video_id", updatedVideo.video_id)
+    const { error } = await supabase.from("videos").update(updatedVideo).eq("video_id", updatedVideo.video_id)
 
     if (error) {
       toast.error("Details Upload Error", {
         description: typeof error === "string" ? error : error?.message || String(error),
-      });
+      })
     }
 
-    editingVideo.value = null;
+    editingVideo.value = null
+  }
+
+  const handleDeleteAccount = async () => {
+    isDeleting.value = true
+    try {
+
+      deleteAccount(deleteConfirmation.value)
+        .then((res) => {
+          if (res.success) {
+            toast.success(res.message, {
+              description: "Your account has been deleted successfully",
+            })
+
+            router.push("/")
+          } else {
+            throw new Error(res.message)
+          }
+        })
+        .catch((error) => {
+          toast.error("Failed to delete account", {
+            description: error.message || "Please try again or contact support",
+          })
+        })
+    } catch (error) {
+      toast.error("Failed to delete account", {
+        description: "Please try again or contact support",
+      })
+    } finally {
+      isDeleting.value = false
+      isDeleteDialogOpen.value = false
+      deleteConfirmation.value = ""
+    }
   }
 
   if (!user) {
@@ -287,7 +325,7 @@ export default function ProfilePage() {
                   <AvatarImage
                     src={
                       profileData.value.avatar_url ||
-                      `${process.env.NEXT_PUBLIC_PROFILE}${profileData.value.username || user.email}`
+                      `${process.env.NEXT_PUBLIC_PROFILE || "/placeholder.svg"}${profileData.value.username || user.email}`
                     }
                     alt={profileData.value.username || "User"}
                   />
@@ -311,7 +349,9 @@ export default function ProfilePage() {
                       <Input
                         id="username"
                         value={profileData.value.username}
-                        onChange={(e) => { profileData.value = { ...profileData.value, username: e.target.value } }}
+                        onChange={(e) => {
+                          profileData.value = { ...profileData.value, username: e.target.value }
+                        }}
                         placeholder="Enter your username"
                       />
                     </div>
@@ -320,7 +360,9 @@ export default function ProfilePage() {
                       <Textarea
                         id="description"
                         value={profileData.value.description}
-                        onChange={(e) =>{profileData.value = { ...profileData.value,  description: e.target.value } }}
+                        onChange={(e) => {
+                          profileData.value = { ...profileData.value, description: e.target.value }
+                        }}
                         placeholder="Tell us about yourself..."
                         rows={3}
                       />
@@ -341,13 +383,22 @@ export default function ProfilePage() {
                       <Save className="h-4 w-4 mr-2" />
                       {isLoading.value ? "Saving..." : "Save"}
                     </Button>
-                    <Button variant="outline" onClick={() => {isEditing.value = false}}>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        isEditing.value = false
+                      }}
+                    >
                       <X className="h-4 w-4 mr-2" />
                       Cancel
                     </Button>
                   </>
                 ) : (
-                  <Button onClick={() => {isEditing.value = true}}>
+                  <Button
+                    onClick={() => {
+                      isEditing.value = true
+                    }}
+                  >
                     <Edit3 className="h-4 w-4 mr-2" />
                     Edit Profile
                   </Button>
@@ -415,7 +466,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">{ subscribers.value }</p>
+                  <p className="text-2xl font-bold">{subscribers.value}</p>
                   <p className="text-sm text-muted-foreground">Subscribers</p>
                 </div>
               </div>
@@ -438,11 +489,11 @@ export default function ProfilePage() {
                 <CardDescription>Manage your uploaded videos</CardDescription>
               </CardHeader>
               <CardContent>
-               { user_videos.value !== null && user_videos.value.length > 0 ? (
+                {user_videos.value !== null && user_videos.value.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    { user_videos.value?.map((video) => (
+                    {user_videos.value?.map((video) => (
                       <div key={video.id} className="relative group">
-                        <VideoCard key={video.id} video={video} compact supabase={supabase}/>
+                        <VideoCard key={video.id} video={video} compact supabase={supabase} />
                         <div className="absolute top-2 right-2 opacity-100 transition-opacity">
                           <Button
                             size="sm"
@@ -454,18 +505,18 @@ export default function ProfilePage() {
                           </Button>
                         </div>
                       </div>
-                    )) }
+                    ))}
                   </div>
-               ): (
-                <div className="text-center py-12">
-                  <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No videos yet</h3>
-                  <p className="text-muted-foreground mb-4">Start creating content by uploading your first video</p>
-                  <Button asChild>
-                    <Link href="/upload">Upload Video</Link>
-                  </Button>
-                </div>
-               ) }
+                ) : (
+                  <div className="text-center py-12">
+                    <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No videos yet</h3>
+                    <p className="text-muted-foreground mb-4">Start creating content by uploading your first video</p>
+                    <Button asChild>
+                      <Link href="/upload">Upload Video</Link>
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -477,10 +528,10 @@ export default function ProfilePage() {
                 <CardDescription>Videos you've liked</CardDescription>
               </CardHeader>
               <CardContent>
-                { total_liked_videos.value.length > 0 ? (
+                {total_liked_videos.value.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {total_liked_videos.value.map((video) => (
-                      <VideoCard key={video.id} video={video} compact supabase={supabase}/>
+                      <VideoCard key={video.id} video={video} compact supabase={supabase} />
                     ))}
                   </div>
                 ) : (
@@ -489,7 +540,7 @@ export default function ProfilePage() {
                     <h3 className="text-lg font-semibold mb-2">No liked videos</h3>
                     <p className="text-muted-foreground">Videos you like will appear here</p>
                   </div>
-              ) }
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -525,11 +576,78 @@ export default function ProfilePage() {
                 <Separator />
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Danger Zone</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-destructive">Danger Zone</h3>
                   <div className="space-y-4">
-                    <Button variant="destructive" className="w-full sm:w-auto">
-                      Delete Account
-                    </Button>
+                    <Dialog
+                      open={isDeleteDialogOpen.value}
+                      onOpenChange={(open) => {
+                        isDeleteDialogOpen.value = open
+                      }}
+                    >
+                      <DialogTrigger asChild>
+                        <Button variant="destructive" className="w-full sm:w-auto">
+                          <AlertTriangle className="h-4 w-4 mr-2" />
+                          Delete Account
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <AlertTriangle className="h-5 w-5" />
+                            Delete Account
+                          </DialogTitle>
+                          <DialogDescription className="text-left">
+                            This action cannot be undone. This will permanently delete your account, all your videos,
+                            comments, likes, and all associated data.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="delete-confirmation" className="text-sm font-medium">
+                              Type <span className="font-bold text-destructive">DELETE</span> to confirm:
+                            </Label>
+                            <Input
+                              id="delete-confirmation"
+                              value={deleteConfirmation.value}
+                              onChange={(e) => {
+                                deleteConfirmation.value = e.target.value
+                              }}
+                              placeholder="Type DELETE here"
+                              className="mt-2"
+                            />
+                          </div>
+                          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+                            <p className="text-sm text-destructive font-medium">What will be deleted:</p>
+                            <ul className="text-sm text-destructive/80 mt-1 space-y-1">
+                              <li>• Your profile and account information</li>
+                              <li>• All uploaded videos and thumbnails</li>
+                              <li>• All comments and likes</li>
+                              <li>• All subscriptions and followers</li>
+                              <li>• All saved videos and playlists</li>
+                            </ul>
+                          </div>
+                        </div>
+                        <DialogFooter className="flex-col sm:flex-row gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              isDeleteDialogOpen.value = false
+                              deleteConfirmation.value = ""
+                            }}
+                            disabled={isDeleting.value}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={handleDeleteAccount}
+                            disabled={deleteConfirmation.value !== "DELETE" || isDeleting.value}
+                          >
+                            {isDeleting.value ? "Deleting..." : "Delete Account Permanently"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                     <p className="text-sm text-muted-foreground">
                       This action cannot be undone. This will permanently delete your account and all associated data.
                     </p>
@@ -542,7 +660,9 @@ export default function ProfilePage() {
         <VideoEditDialog
           video={editingVideo.value}
           isOpen={isVideoEditOpen.value}
-          onClose={() => {isVideoEditOpen.value = false;}}
+          onClose={() => {
+            isVideoEditOpen.value = false
+          }}
           onSave={handleSaveVideo}
         />
       </div>

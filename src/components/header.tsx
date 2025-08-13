@@ -6,7 +6,7 @@ import { ModeToggle } from "./mode-toggle"
 import { ProfileIcon } from "./profile-icon"
 import { SearchInput } from "./search-input"
 import { Button } from "@/components/ui/button"
-import { Upload } from "lucide-react"
+import { Upload, Shell } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
 
 export function Header() {
@@ -35,6 +35,13 @@ export function Header() {
           <SearchInput mobile />
         </div>
 
+        <Link href="/shorts">
+          <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" aria-label="Explore">
+            <Shell className="h-4 w-4 sm:h-5 sm:w-5"/>
+          </Button>
+        </Link>
+
+        {/* Upload button - only visible if user is logged in */}
         {user && (
           <Link href="/upload">
             <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" aria-label="Upload video">

@@ -94,19 +94,6 @@ export function ShortsControls({ short, currentUser, onInteraction, alwaysVisibl
   return (
     <div className="flex flex-col items-center gap-4">
       {/* Like button - Always visible */}
-      <div className="flex flex-col items-center">
-        <Button
-          onClick={handleLike}
-          variant="ghost"
-          size="icon"
-          className={`rounded-full h-12 w-12 backdrop-blur-sm ${
-            isLiked.value ? "bg-red-500/20 hover:bg-red-500/30" : "bg-white/20 hover:bg-white/30"
-          }`}
-        >
-          <Heart className={`h-6 w-6 ${isLiked.value ? "text-red-500 fill-red-500" : "text-white"}`} />
-        </Button>
-        <span className="text-white text-xs mt-1 font-medium">{formatNumber(likeCount.value)}</span>
-      </div>
 
       {/* Comment button - Always visible */}
       {/*
