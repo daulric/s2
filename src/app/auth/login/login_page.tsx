@@ -1,8 +1,10 @@
 "use client"
 
-import { useRef } from "react"
+import type React from "react"
+
+import { useRef, useEffect } from "react"
 import Link from "next/link"
-import { Github, Gitlab } from "lucide-react"
+import { Github } from "lucide-react"
 import { FcGoogle } from "react-icons/fc"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,41 +17,73 @@ import { useAuth } from "@/context/AuthProvider"
 import { toast } from "sonner"
 import { useRouter, redirect } from "next/navigation"
 import { useSignal, useSignals } from "@preact/signals-react/runtime"
+import { Provider } from "@supabase/supabase-js"
+import { Turnstile } from "@marsidev/react-turnstile"
 
 export default function LoginPage() {
-  useSignals();
-  const email = useRef(null);
-  const password = useRef(null);
-  const isLoading = useSignal(false);
-  const router = useRouter();
+  useSignals()
+  const email = useRef<HTMLInputElement>(null)
+  const password = useRef<HTMLInputElement>(null)
+  const isLoading = useSignal(false)
+  const turnstileToken = useSignal<string | null>(null)
+  const router = useRouter()
 
-  const { signIn, user: {user}, oauth } = useAuth();
+  const {
+    signIn,
+    user: { user },
+    oauth,
+  } = useAuth()
 
   if (user) {
-    redirect("/home");
+    redirect("/home")
   }
 
   const handleEmailLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    isLoading.value = true;
+
+    if (!turnstileToken.value) {
+      toast.error("Please complete the captcha verification.")
+      return
+    }
+
+    isLoading.value = true
 
     try {
       if (!email.current || !password.current) {
-        toast.error("Email or password input is missing.");
-        isLoading.value = false;
-        return;
+        toast.error("Email or password input is missing.")
+        isLoading.value = false
+        return
       }
-      const data = await signIn({email: (email.current as HTMLInputElement).value, password: (password.current as HTMLInputElement).value});
+
+      const data = await signIn({
+        email: email.current.value,
+        password: password.current.value,
+        token: turnstileToken.value,
+      })
 
       if (data) {
-        router.back();
+        router.back()
       }
     } catch (error) {
+      console.log(error)
       toast.error("Login Failed", {
-        description: (error instanceof Error && error.message) ? error.message : "An unknown error occurred.",
-      });
+        description: error instanceof Error && error.message ? error.message : "An unknown error occurred.",
+      })
     } finally {
       isLoading.value = false
+    }
+  }
+
+  const handleOAuthLogin = async (provider: Provider, redirectTo: string) => {
+    if (!turnstileToken.value) {
+      toast.error("Please complete the captcha verification.")
+      return
+    }
+
+    try {
+      oauth(provider, redirectTo)
+    } catch (error) {
+      toast.error("OAuth verification failed. Please try again.")
     }
   }
 
@@ -69,13 +103,7 @@ export default function LoginPage() {
           <form onSubmit={handleEmailLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                ref={email}
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                required
-              />
+              <Input ref={email} id="email" type="email" placeholder="m@example.com" required />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -84,14 +112,13 @@ export default function LoginPage() {
                   Forgot password?
                 </Link>
               </div>
-              <Input
-                ref = {password}
-                id="password"
-                type="password"
-                required
-              />
+              <Input ref={password} id="password" type="password" required />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading.value}>
+
+            {/* Cloudflare Turnstile */}
+            <Turnstile siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || ""} onSuccess={(token) => turnstileToken.value = token} />
+
+            <Button type="submit" className="w-full" disabled={isLoading.value || !turnstileToken.value}>
               {isLoading.value ? "Loading..." : "Login"}
             </Button>
           </form>
@@ -105,9 +132,9 @@ export default function LoginPage() {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="flex-1 flex items-center justify-center gap-2"
-              onClick={() => oauth("github", "home")}
-              disabled={isLoading.value}
+              className="flex-1 flex items-center justify-center gap-2 bg-transparent"
+              onClick={() => handleOAuthLogin("github", "home")}
+              disabled={isLoading.value || !turnstileToken.value}
             >
               <Github className="h-4 w-4" />
               GitHub
@@ -115,9 +142,9 @@ export default function LoginPage() {
 
             <Button
               variant="outline"
-              className="flex-1 flex items-center justify-center gap-2"
-              onClick={() => oauth("google", "home")}
-              disabled={isLoading.value}
+              className="flex-1 flex items-center justify-center gap-2 bg-transparent"
+              onClick={() => handleOAuthLogin("google", "home")}
+              disabled={isLoading.value || !turnstileToken.value}
             >
               <FcGoogle className="h-4 w-4" />
               Google

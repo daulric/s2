@@ -20,6 +20,7 @@ type UserState = {
 type credentials = {
   email: string;
   password: string;
+  token?: string;
 }
 
 type AuthContextType = {
@@ -141,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .single();
 
           if (insertError) {
-            console.error("Failed to insert profile:", insertError.message);
+            console.log("Failed to insert profile:", insertError.message);
             return;
           }
 
@@ -178,12 +179,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Login function
-  const signIn = async ({ email, password }: credentials) => {
+  const signIn = async ({ email, password, token }: credentials) => {
     try {
       loading.value = true;
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password
+        password,
+        options: { captchaToken: token ? token : "" }
       });
 
       if (error) {
@@ -221,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: provider,
         options: {
-          redirectTo: redirectUrl
+          redirectTo: redirectUrl,
         }
       });
       
@@ -239,13 +241,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Signup function
-  const signUp = async ({ email, password }: credentials) => {
+  const signUp = async ({ email, password, token }: credentials) => {
     try {
       loading.value = true;
 
       const { data, error } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: { captchaToken: token ? token : "" }
       });
 
       if (error) {

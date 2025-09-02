@@ -13,6 +13,7 @@ import { useAuth } from "@/context/AuthProvider"
 import { toast } from "sonner"
 import { redirect, useRouter } from "next/navigation"
 import { useSignal, useSignals } from "@preact/signals-react/runtime"
+import { Turnstile } from "@marsidev/react-turnstile"
 
 export default function SignupPage() {
   useSignals();
@@ -20,6 +21,8 @@ export default function SignupPage() {
   const username = useRef<HTMLInputElement>(null);
   const password = useRef<HTMLInputElement>(null);
   const isLoading = useSignal(false);
+  const turnstileToken = useSignal<string>("");
+
   const {signUp, supabase, user: { user }} = useAuth();
   const router = useRouter();
 
@@ -44,7 +47,7 @@ export default function SignupPage() {
   
     try {
       // Sign up user
-      const data = await signUp({email: emailValue, password: passwordValue});
+      const data = await signUp({email: emailValue, password: passwordValue, token: turnstileToken.value});
   
       const user = data.user;
   
@@ -120,10 +123,14 @@ export default function SignupPage() {
                 required
               />
             </div>
+            
+            <Turnstile siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || ""} onSuccess={(token) => turnstileToken.value = token} />
+            
             <Button type="submit" className="w-full" disabled={isLoading.value}>
               {isLoading.value ? "Loading..." : "Sign Up"}
             </Button>
           </form>
+
 
           <div className="flex items-center">
             <Separator className="flex-1" />

@@ -80,7 +80,7 @@ export default function UserProfilePage() {
   const loadUserProfile = async () => {
     try {
       const { data, error } = await supabase.from("profiles")
-      .select("*, subscribers!subscibers_vendor_fkey1(*)")
+      .select("*, subscribers!subscribers_vendor_fkey1(*)")
       .eq("id", userId)
       .single();
 
