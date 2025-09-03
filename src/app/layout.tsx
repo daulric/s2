@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/context/theme-provider"
 import { AuthProvider } from "@/context/AuthProvider"
+import { NavigationProvider } from "@/context/NavigationProvider"
 import { Header } from "@/components/header"
 import {Toaster} from "@/components/ui/sonner"
 import NextTopLoader from "@/components/theme-top-loader"
@@ -33,14 +34,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <AuthProvider>
-            <Header />
-            <NextTopLoader />
-            {children}
-            <Toaster position="top-right" />
-            <Analytics />
-            <SpeedInsights />
-          </AuthProvider>
+          <NavigationProvider>
+            <AuthProvider>
+                <Header />
+                <NextTopLoader />
+                {children}
+                <Toaster position="top-right" />
+                <Analytics />
+                <SpeedInsights />
+            </AuthProvider>
+          </NavigationProvider>
         </ThemeProvider>
       </body>
     </html>

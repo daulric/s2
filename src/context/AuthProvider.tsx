@@ -1,10 +1,11 @@
 "use client"
 
-import { createContext, useEffect, useContext } from 'react';
+import { createContext, useEffect, useContext, use } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { User, Provider, SupabaseClient  } from "@supabase/supabase-js"
 import { useSignal, useSignals } from '@preact/signals-react/runtime';
+import { useNavigation } from './NavigationProvider';
 
 type UserProfile = {
   id: string;
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const supabase = createClient();
   const router = useRouter();
+  const navigate = useNavigation();
 
   useEffect(() => {
     const getInitialSession = async () => {
@@ -185,7 +187,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: { captchaToken: token ? token : "" }
+        options: { 
+          captchaToken: token ? token : "",
+          //redirectTo: `${globalThis.location.origin}/${navigate.previousPage || ''}`
+        }
       });
 
       if (error) {
@@ -199,7 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       loading.value = false;
       setTimeout(() => {
-        router.refresh();
+        router.push(navigate.previousPage);
       }, 100);
     }
   };
@@ -210,20 +215,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     
     try {
-      loading.value = true;
-  
-      const formattedRedirectTo = redirectTo.startsWith('/') 
-        ? redirectTo.substring(1) 
-        : redirectTo;
-      
-      const redirectUrl = formattedRedirectTo 
-        ? `${globalThis.location.origin}/${formattedRedirectTo}`
-        : globalThis.location.origin;
+      loading.value = true; 
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: provider,
         options: {
-          redirectTo: redirectUrl,
+          redirectTo: `${globalThis.location.origin}/${navigate.previousPage || ''}`,
         }
       });
       
