@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -9,8 +10,7 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (user) {
-    redirect("/home");
-    return null;
+    revalidatePath("/")
   }
 
   return (
