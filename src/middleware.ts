@@ -1,9 +1,29 @@
 // middleware.ts
 import { createClient } from "@/lib/supabase/server"
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from 'next/server';
 
 const protectedRoutes = ['settings', "upload"]; // Require Auth
 const authRoutes = ['auth', '']; //Doesnt Require Auth
+
+export async function userSubDomain(req: NextRequest) {
+  const host = req.headers.get("host") || "";
+  const subdomain = host.split(".")[0];
+
+  // Skip rewriting for main domains or localhost
+  if (host === "s2.daulric.dev" || host === "localhost:3000" || subdomain === "www") {
+    return NextResponse.next();
+  }
+
+  const url = req.nextUrl.clone();
+
+  if (protectedRoutes.includes(subdomain)) {
+    url.pathname = `/${subdomain}`;
+  }
+
+  // Rewrite dynamic subdomain → /user/[subdomain]
+  return NextResponse.rewrite(url);
+}
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();

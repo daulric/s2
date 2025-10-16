@@ -209,7 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const oauth = async (provider: Provider, redirectTo = "") => {
+  const oauth = async (provider: Provider, redirectTo?: string) => {
     if (!provider) {
       throw new Error("No Providers Mentioned");
     }
@@ -220,7 +220,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: provider,
         options: {
-          redirectTo: `${globalThis.location.origin}/${navigate.previousPage || ''}`,
+          redirectTo: `${globalThis.location.origin}/${navigate.previousPage}`,
         }
       });
       

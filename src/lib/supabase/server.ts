@@ -9,6 +9,11 @@ export async function createClient(req?: NextRequest) {
   const supabase_service_role_key = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   const db_schema = process.env.NEXT_PUBLIC_SCHEMA || "public"
 
+  const domain =
+    process.env.NODE_ENV === "production"
+      ? ".daulric.dev"
+      : ".localhost:3000";
+
   return createServerClient(
     supabase_url,
     supabase_service_role_key || supabase_anon_key || "",
@@ -32,10 +37,18 @@ export async function createClient(req?: NextRequest) {
 
         setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              req ? req.cookies.set(name, value) :
-              cookieStore.set(name, value, options)
-            );
+            cookiesToSet.forEach(({ name, value, options }) => {
+              options = {
+                ...options,
+                domain,
+                path: "/",
+                sameSite: "lax",
+                secure: process.env.NODE_ENV === "production",
+              }
+
+              return req ? req.cookies.set(name, value) : cookieStore.set(name, value, options)
+            })
+
           } catch {}
         },
       },
