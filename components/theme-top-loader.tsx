@@ -16,7 +16,7 @@ export default function TopLoader() {
         } else {
             loaderColorSignal.value = "#000000" // dark color for light mode
         }
-    }, [resolvedTheme])
+    }, [resolvedTheme, loaderColorSignal])
 
     return <NextTopLoader color={loaderColorSignal.value} showSpinner={false} />
 }

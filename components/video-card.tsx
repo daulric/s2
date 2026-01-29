@@ -72,7 +72,7 @@ export function VideoCard({ video, compact = false,  supabase }: VideoCardProps)
         }
       })()
     }
-  }, [])
+  }, [supabase, thumbURL, video])
 
   if (compact) {
     return (

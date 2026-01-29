@@ -45,7 +45,7 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
         isPlaying.value = false
       }
     }
-  }, [])
+  }, [showEndOverlay, isPlaying])
 
   // Auto-play/pause based on visibility
   useEffect(() => {
@@ -58,13 +58,14 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
         isPlaying.value = false
       }
     }
-  }, [isActive])
+  }, [isActive, isPlaying])
 
   useEffect(() => {
-    videoRef.current?.addEventListener("timeupdate", cutDurationHalf);
+    const videoElement = videoRef.current;
+    videoElement?.addEventListener("timeupdate", cutDurationHalf);
 
     return () => {
-      videoRef.current?.removeEventListener("timeupdate", cutDurationHalf);
+      videoElement?.removeEventListener("timeupdate", cutDurationHalf);
     }
   }, [cutDurationHalf]);
 

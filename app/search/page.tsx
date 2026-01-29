@@ -40,7 +40,7 @@ export default function SearchPage() {
     } else {
       results.value = []; // Clear results when query is empty
     }
-  }, [query]);
+  }, [query, results]);
 
   const getProfilesData = useCallback(async () => {
     if (!query) {
@@ -72,7 +72,7 @@ export default function SearchPage() {
         channels.value = items;
       }
     } catch {}
-  }, [query, supabase]);
+  }, [query, supabase, channels]);
 
   useEffect(() => {
     document.title = `Searching for ${query} - s2`;
@@ -129,7 +129,7 @@ export default function SearchPage() {
               </h1>
               {query && (
                 <p className="text-muted-foreground mt-1">
-                  Results for "{query}" • {results.value.length + channels.value.length} results found
+                  Results for &quot;{query}&quot; • {results.value.length + channels.value.length} results found
                 </p>
               )}
             </div>
@@ -195,7 +195,7 @@ export default function SearchPage() {
               <h3 className="text-xl font-semibold mb-2">No results found</h3>
               <p className="text-muted-foreground mb-6">
                 {query
-                  ? `No reuslts found for "${query}". Try different keywords or check your spelling.`
+                  ? `No reuslts found for &quot;{query}&quot;. Try different keywords or check your spelling.`
                   : "Enter a search term to find videos or channels."}
               </p>
               <div className="space-y-2 text-sm text-muted-foreground">

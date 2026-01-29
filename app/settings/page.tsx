@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect } from "react"
+import { useEffect, useCallback } from "react"
 import { toast } from "sonner"
 import { Button } from "../../components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
@@ -74,30 +74,7 @@ export default function ProfilePage() {
   const total_liked_videos = useSignal<VideoInfoProps[]>([])
   const user_videos = useSignal<VideoInfoProps[]>([])
 
-  useEffect(() => {
-    if (user) {
-      document.title = "s2 - Settings"
-      // Load user profile data
-      loadProfile()
-      load_subs()
-      load_videos()
-      load_liked_video()
-      return
-    } else {
-      document.title = "s2 - 401"
-    }
-
-    return () => {
-      user_videos.value = []
-      total_liked_videos.value = []
-      total_likes.value = 0
-      total_video_count.value = 0
-      subscribers.value = 0
-      views.value = 0
-    }
-  }, [user])
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     if (!user) return
     try {
       const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
@@ -133,17 +110,17 @@ export default function ProfilePage() {
         description: "Please try refreshing the page",
       })
     }
-  }
+  }, [user, supabase, profileData])
 
-  const load_subs = async () => {
+  const load_subs = useCallback(async () => {
     if (!user) return
     const { data, error } = await supabase.from("subscribers").select("*").eq("vendor", user.id)
 
     if (error) return
     subscribers.value = data.length
-  }
+  }, [user, supabase, subscribers])
 
-  const load_videos = async () => {
+  const load_videos = useCallback(async () => {
     if (!user) return
 
     const { data, error } = await supabase.from("videos").select("*, video_likes(is_liked)").eq("userid", user.id)
@@ -172,9 +149,9 @@ export default function ProfilePage() {
     views.value = view_count
     total_likes.value = totalLikesCount
     total_video_count.value = data.length
-  }
+  }, [user, supabase, user_videos, total_likes, views, total_video_count])
 
-  const load_liked_video = async () => {
+  const load_liked_video = useCallback(async () => {
     if (!user) return
 
     const { data, error } = await supabase
@@ -192,7 +169,30 @@ export default function ProfilePage() {
         total_liked_videos.value = [...total_liked_videos.value, contered]
       }
     })
-  }
+  }, [user, supabase, total_liked_videos])
+
+  useEffect(() => {
+    if (user) {
+      document.title = "s2 - Settings"
+      // Load user profile data
+      loadProfile()
+      load_subs()
+      load_videos()
+      load_liked_video()
+      return
+    } else {
+      document.title = "s2 - 401"
+    }
+
+    return () => {
+      user_videos.value = []
+      total_liked_videos.value = []
+      total_likes.value = 0
+      total_video_count.value = 0
+      subscribers.value = 0
+      views.value = 0
+    }
+  }, [user, loadProfile, load_subs, load_videos, load_liked_video, user_videos, total_liked_videos, total_likes, total_video_count, subscribers, views])
 
   const handleSaveProfile = async () => {
     if (!user) return
@@ -525,7 +525,7 @@ export default function ProfilePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Liked Videos</CardTitle>
-                <CardDescription>Videos you've liked</CardDescription>
+                <CardDescription>Videos you&apos;ve liked</CardDescription>
               </CardHeader>
               <CardContent>
                 {total_liked_videos.value.length > 0 ? (

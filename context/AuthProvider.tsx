@@ -181,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [supabase, user, loading, errorState]);
 
   // Login function with Password (Legacy or Optional)
   const signIn = async ({ email, password, token }: credentials) => {

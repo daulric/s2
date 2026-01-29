@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useEffect } from "react"
+import { useRef, useEffect, useCallback } from "react"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs"
 import { Button } from "../../../components/ui/button"
@@ -73,14 +73,14 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
   const video_url = useSignal<string | null>(null);
   const thumbnail_url = useSignal<string | null>(null);
 
-  async function getVideoBlobs() {
+  const getVideoBlobs = useCallback(async () => {
     return Promise.all([
       supabase.storage.from("videos").download(videoData.video_path || "").then(({ data }) => data ? URL.createObjectURL(data) : null),
       supabase.storage.from("images").download(videoData.thumbnail_path || "").then(({ data }) => data ? URL.createObjectURL(data) : null),
     ])
-  }
+  }, [supabase, videoData])
 
-  async function setIsSubscribe() {
+  const setIsSubscribe = useCallback(async () => {
     if (!user) return;
     const { data: subed } = await supabase
       .from("subscribers")
@@ -92,9 +92,9 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     if (subed) {
       isSubscribed.value = subed.is_subscribed;
     }
-  }
+  }, [user, supabase, videoData, isSubscribed])
 
-  async function getTotalSubs() {
+  const getTotalSubs = useCallback(async () => {
     if (!videoData.creator_id) return;
     const { data: total_amount } = await supabase
       .from("subscribers")
@@ -105,9 +105,9 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     if (total_amount) {
       subscribers.value = total_amount.length;
     }
-  }
+  }, [videoData, supabase, subscribers])
 
-  async function getIsUserLikedVideo() {
+  const getIsUserLikedVideo = useCallback(async () => {
     if (!user) return;
     const { data, error } = await supabase.from("video_likes")
       .select("*")
@@ -122,9 +122,9 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     } else if (data.is_liked === false) {
       isDisliked.value = true;
     }
-  }
+  }, [user, supabase, videoData, isLiked, isDisliked])
 
-  async function getTotalLikes() {
+  const getTotalLikes = useCallback(async () => {
     const { data, error } = await supabase.from("video_likes")
       .select("is_liked")
       .eq("video_id", videoData.id)
@@ -132,7 +132,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
     if (error) return;
     total_likes.value = data.length;
-  }
+  }, [supabase, videoData, total_likes])
 
   useEffect(() => {
     if (videoData) {
@@ -154,7 +154,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
         thumbnail_url.value = null;
       }
     }
-  }, [videoData]);
+  }, [videoData, getVideoBlobs, thumbnail_url, video_url, video_data_signal]);
 
   useEffect(() => {
     if (videoData) {
@@ -171,7 +171,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
       isDisliked.value = false;
       isSubscribed.value = false;
     }
-  }, [user, videoData])
+  }, [user, videoData, getTotalLikes, getTotalSubs, setIsSubscribe, getIsUserLikedVideo, subscribers, total_likes, isLiked, isDisliked, isSubscribed])
 
   isPlaying.subscribe((value) => {
     if (videoRef.current) {
@@ -195,6 +195,83 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
       videoRef.current.volume = volume.value
     }
   })
+
+  const togglePlay = useCallback(() => {
+    isPlaying.value = !isPlaying.value;
+  }, [isPlaying])
+
+  const toggleMute = useCallback(() => {
+    isMuted.value = !isMuted.value;
+  }, [isMuted])
+
+  const toggleFullscreen = useCallback(() => {
+    const container = containerRef.current;
+    const video_player = videoRef.current;
+
+    if (!container || !video_player) return;
+
+    if (container.requestFullscreen) {
+      if (!document.fullscreenElement) {
+        container.requestFullscreen();
+        isFullscreen.value = true;
+      } else {
+        document.exitFullscreen();
+        isFullscreen.value = false
+      }
+      // @ts-ignore: webkitEnterFullscreen is not standard but used in some browsers (iOS Safari)
+    } else if ((video_player as any).webkitEnterFullscreen) {
+      // iOS Safari specific fullscreen API
+      if (!isFullscreen.value) {
+        // @ts-ignore
+        (video_player as any).webkitEnterFullscreen();
+        isFullscreen.value = true;
+      } else {
+        // @ts-ignore
+        (video_player as any).webkitExitFullscreen();
+        isFullscreen.value = false
+      }
+    }
+  }, [isFullscreen])
+
+  const seekBackward = useCallback(() => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10)
+      if (!isPlaying.value) {
+        isPlaying.value = true;
+      }
+      toast.info("⏪ -10 seconds", { duration: 1000 })
+    }
+  }, [isPlaying])
+
+  const seekForward = useCallback(() => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 10)
+      if (!isPlaying.value) {
+        isPlaying.value = true;
+      }
+      toast.info("⏩ +10 seconds", { duration: 1000 })
+    }
+  }, [isPlaying])
+
+  const increaseVolume = useCallback(() => {
+    if (isMuted.value) {
+      isMuted.value = false;
+    }
+    volume.value = Math.min(1, volume.value + 0.1);
+
+    // Show a visual indicator for volume change
+    toast.info(`🔊 Volume: ${Math.round(volume.value * 100)}%`, { duration: 500 })
+  }, [isMuted, volume])
+
+  const decreaseVolume = useCallback(() => {
+    volume.value = Math.max(0, volume.value - 0.1);
+    if (volume.value <= 0) {
+      isMuted.value = true;
+    }
+
+    // Show a visual indicator for volume change
+    toast.info(`Volume: ${Math.round((volume.value) * 100)}%`, { duration: 500 })
+  }, [volume, isMuted])
 
   // Effect to set up keyboard controls
   useEffect(() => {
@@ -258,7 +335,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     return () => {
       globalThis.removeEventListener("keydown", handleKeyDown)
     }
-  }, [])
+  }, [togglePlay, toggleMute, toggleFullscreen, seekBackward, seekForward, increaseVolume, decreaseVolume, isPlaying])
 
   // Effect to auto-hide controls after inactivity
   useEffect(() => {
@@ -304,7 +381,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
         clearTimeout(controlsTimeoutRef.current)
       }
     }
-  }, [isPlaying.value])
+  }, [isPlaying.value, showControls])
 
   // Handle video metadata loaded
   const handleMetadataLoaded = () => {
@@ -327,83 +404,6 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     const minutes = Math.floor(timeInSeconds / 60)
     const seconds = Math.floor(timeInSeconds % 60)
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
-  }
-
-  const togglePlay = () => {
-    isPlaying.value = !isPlaying.value;
-  }
-
-  const toggleMute = () => {
-    isMuted.value = !isMuted.value;
-  }
-
-  const toggleFullscreen = () => {
-    const container = containerRef.current;
-    const video_player = videoRef.current;
-
-    if (!container || !video_player) return;
-
-    if (container.requestFullscreen) {
-      if (!document.fullscreenElement) {
-        container.requestFullscreen();
-        isFullscreen.value = true;
-      } else {
-        document.exitFullscreen();
-        isFullscreen.value = false
-      }
-      // @ts-ignore: webkitEnterFullscreen is not standard but used in some browsers (iOS Safari)
-    } else if ((video_player as any).webkitEnterFullscreen) {
-      // iOS Safari specific fullscreen API
-      if (!isFullscreen.value) {
-        // @ts-ignore
-        (video_player as any).webkitEnterFullscreen();
-        isFullscreen.value = true;
-      } else {
-        // @ts-ignore
-        (video_player as any).webkitExitFullscreen();
-        isFullscreen.value = false
-      }
-    }
-  };
-
-  const seekBackward = () => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10)
-      if (!isPlaying.value) {
-        isPlaying.value = true;
-      }
-      toast.info("⏪ -10 seconds", { duration: 1000 })
-    }
-  }
-
-  const seekForward = () => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 10)
-      if (!isPlaying.value) {
-        isPlaying.value = true;
-      }
-      toast.info("⏩ +10 seconds", { duration: 1000 })
-    }
-  }
-
-  const increaseVolume = () => {
-    if (isMuted.value) {
-      isMuted.value = false;
-    }
-    volume.value = Math.min(1, volume.value + 0.1);
-
-    // Show a visual indicator for volume change
-    toast.info(`🔊 Volume: ${Math.round(volume.value * 100)}%`, { duration: 500 })
-  }
-
-  const decreaseVolume = () => {
-    volume.value = Math.max(0, volume.value - 0.1);
-    if (volume.value <= 0) {
-      isMuted.value = true;
-    }
-
-    // Show a visual indicator for volume change
-    toast.info(`Volume: ${Math.round((volume.value) * 100)}%`, { duration: 500 })
   }
 
   const handleLike = async () => {

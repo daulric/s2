@@ -59,7 +59,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
       }
       thumbnailFile.value = null;
     }
-  }, [video])
+  }, [video, formData, thumbnailFile])
 
   const handleThumbnailUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -178,6 +178,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
             <Label>Thumbnail</Label>
             <div className="mt-2 flex flex-col sm:flex-row gap-4">
               <div className="relative w-full sm:w-48 h-32 bg-muted rounded-lg overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   ref={thumbnail_ref}
                   src={formData.value.thumbnail || video.thumbnail}

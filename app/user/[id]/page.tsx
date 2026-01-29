@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useSignal } from "@preact/signals-react"
 import { toast } from "sonner"
@@ -43,41 +43,7 @@ export default function UserProfilePage() {
   const isLoading = useSignal(true);
   const isSubscribing = useSignal(false);
 
-  // For the various user status
-  useEffect(() => {
-    if (!userId) return;
-    if (!supabase) return; // context may not be ready
-
-    let cancelled = false;
-
-    async function loadData() {
-      if (cancelled) return;
-
-      try {
-
-        await loadUserProfile();
-
-        if (!cancelled && userProfile.value?.id) {
-          await loadUserVideos();
-        }
-
-        if (!cancelled && user?.id && userProfile.value?.id) {
-          await checkSubscriptionStatus();
-        }
-
-      } finally {
-        if (!cancelled) isLoading.value = false;
-      }
-    }
-
-    loadData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, user?.id]);
-
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     try {
       const { data, error } = await supabase.from("profiles")
       .select("*, subscribers!subscribers_vendor_fkey1(*)")
@@ -109,9 +75,9 @@ export default function UserProfilePage() {
         description: "Please try refreshing the page",
       })
     }
-  }
+  }, [userId, supabase, router, userProfile, userStats])
 
-  const loadUserVideos = async () => {
+  const loadUserVideos = useCallback(async () => {
     try {
       if (!userProfile.value) return;
       
@@ -144,9 +110,9 @@ export default function UserProfilePage() {
       });
 
     } catch {}
-  }
+  }, [userProfile, supabase, userStats, userVideos])
 
-  const checkSubscriptionStatus = async () => {
+  const checkSubscriptionStatus = useCallback(async () => {
     if (!user || user.id === userId) return;
     if (!userProfile.value?.id) return;
 
@@ -162,7 +128,41 @@ export default function UserProfilePage() {
       
       isSubscribed.value = data.is_subscribed;
     } catch {};
-  }
+  }, [user, userId, userProfile, supabase, isSubscribed])
+
+  // For the various user status
+  useEffect(() => {
+    if (!userId) return;
+    if (!supabase) return; // context may not be ready
+
+    let cancelled = false;
+
+    async function loadData() {
+      if (cancelled) return;
+
+      try {
+
+        await loadUserProfile();
+
+        if (!cancelled && userProfile.value?.id) {
+          await loadUserVideos();
+        }
+
+        if (!cancelled && user?.id && userProfile.value?.id) {
+          await checkSubscriptionStatus();
+        }
+
+      } finally {
+        if (!cancelled) isLoading.value = false;
+      }
+    }
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, supabase, user, loadUserProfile, loadUserVideos, checkSubscriptionStatus, isLoading, userProfile]);
 
   const handleSubscribe = async () => {
     if (!user) {
@@ -231,7 +231,7 @@ export default function UserProfilePage() {
       <main className="min-h-screen pt-20 p-4 bg-background">
         <div className="max-w-6xl mx-auto text-center py-12">
           <h1 className="text-2xl font-bold mb-4">User not found</h1>
-          <p className="text-muted-foreground mb-4">The user you're looking for doesn't exist.</p>
+                  <p className="text-muted-foreground mb-4">The user you&apos;re looking for doesn&apos;t exist.</p>
           <Button onClick={() => router.push("/")}>Go Home</Button>
         </div>
       </main>
@@ -378,7 +378,7 @@ export default function UserProfilePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Videos</CardTitle>
-                <CardDescription>{"User"}'s uploaded videos</CardDescription>
+                <CardDescription>{"User"}&apos;s uploaded videos</CardDescription>
               </CardHeader>
               <CardContent>
                 {userVideos.value.length > 0 ? (
@@ -392,7 +392,7 @@ export default function UserProfilePage() {
                     <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No videos yet</h3>
                     <p className="text-muted-foreground">
-                      {userProfile.value.username} hasn't uploaded any videos yet.
+                      {userProfile.value.username} hasn&apos;t uploaded any videos yet.
                     </p>
                   </div>
                 )}

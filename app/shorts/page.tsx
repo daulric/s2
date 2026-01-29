@@ -93,7 +93,7 @@ export default function ShortsPage() {
     }
 
     fetchShorts();
-  }, [user])
+  }, [user, supabase, isLoading, shorts])
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -107,7 +107,7 @@ export default function ShortsPage() {
 
     globalThis.addEventListener("keydown", handleKeyDown)
     return () => globalThis.removeEventListener("keydown", handleKeyDown)
-  }, [])
+  }, [currentIndex, shorts])
 
   // Scroll to current video
   useEffect(() => {
@@ -117,7 +117,7 @@ export default function ShortsPage() {
         element.scrollIntoView({ behavior: "smooth", block: "start" })
       }
     }
-  }, [currentIndex.value])
+  }, [currentIndex.value, shorts.value.length])
 
   // Intersection Observer to track which video is in view
   useEffect(() => {
@@ -142,7 +142,7 @@ export default function ShortsPage() {
     }
 
     return () => observer.disconnect()
-  }, [shorts.value])
+  }, [shorts.value, currentIndex])
 
   if (isLoading.value) {
     return (

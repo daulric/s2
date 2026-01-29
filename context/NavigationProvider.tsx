@@ -69,7 +69,7 @@ export const NavigationProvider: React.FC<NavigationProviderProps> = ({ children
       setNavigationHistory([pathname]);
       setPreviousPage(pathname);
     }
-  }, []); // Run only on mount
+  }, [pathname]); // Run only on mount
 
   const goToPreviousPage = (): void => {
     if (previousPage && previousPage !== pathname && !isExcludedPage(previousPage)) {

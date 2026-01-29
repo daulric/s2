@@ -230,6 +230,7 @@ export default function UploadPage() {
 
                       {thumbnailPreview.value ? (
                         <div className="relative aspect-video w-48 rounded-lg overflow-hidden">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={thumbnailPreview.value}
                             alt="Thumbnail preview"
@@ -254,7 +255,7 @@ export default function UploadPage() {
                         className="hidden"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Upload a custom thumbnail or we'll generate one from your video
+                        Upload a custom thumbnail or we&apos;ll generate one from your video
                       </p>
                     </div>
                   </div>
