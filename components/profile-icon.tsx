@@ -44,7 +44,7 @@ export function ProfileIcon() {
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem asChild>
-              <Link href="/auth/login" className="w-full cursor-pointer">
+              <Link href="/auth" className="w-full cursor-pointer">
                 <Mail className="mr-2 h-4 w-4" />
                 <span>Login</span>
               </Link>
@@ -52,7 +52,7 @@ export function ProfileIcon() {
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href="/auth/signup" className="w-full cursor-pointer">
+            <Link href="/auth" className="w-full cursor-pointer">
               <span>Don&apos;t have an account? Sign up</span>
             </Link>
           </DropdownMenuItem>

@@ -20,8 +20,9 @@ type UserState = {
 
 type credentials = {
   email: string;
-  password: string;
+  password?: string;
   token?: string;
+  otp?: string;
 }
 
 type AuthContextType = {
@@ -29,6 +30,8 @@ type AuthContextType = {
   loading: boolean;
   error: string | null;
   signIn: (credentials: credentials) => Promise<any>;
+  signInWithOtp: (email: string) => Promise<any>;
+  verifyOtp: (email: string, token: string) => Promise<any>;
   signUp: (credentials: credentials) => Promise<any>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -180,16 +183,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Login function
+  // Login function with Password (Legacy or Optional)
   const signIn = async ({ email, password, token }: credentials) => {
     try {
       loading.value = true;
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password,
+        password: password || "",
         options: { 
           captchaToken: token ? token : "",
-          //redirectTo: `${globalThis.location.origin}/${navigate.previousPage || ''}`
         }
       });
 
@@ -208,6 +210,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }, 100);
     }
   };
+
+  // Sign In with OTP
+  const signInWithOtp = async (email: string) => {
+    try {
+      loading.value = true;
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true, 
+        }
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error: any) {
+      errorState.value = error.message || error;
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  // Verify OTP
+  const verifyOtp = async (email: string, token: string) => {
+    try {
+      loading.value = true;
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email',
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error: any) {
+      errorState.value = error.message || error;
+      throw error;
+    } finally {
+      loading.value = false;
+      setTimeout(() => {
+        router.push(navigate.previousPage || '/home');
+      }, 100);
+    }
+  };
+
 
   const oauth = async (provider: Provider, redirectTo?: string) => {
     if (!provider) {
@@ -244,7 +291,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const { data, error } = await supabase.auth.signUp({
         email,
-        password,
+        password: password || "",
         options: { captchaToken: token ? token : "" }
       });
 
@@ -308,6 +355,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading: loading.value,
     error: errorState.value,
     signIn,
+    signInWithOtp,
+    verifyOtp,
     signUp,
     signOut,
     resetPassword,

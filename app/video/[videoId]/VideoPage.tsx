@@ -412,7 +412,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
         description: "Please sign in to like videos",
         action: {
           label: "Sign In",
-          onClick: () => router.push("/auth/login"),
+          onClick: () => router.push("/auth"),
         }
       })
       return
@@ -443,7 +443,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
         description: "Please sign in to dislike videos",
         action: {
           label: "Sign In",
-          onClick: () => router.push("/auth/login"),
+          onClick: () => router.push("/auth"),
         },
       })
       return
@@ -497,7 +497,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
         description: "Please sign in to save videos",
         action: {
           label: "Sign In",
-          onClick: () => router.push("/auth/login"),
+          onClick: () => router.push("/auth"),
         }
       })
       return

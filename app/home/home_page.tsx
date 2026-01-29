@@ -13,7 +13,7 @@ export default function HomePage({videos}: { videos: VideoInfoProps[] }) {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Hello {profile?.username || "Guest"}</h1>
+            <h1 className="text-3xl font-bold">hello {(profile?.username)?.toLowerCase() || "guest"}</h1>
           </div>
         </div>
 
