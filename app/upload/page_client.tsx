@@ -18,12 +18,13 @@ import { compressAndUpload, uploadThumbnail } from "./MediaManager"
 import { categories, visibilites } from "../../lib/videos/details"
 import captureThumbnail from "../../lib/videos/captureThumbnail"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
+import { useWebHaptics } from "web-haptics/react"
 
 export default function UploadPage() {
   useSignals();
   const router = useRouter()
   const { supabase } = useAuth();
-
+  const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
   const fileInputRef = useRef<HTMLInputElement>(null)
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,6 +71,7 @@ export default function UploadPage() {
 
     const fileName = file.name.replace(/\.[^/.]+$/, "") // Remove extension
     title.value = fileName
+    trigger("success");
   }
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,6 +83,7 @@ export default function UploadPage() {
       toast.error("Invalid file type", {
         description: "Please upload an image file for the thumbnail",
       })
+      trigger("error");
       return
     }
 
@@ -89,6 +92,7 @@ export default function UploadPage() {
     // Create thumbnail preview URL
     const imageURL = URL.createObjectURL(file)
     thumbnailPreview.value = imageURL;
+    trigger("success");
   }
 
   const handleUpload = async () => {
@@ -96,6 +100,7 @@ export default function UploadPage() {
       toast.error("No video selected", {
         description: "Please select a video to upload",
       })
+      trigger("error");
       return
     }
 
@@ -103,6 +108,7 @@ export default function UploadPage() {
       toast.error("Title required", {
         description: "Please provide a title for your video",
       })
+      trigger("error");
       return
     }
 
@@ -115,11 +121,12 @@ export default function UploadPage() {
 
       toast.promise(promised_uplaod, {
         loading: "Uploading...",
-        success: () => "Upload Finished",
-        error: (err) => `Upload Failed: ${err.message}`,
+        success: () => { trigger("success"); return "Upload Finished" },
+        error: (err) => { trigger("error"); return `Upload Failed: ${err.message}` },
       });
 
       promised_uplaod.then(async ([video_path, thumbnail_path]) => {
+        trigger("light");
         const { data, error } = await supabase.from("videos").insert({
           title: title.value,
           description: description.value,
@@ -139,6 +146,7 @@ export default function UploadPage() {
       toast.error("Upload Failed", {
         description: (error instanceof Error ? error.message : "An error occurred during upload"),
       })
+      trigger("error");
     } finally {
       isUploading.value = false;
     }
@@ -173,7 +181,7 @@ export default function UploadPage() {
                     <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="text-lg font-medium mb-2">Drag and drop or click to upload</h3>
                     <p className="text-sm text-muted-foreground mb-4">MP4, WebM, or MOV files up to 100MB</p>
-                    <Button variant="secondary">Select Video</Button>
+                    <Button variant="secondary" onClick={() => trigger("medium")}>Select Video</Button>
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -268,7 +276,7 @@ export default function UploadPage() {
                   <Input
                     id="title"
                     value={title.value}
-                    onChange={(e) => { title.value = e.target.value } }
+                    onChange={(e) => { title.value = e.target.value; trigger("light") } }
                     placeholder="Add a title that describes your video"
                     maxLength={100}
                   />
@@ -280,7 +288,7 @@ export default function UploadPage() {
                   <Textarea
                     id="description"
                     value={description.value}
-                    onChange={(e) => { description.value = e.target.value } }
+                    onChange={(e) => { description.value = e.target.value; trigger("light") } }
                     placeholder="Tell viewers about your video"
                     className="min-h-32"
                     maxLength={5000}
@@ -290,9 +298,9 @@ export default function UploadPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="category">Category</Label>
-                  <Select value={category.value} onValueChange={(e) => { category.value = e }}>
+                  <Select value={category.value} onValueChange={(e) => { category.value = e; trigger("light") }}>
                     <SelectTrigger id="category">
-                      <SelectValue placeholder="Select a category" />
+                      <SelectValue placeholder="Select a category"/>
                     </SelectTrigger>
                     <SelectContent>
                       { categories.map((detail) => <SelectItem key={`${Math.random()}-${detail.toLowerCase()}`} value={detail.toLowerCase()}>{detail}</SelectItem>) }
@@ -302,9 +310,9 @@ export default function UploadPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="visibility">Visibility</Label>
-                  <Select value={visibility.value} onValueChange={(e) => { visibility.value = e }}>
+                  <Select value={visibility.value} onValueChange={(e) => { visibility.value = e; trigger("light") }}>
                     <SelectTrigger id="visibility">
-                      <SelectValue placeholder="Select visibility" />
+                      <SelectValue placeholder="Select visibility" onClick={() => trigger("light")} />
                     </SelectTrigger>
                     <SelectContent>
                       {visibilites.map(({ type, icon: Icon }) => (
@@ -335,10 +343,10 @@ export default function UploadPage() {
           <Separator />
 
           <CardFooter className="flex justify-between py-4">
-            <Button variant="ghost" onClick={() => router.back()}>
+            <Button variant="ghost" onClick={() => { trigger("error"); router.back() }}>
               Cancel
             </Button>
-            <Button onClick={handleUpload} disabled={isUploading.value || !videoFile.value}>
+            <Button onClick={() => { trigger("light"); handleUpload() }} disabled={isUploading.value || !videoFile.value}>
               {isUploading.value ? "Uploading..." : "Upload Video"}
             </Button>
           </CardFooter>

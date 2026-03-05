@@ -14,13 +14,14 @@ import { useSignals } from "@preact/signals-react/runtime"
 import { ProfileCard } from "../../components/profile-card"
 import profile_convert,{ UserData, UserInfoProps } from "../../lib/user/data-to-user-format"
 import { useAuth } from "../../context/AuthProvider"
+import { useWebHaptics } from "web-haptics/react"
 
 export default function SearchPage() {
   useSignals();
   const { supabase } = useAuth();
   const searchParams = useSearchParams()
   const query = searchParams.get("q") || ""
-
+  const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});  
   // Signals
   const results = useSignal<VideoProps[]>([]);
   const channels = useSignal<UserInfoProps[]>([])
@@ -133,7 +134,7 @@ export default function SearchPage() {
                 </p>
               )}
             </div>
-            <Button variant="outline" onClick={() => { showFilters.value = !showFilters.value } } className="flex items-center">
+            <Button variant="outline" onClick={() => { showFilters.value = !showFilters.value; trigger("light") } } className="flex items-center">
               <Filter className="h-4 w-4 mr-2" />
               Filters
             </Button>
@@ -145,7 +146,7 @@ export default function SearchPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Sort by</label>
-                  <Select value={sortBy.value} onValueChange={handleSortChange}>
+                  <Select value={sortBy.value} onValueChange={(value) => { handleSortChange(value); trigger("light") }}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -159,7 +160,7 @@ export default function SearchPage() {
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Upload time</label>
-                  <Select value={uploadTime.value} onValueChange={ (value) => { uploadTime.value = value } }>
+                  <Select value={uploadTime.value} onValueChange={ (value) => { uploadTime.value = value; trigger("light") } }>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -177,7 +178,7 @@ export default function SearchPage() {
 
               {hasActiveFilters && (
                 <div className="mt-4 pt-4 border-t">
-                  <Button variant="ghost" onClick={clearFilters} className="text-sm">
+                  <Button variant="ghost" onClick={() => { clearFilters(); trigger("light") }} className="text-sm">
                     Clear all filters
                   </Button>
                 </div>

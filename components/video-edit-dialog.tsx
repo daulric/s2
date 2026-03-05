@@ -22,6 +22,7 @@ import { useAuth } from "../context/AuthProvider"
 import { categories, visibilites } from "../lib/videos/details"
 import type { VideoData, VideoInfoProps } from "../lib/videos/data-to-video-format"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
+import { useWebHaptics } from "web-haptics/react"
 
 type VideoEditDialogProps = {
   video: VideoInfoProps | null
@@ -33,6 +34,7 @@ type VideoEditDialogProps = {
 export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDialogProps) {
   useSignals();
   const { supabase } = useAuth()
+  const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
   const isLoading = useSignal(false);
   const thumbnailFile = useSignal<File | null>(null);
   const formData = useSignal({
@@ -79,6 +81,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
 
     thumbnailFile.value = file;
     isLoading.value = true;
+    trigger("light");
 
     try {
       const fileExt = file.name.split(".").pop()
@@ -101,8 +104,11 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
       toast.error("Failed to upload thumbnail", {
         description: "Please try again",
       })
+
+      trigger("error");
     } finally {
       isLoading.value = false;
+      trigger("light");
     }
   }
 
@@ -136,10 +142,12 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
       toast.success("Video updated", {
         description: "Your video information has been saved",
       })
+      trigger("success");
     } catch (error) {
       toast.error("Failed to save video", {
         description: "Please try again",
       })
+      trigger("error");
     } finally {
       isLoading.value = false;
     }
@@ -280,7 +288,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
         </div>
 
         <DialogFooter className="mt-6">
-          <Button variant="outline" onClick={handleClose}>
+          <Button variant="outline" onClick={() => { handleClose(); trigger("light") }}>
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={isLoading.value}>
