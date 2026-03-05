@@ -372,8 +372,8 @@ export default function UserProfilePage() {
         {/* Content Tabs */}
         <Tabs defaultValue="videos" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="videos">Videos</TabsTrigger>
-            <TabsTrigger value="about">About</TabsTrigger>
+            <TabsTrigger value="videos" onClick={() => trigger("light")}>Videos</TabsTrigger>
+            <TabsTrigger value="about" onClick={() => trigger("light")}>About</TabsTrigger>
           </TabsList>
 
           <TabsContent value="videos" className="mt-6">

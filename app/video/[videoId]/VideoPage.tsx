@@ -787,7 +787,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
                 </Avatar>
               </Link>
               <div className="flex-1">
-                <Link href={`/user/${videoData.creator_id}`}>
+                <Link href={`/user/${videoData.creator_id}`} onClick={() => trigger("light")}>
                   <h3 className="font-semibold flex items-center gap-2">
                     {videoData.username}
                     {videoData.is_verified && (
@@ -819,11 +819,11 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
         <div className="mt-12">
           <Tabs defaultValue="trending" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="trending">
+              <TabsTrigger value="trending" onClick={() => trigger("light")}>
                 <Flame className="h-4 w-4 mr-2" />
                 Trending
               </TabsTrigger>
-              <TabsTrigger value="new">
+              <TabsTrigger value="new" onClick={() => trigger("light")}>
                 <Clock className="h-4 w-4 mr-2" />
                 New
               </TabsTrigger>
