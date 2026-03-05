@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 import { Card, CardContent } from "./ui/card"
 import { Users, Video, Calendar } from "lucide-react"
 import { UserInfoProps } from "../lib/user/data-to-user-format"
+import { useWebHaptics } from "web-haptics/react"
 
 interface UserCardProps {
   user: UserInfoProps
@@ -39,10 +40,11 @@ function formatJoinDate(dateString: string): string {
 
 export function ProfileCard({ user, size = "default", compact = false }: UserCardProps) {
   const isCompact = size === "compact" || compact
-
+  const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
+  
   if (isCompact) {
     return (
-      <Link href={`/user/${user.id}`}>
+      <Link href={`/user/${user.id}`} onClick={() => trigger("light")}>
         <Card className="group cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.01]">
           <CardContent className="p-3">
             <div className="flex items-center space-x-3">

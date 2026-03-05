@@ -18,6 +18,7 @@ import upsert from "../../../lib/supabase/upsert"
 import Loading from "./loading"
 import { BadgeCheckIcon } from "lucide-react"
 import { Badge } from "../../../components/ui/badge"
+import { useWebHaptics } from "web-haptics/react"
 
 interface VideoDataAdded extends VideoData {
   video_likes?: { is_liked: boolean }[]
@@ -29,6 +30,7 @@ export default function UserProfilePage() {
   const router = useRouter();
   const { user: { user }, supabase } = useAuth();
   const userId = params.id as string;
+  const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
   
   // Preact Signals for state management
   const userProfile = useSignal<{ [key: string]: any } | null>(null);
@@ -285,7 +287,7 @@ export default function UserProfilePage() {
 
               {(user && user.id !== userId) && (
                 <Button
-                  onClick={handleSubscribe}
+                  onClick={() => { handleSubscribe(); isSubscribed.value ? trigger("nudge") : trigger("success") }}
                   disabled={isSubscribing.value}
                   variant={isSubscribed.value ? "outline" : "default"}
                   className="flex items-center gap-2"

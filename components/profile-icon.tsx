@@ -14,10 +14,11 @@ import {
 } from "./ui/dropdown-menu"
 import { LogOut, Settings, UserIcon, Mail, Github } from "lucide-react"
 import { useAuth } from "../context/AuthProvider"
+import { useWebHaptics } from "web-haptics/react"
 
 export function ProfileIcon() {
   const {user: {user, profile}, signOut} = useAuth();
-
+  const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
   const handleLogout = () => {
     signOut();
     sessionStorage.removeItem("profile_user");
@@ -34,7 +35,7 @@ export function ProfileIcon() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="rounded-full">
+          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => trigger("light")}>
             <UserIcon className="h-5 w-5" />
             <span className="sr-only">Login options</span>
           </Button>
@@ -44,7 +45,7 @@ export function ProfileIcon() {
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem asChild>
-              <Link href="/auth" className="w-full cursor-pointer">
+              <Link href="/auth" className="w-full cursor-pointer" onClick={() => trigger("light")}>
                 <Mail className="mr-2 h-4 w-4" />
                 <span>Login</span>
               </Link>
@@ -52,7 +53,7 @@ export function ProfileIcon() {
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href="/auth" className="w-full cursor-pointer">
+            <Link href="/auth" className="w-full cursor-pointer" onClick={() => trigger("light")}>
               <span>Don&apos;t have an account? Sign up</span>
             </Link>
           </DropdownMenuItem>
@@ -86,20 +87,20 @@ export function ProfileIcon() {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link href={`/user/${user.id}`} className="w-full cursor-pointer">
+            <Link href={`/user/${user.id}`} className="w-full cursor-pointer" onClick={() => trigger("light")}>
               <UserIcon className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/settings" className="w-full cursor-pointer">
+            <Link href="/settings" className="w-full cursor-pointer" onClick={() => trigger("light")}>
               <Settings className="mr-2 h-4 w-4" />
               <span>Settings</span>
             </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => handleLogout()} className="cursor-pointer">
+        <DropdownMenuItem onClick={() => { handleLogout(); trigger("light") }} className="cursor-pointer">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>

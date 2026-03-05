@@ -32,6 +32,7 @@ import converttovideoformat, { type VideoData, type VideoInfoProps } from "../..
 import { useSignals } from "@preact/signals-react/runtime"
 import { useRouter } from "next/navigation"
 import { deleteAccount } from "./user-management"
+import { useWebHaptics } from "web-haptics/react"
 
 interface VideoWithLikes extends VideoData {
   video_likes: { is_liked: boolean; videos?: VideoData }[]
@@ -44,6 +45,7 @@ interface VideoLikes {
 
 export default function ProfilePage() {
   useSignals()
+  const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
   const {
     user: { user },
     supabase,
@@ -212,10 +214,12 @@ export default function ProfilePage() {
       toast.success("Profile updated", {
         description: "Your profile has been saved successfully",
       })
+      trigger("success");
     } catch (error) {
       toast.error("Failed to save profile", {
         description: "Please try again",
       })
+      trigger("error");
     } finally {
       isLoading.value = false
     }
@@ -251,10 +255,12 @@ export default function ProfilePage() {
       toast.success("Avatar uploaded", {
         description: "Don't forget to save your profile",
       })
+      trigger("success");
     } catch (error) {
       toast.error("Failed to upload avatar", {
         description: "Please try again",
       })
+      trigger("error");
     } finally {
       isLoading.value = false
     }
@@ -263,6 +269,7 @@ export default function ProfilePage() {
   const handleEditVideo = (video: any) => {
     editingVideo.value = { ...video }
     isVideoEditOpen.value = true
+    trigger("light");
   }
 
   const handleSaveVideo = async (updatedVideo: any) => {
@@ -272,8 +279,10 @@ export default function ProfilePage() {
       toast.error("Details Upload Error", {
         description: typeof error === "string" ? error : error?.message || String(error),
       })
+      trigger("error");
     }
 
+    trigger("success");
     editingVideo.value = null
   }
 
@@ -287,6 +296,7 @@ export default function ProfilePage() {
             toast.success(res.message, {
               description: "Your account has been deleted successfully",
             })
+            trigger("success");
 
             router.push("/")
           } else {
@@ -302,6 +312,7 @@ export default function ProfilePage() {
       toast.error("Failed to delete account", {
         description: "Please try again or contact support",
       })
+      trigger("error");
     } finally {
       isDeleting.value = false
       isDeleteDialogOpen.value = false

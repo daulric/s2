@@ -4,10 +4,11 @@ import { useTheme } from "next-themes"
 
 import { Button } from "./ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu"
+import { useWebHaptics } from "web-haptics/react"
 
 export function ModeToggle() {
   const { setTheme } = useTheme()
-
+  const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -18,9 +19,9 @@ export function ModeToggle() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>Light</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>Dark</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>System</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => { setTheme("light"); trigger("light") }}>Light</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => { setTheme("dark"); trigger("light") }}>Dark</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => { setTheme("system"); trigger("light") }}>System</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

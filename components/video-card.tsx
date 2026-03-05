@@ -10,6 +10,7 @@ import { VideoInfoProps } from "../lib/videos/data-to-video-format"
 import { SupabaseClient } from "@supabase/supabase-js"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
 import { useEffect } from "react"
+import { useWebHaptics } from "web-haptics/react"
 
 export type VideoProps = {
   id: string
@@ -56,6 +57,7 @@ export async function getImage( video: VideoProps, supabase: SupabaseClient<any,
 export function VideoCard({ video, compact = false,  supabase }: VideoCardProps) {
   useSignals();
   const thumbURL = useSignal<string | null>(null);
+  const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
 
   useEffect(() => {
     if (video.thumbnail_path && supabase) {
@@ -76,7 +78,7 @@ export function VideoCard({ video, compact = false,  supabase }: VideoCardProps)
 
   if (compact) {
     return (
-      <Link href={`/video/${video.id}`}>
+      <Link href={`/video/${video.id}`} onClick={() => trigger("light")}>
         <Card className="overflow-hidden">
           <div className="flex">
             <div className="relative w-40 h-24 flex-shrink-0">
@@ -108,7 +110,7 @@ export function VideoCard({ video, compact = false,  supabase }: VideoCardProps)
   }
 
   return (
-    <Link href={`/video/${video.id}`}>
+    <Link href={`/video/${video.id}`} onClick={() => trigger("light")}>
       <Card className="overflow-hidden">
         <div className="relative">
           { thumbURL.value && thumbURL.value.length > 0 && (

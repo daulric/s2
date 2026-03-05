@@ -8,6 +8,7 @@ import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Search, X } from "lucide-react"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
+import { useWebHaptics } from "web-haptics/react"
 
 interface SearchInputProps {
   mobile?: boolean
@@ -18,7 +19,8 @@ export function SearchInput({ mobile = false }: SearchInputProps) {
   const isOpen = useSignal(false);
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
-
+  const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
+  
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     const trimed_key_search = inputRef.current?.value.trim();
@@ -35,6 +37,8 @@ export function SearchInput({ mobile = false }: SearchInputProps) {
       isOpen.value = false;
       inputRef.current!.value = ""
     }
+
+    trigger("light");
   }
 
   // Focus input when opened on mobile

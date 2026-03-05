@@ -18,6 +18,7 @@ import { useSignal, useSignals } from "@preact/signals-react/runtime"
 import { Provider } from "@supabase/supabase-js"
 import { Turnstile } from "@marsidev/react-turnstile"
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "../../components/ui/input-otp"
+import { useWebHaptics } from "web-haptics/react"
 
 export default function AuthPage() {
   useSignals()
@@ -28,7 +29,7 @@ export default function AuthPage() {
   const isLoading = useSignal(false)
   const turnstileToken = useSignal<string | null>(null)
   const router = useRouter()
-
+  const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
   const {
     signInWithOtp,
     verifyOtp,
@@ -64,6 +65,7 @@ export default function AuthPage() {
         await signInWithOtp(email.current.value)
         emailAddress.value = email.current.value
         otpSent.value = true
+        trigger("success");
         toast.success("OTP sent to your email.")
       } else {
         // Verify OTP
@@ -72,12 +74,14 @@ export default function AuthPage() {
           isLoading.value = false
           return
         }
-
+        trigger("success");
         await verifyOtp(emailAddress.value, otp.value)
         // verifyOtp in AuthProvider handles redirection
       }
     } catch (error) {
       console.log(error)
+      trigger("light");
+      trigger("error");
       toast.error(otpSent.value ? "Verification Failed" : "Login Failed", {
         description: error instanceof Error && error.message ? error.message : "An unknown error occurred.",
       })
@@ -94,8 +98,10 @@ export default function AuthPage() {
 
     try {
       oauth(provider, redirectTo)
+      trigger("success");
     } catch (error) {
       toast.error("OAuth verification failed. Please try again.")
+      trigger("error");
     }
   }
 

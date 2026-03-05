@@ -27,6 +27,7 @@ import { useRouter } from "next/navigation"
 import { Badge } from "../../../components/ui/badge"
 import { BadgeCheckIcon } from 'lucide-react'
 import { effect } from "@preact/signals-react"
+import { useWebHaptics } from "web-haptics/react"
 
 // Keyboard shortcuts help data
 const keyboardShortcuts = [
@@ -51,6 +52,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
   const containerRef = useRef<HTMLDivElement | null>(null)
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter();
+  const { trigger, cancel } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
 
   const subscribers = useSignal(0);
   const video_data_signal = useSignal<VideoInfoProps>();
@@ -198,10 +200,16 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
   const togglePlay = useCallback(() => {
     isPlaying.value = !isPlaying.value;
-  }, [isPlaying])
+   trigger("light");
+  }, [isPlaying]);
 
   const toggleMute = useCallback(() => {
     isMuted.value = !isMuted.value;
+    if (isMuted.value) {
+      trigger("error");
+    } else {
+      trigger("success");
+    }
   }, [isMuted])
 
   const toggleFullscreen = useCallback(() => {
@@ -209,6 +217,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     const video_player = videoRef.current;
 
     if (!container || !video_player) return;
+    trigger("light");
 
     if (container.requestFullscreen) {
       if (!document.fullscreenElement) {
@@ -239,7 +248,8 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
       if (!isPlaying.value) {
         isPlaying.value = true;
       }
-      toast.info("⏪ -10 seconds", { duration: 1000 })
+      trigger("light");
+      toast.info("-10 seconds", { duration: 1000 })
     }
   }, [isPlaying])
 
@@ -249,7 +259,8 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
       if (!isPlaying.value) {
         isPlaying.value = true;
       }
-      toast.info("⏩ +10 seconds", { duration: 1000 })
+      trigger("light");
+      toast.info("+10 seconds", { duration: 1000 })
     }
   }, [isPlaying])
 
@@ -257,20 +268,24 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     if (isMuted.value) {
       isMuted.value = false;
     }
-    volume.value = Math.min(1, volume.value + 0.1);
 
-    // Show a visual indicator for volume change
-    toast.info(`🔊 Volume: ${Math.round(volume.value * 100)}%`, { duration: 500 })
+    if (Number(volume.value) != 1) {
+      trigger("light");
+      toast.info(`Volume: ${Math.round(volume.value * 100)}%`, { duration: 500 })
+      volume.value = Math.min(1, volume.value + 0.1);
+    }
+
   }, [isMuted, volume])
 
   const decreaseVolume = useCallback(() => {
     volume.value = Math.max(0, volume.value - 0.1);
     if (volume.value <= 0) {
       isMuted.value = true;
+    } else {
+      toast.info(`Volume: ${Math.round((volume.value) * 100)}%`, { duration: 500 })
+      trigger("nudge");
     }
 
-    // Show a visual indicator for volume change
-    toast.info(`Volume: ${Math.round((volume.value) * 100)}%`, { duration: 500 })
   }, [volume, isMuted])
 
   // Effect to set up keyboard controls
@@ -421,6 +436,9 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     if (isLiked.value) {
       isLiked.value = false;
       total_likes.value = Math.max(0, total_likes.value - 1);
+      cancel()
+      trigger("error")
+      
       await upsert(supabase,
         "video_likes",
         { video_id: videoData.id, userid: user.id },
@@ -430,10 +448,13 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
       isLiked.value = true;
       isDisliked.value = false;
       total_likes.value += 1;
+      cancel()
+      trigger("success");
+
       await upsert(supabase, "video_likes",
         { video_id: videoData.id, userid: user.id, },
         { is_liked: true }
-      )
+      );
     }
   }
 
@@ -450,7 +471,9 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     }
 
     if (isDisliked.value) {
-      isDisliked.value = false
+      isDisliked.value = false;
+      cancel();
+      trigger("error");
       await upsert(
         supabase, "video_likes",
         { video_id: videoData.id, userid: user.id, },
@@ -460,6 +483,8 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
       isDisliked.value = true;
       isLiked.value = false;
       total_likes.value = Math.max(0, total_likes.value - 1);
+      cancel();
+      trigger("success");
       await upsert(
         supabase, "video_likes",
         { video_id: videoData.id, userid: user.id, },
