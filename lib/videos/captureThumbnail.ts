@@ -3,7 +3,7 @@ export default async function captureThumbnail(videoFile: File): Promise<{thumbn
     const video = document.createElement('video');
     const videoUrl = URL.createObjectURL(videoFile);
 
-    video.src = videoUrl;
+    video.setAttribute("src", videoUrl);
     video.preload = 'auto';
     video.muted = true;
     video.playsInline = true;

@@ -76,7 +76,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
 
     // Preview the image immediately
     if (thumbnail_ref.current) {
-      thumbnail_ref.current.src = URL.createObjectURL(file)
+      thumbnail_ref.current.setAttribute("src", URL.createObjectURL(file))
     }
 
     thumbnailFile.value = file;
