@@ -7,7 +7,7 @@ import { ProfileIcon } from "./profile-icon"
 import { SearchInput } from "./search-input"
 import { Button } from "./ui/button"
 import { Upload, Shell } from "lucide-react"
-import { useAuth } from "../context/AuthProvider"
+import { useAuth } from "@/context/AuthProvider"
 import { useWebHaptics } from "web-haptics/react"
 export function Header() {
   const { user: { user } } = useAuth()

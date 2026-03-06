@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu"
 import { LogOut, Settings, UserIcon, Mail, Github } from "lucide-react"
-import { useAuth } from "../context/AuthProvider"
+import { useAuth } from "@/context/AuthProvider"
 import { useWebHaptics } from "web-haptics/react"
 
 export function ProfileIcon() {

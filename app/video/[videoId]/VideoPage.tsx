@@ -2,13 +2,13 @@
 
 import { useRef, useEffect, useCallback } from "react"
 import { toast } from "sonner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs"
-import { Button } from "../../../components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "../../../components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 //import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "../../../components/ui/separator"
+import { Separator } from "@/components/ui/separator"
 import { Play, Pause, Volume2, VolumeX, Maximize, ThumbsUp, ThumbsDown, Share, MessageSquare, Clock, Bookmark, MoreHorizontal, Flame, Heart, Keyboard } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../components/ui/tooltip"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { 
   Dialog, 
   DialogContent, 
@@ -16,15 +16,15 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogTrigger,
-} from "../../../components/ui/dialog"
-import { VideoCard } from "../../../components/video-card"
-import { useAuth } from "../../../context/AuthProvider"
+} from "@/components/ui/dialog"
+import { VideoCard } from "@/components/video-card"
+import { useAuth } from "@/context/AuthProvider"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
-import upsert from "../../../lib/supabase/upsert"
+import upsert from "@/lib/supabase/upsert"
 import Link from "next/link"
-import { VideoInfoProps } from "../../../lib/videos/data-to-video-format"
+import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { useRouter } from "next/navigation"
-import { Badge } from "../../../components/ui/badge"
+import { Badge } from "@/components/ui/badge"
 import { BadgeCheckIcon } from 'lucide-react'
 import { effect } from "@preact/signals-react"
 import { useWebHaptics } from "web-haptics/react"

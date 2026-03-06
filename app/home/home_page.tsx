@@ -1,9 +1,9 @@
 "use client"
 
 //import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card" //future use
-import { useAuth } from "../../context/AuthProvider"
-import { VideoCard } from "../../components/video-card"
-import { VideoInfoProps } from "../../lib/videos/data-to-video-format";
+import { useAuth } from "@/context/AuthProvider"
+import { VideoCard } from "@/components/video-card"
+import { VideoInfoProps } from "@/lib/videos/data-to-video-format";
 
 export default function HomePage({videos}: { videos: VideoInfoProps[] }) {
   const { user: { profile }, supabase } = useAuth();

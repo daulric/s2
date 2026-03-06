@@ -18,9 +18,9 @@ import {
   DialogTitle,
 } from "./ui/dialog"
 import { Camera, Upload } from "lucide-react"
-import { useAuth } from "../context/AuthProvider"
-import { categories, visibilites } from "../lib/videos/details"
-import type { VideoData, VideoInfoProps } from "../lib/videos/data-to-video-format"
+import { useAuth } from "@/context/AuthProvider"
+import { categories, visibilites } from "@/lib/videos/details"
+import type { VideoData, VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
 import { useWebHaptics } from "web-haptics/react"
 

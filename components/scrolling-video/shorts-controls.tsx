@@ -3,11 +3,11 @@
 import type React from "react"
 
 import { useSignal, effect } from "@preact/signals-react"
-import { Button } from "../ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Heart, MessageCircle, Share, MoreHorizontal } from "lucide-react"
 import { toast } from "sonner"
-import type { VideoInfoProps } from "../../lib/videos/data-to-video-format"
+import type { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { useSignals } from "@preact/signals-react/runtime"
 
 interface shorts_extends extends VideoInfoProps {

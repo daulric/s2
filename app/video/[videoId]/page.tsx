@@ -1,9 +1,9 @@
 import VideoPage from "./VideoPage";
-import { GetVideoDetails, GetPublicVideos } from "../../../serverActions/GetVideoDetails";
+import { GetVideoDetails, GetPublicVideos } from "@/serverActions/GetVideoDetails";
 import { notFound as NotFound } from "next/navigation";
 import { cache, Suspense } from "react";
-import { createClient } from "../../../lib/supabase/server";
-import Loading from "../../loading";
+import { createClient } from "@/lib/supabase/server";
+import Loading from "@/app/loading";
 
 // Updated type to use Promise
 type PageProps = {

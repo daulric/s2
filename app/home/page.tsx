@@ -1,8 +1,8 @@
-import { GetPublicVideos } from "../../serverActions/GetVideoDetails"
+import { GetPublicVideos } from "@/serverActions/GetVideoDetails"
 import { notFound as NotFound } from "next/navigation";
 import HomePage from "./home_page"
 import { Suspense } from "react";
-import Loading from "../loading";
+import Loading from "@/app/loading";
 
 export const metadata = {
     title: "s2 - Home",
