@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect } from "react"
+import { useRef, useCallback, useEffect } from "react"
+import { OfflineAudioContext } from "standardized-audio-context"
+import { useSignals, useSignal } from "@preact/signals-react/runtime"
 import { MusicTile, type MusicTrack } from "@/components/music-tile"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -17,6 +19,9 @@ import {
 import { cn } from "@/lib/utils"
 import { useWebHaptics } from "web-haptics/react"
 import { AudioInfoProps } from "@/lib/audios/data-to-audio-format"
+import { useAuth } from "@/context/AuthProvider"
+import Link from "next/link"
+import { Upload } from "lucide-react"
 
 const TRACK_COLORS = [
   "#6366f1", "#0ea5e9", "#f97316", "#22c55e",
@@ -52,31 +57,45 @@ async function analyzeAudio(src: string): Promise<{ timeline: HapticEvent[]; dur
   const totalSamples = channelData.length
 
   const hopSize = Math.floor(sampleRate * 0.01)
-  const fftSize = 512
+  const fftSize = 1024
   const binFreq = sampleRate / fftSize
-  const bassEnd = Math.floor(250 / binFreq)
-  const midEnd = Math.floor(2000 / binFreq)
-  const trebleEnd = Math.min(Math.floor(8000 / binFreq), fftSize / 2)
+  const halfFFT = fftSize / 2
+
+  const bands = {
+    subBass:  { lo: Math.floor(20 / binFreq),   hi: Math.floor(80 / binFreq) },
+    kick:     { lo: Math.floor(80 / binFreq),   hi: Math.floor(150 / binFreq) },
+    snare:    { lo: Math.floor(150 / binFreq),  hi: Math.floor(1000 / binFreq) },
+    hihat:    { lo: Math.floor(3000 / binFreq), hi: Math.min(Math.floor(8000 / binFreq), halfFFT) },
+  }
+
+  const HISTORY = 30
+  const history = {
+    subBass: new Float32Array(HISTORY),
+    kick:    new Float32Array(HISTORY),
+    snare:   new Float32Array(HISTORY),
+    hihat:   new Float32Array(HISTORY),
+  }
+  let histIdx = 0
 
   const timeline: HapticEvent[] = []
-  let lastEventTime = -Infinity
-  const MIN_GAP = 0.08
-
-  let prevBass = 0
-  let prevMid = 0
-  let prevTreble = 0
+  let lastKickTime = -Infinity
+  let lastSnareTime = -Infinity
+  let lastHihatTime = -Infinity
+  const KICK_GAP = 0.06
+  const SNARE_GAP = 0.05
+  const HIHAT_GAP = 0.04
 
   const re = new Float32Array(fftSize)
   const im = new Float32Array(fftSize)
-  const magnitudes = new Float32Array(fftSize / 2)
+  const magnitudes = new Float32Array(halfFFT)
   let frameCount = 0
 
   for (let offset = 0; offset + fftSize <= totalSamples; offset += hopSize) {
     const time = offset / sampleRate
 
     for (let i = 0; i < fftSize; i++) {
-      const windowCoeff = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (fftSize - 1))
-      re[i] = channelData[offset + i] * windowCoeff
+      const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (fftSize - 1))
+      re[i] = channelData[offset + i] * w
       im[i] = 0
     }
 
@@ -97,48 +116,65 @@ async function analyzeAudio(src: string): Promise<{ timeline: HapticEvent[]; dur
       }
     }
 
-    for (let i = 0; i < fftSize / 2; i++) {
+    for (let i = 0; i < halfFFT; i++) {
       magnitudes[i] = Math.sqrt(re[i] * re[i] + im[i] * im[i])
     }
 
-    let bass = 0
-    for (let i = 1; i < bassEnd; i++) bass += magnitudes[i]
-    bass /= Math.max(bassEnd - 1, 1)
-
-    let mid = 0
-    for (let i = bassEnd; i < midEnd; i++) mid += magnitudes[i]
-    mid /= Math.max(midEnd - bassEnd, 1)
-
-    let treble = 0
-    for (let i = midEnd; i < trebleEnd; i++) treble += magnitudes[i]
-    treble /= Math.max(trebleEnd - midEnd, 1)
-
-    const bassDelta = bass - prevBass
-    const midDelta = mid - prevMid
-    const trebleDelta = treble - prevTreble
-
-    prevBass = bass
-    prevMid = mid
-    prevTreble = treble
-
-    if (time - lastEventTime >= MIN_GAP) {
-      const pattern: { duration: number; delay?: number; intensity?: number }[] = []
-
-      if (bassDelta > prevBass * 0.4 && bass > 0.02) {
-        pattern.push({ duration: 40, intensity: Math.min(bass * 8, 1) })
-      }
-      if (midDelta > prevMid * 0.5 && mid > 0.01) {
-        pattern.push({ duration: 25, delay: 15, intensity: Math.min(mid * 12, 0.8) })
-      }
-      if (trebleDelta > prevTreble * 0.5 && treble > 0.005) {
-        pattern.push({ duration: 15, delay: 30, intensity: Math.min(treble * 20, 0.6) })
-      }
-
-      if (pattern.length > 0) {
-        timeline.push({ time, pattern })
-        lastEventTime = time
-      }
+    const bandEnergy = (b: { lo: number; hi: number }) => {
+      let sum = 0
+      for (let i = b.lo; i < b.hi; i++) sum += magnitudes[i]
+      return sum / Math.max(b.hi - b.lo, 1)
     }
+
+    const subBass = bandEnergy(bands.subBass)
+    const kick = bandEnergy(bands.kick)
+    const snare = bandEnergy(bands.snare)
+    const hihat = bandEnergy(bands.hihat)
+
+    const avg = (arr: Float32Array) => {
+      let s = 0
+      for (let i = 0; i < arr.length; i++) s += arr[i]
+      return s / arr.length
+    }
+
+    const kickCombined = kick + subBass * 0.6
+    const kickAvg = avg(history.kick) + avg(history.subBass) * 0.6
+    const snareAvg = avg(history.snare)
+    const hihatAvg = avg(history.hihat)
+
+    const kickThreshold = Math.max(kickAvg * 1.4, 0.015)
+    const snareThreshold = Math.max(snareAvg * 1.5, 0.008)
+    const hihatThreshold = Math.max(hihatAvg * 1.6, 0.004)
+
+    const pattern: { duration: number; delay?: number; intensity?: number }[] = []
+
+    if (kickCombined > kickThreshold && time - lastKickTime >= KICK_GAP) {
+      const intensity = Math.min((kickCombined / kickThreshold) * 0.5, 1)
+      pattern.push({ duration: 45, intensity })
+      lastKickTime = time
+    }
+
+    if (snare > snareThreshold && time - lastSnareTime >= SNARE_GAP) {
+      const intensity = Math.min((snare / snareThreshold) * 0.4, 0.85)
+      pattern.push({ duration: 20, delay: 10, intensity })
+      lastSnareTime = time
+    }
+
+    if (hihat > hihatThreshold && time - lastHihatTime >= HIHAT_GAP) {
+      const intensity = Math.min((hihat / hihatThreshold) * 0.3, 0.5)
+      pattern.push({ duration: 10, delay: 20, intensity })
+      lastHihatTime = time
+    }
+
+    if (pattern.length > 0) {
+      timeline.push({ time, pattern })
+    }
+
+    history.subBass[histIdx % HISTORY] = subBass
+    history.kick[histIdx % HISTORY] = kick
+    history.snare[histIdx % HISTORY] = snare
+    history.hihat[histIdx % HISTORY] = hihat
+    histIdx++
 
     frameCount++
     if (frameCount % 500 === 0) {
@@ -165,9 +201,14 @@ function enqueueAnalysis(
         resolve(cache.get(track.id)!)
         return
       }
-      const result = await analyzeAudio(track.src)
-      cache.set(track.id, result.timeline)
-      resolve(result.timeline)
+      try {
+        const result = await analyzeAudio(track.src)
+        cache.set(track.id, result.timeline)
+        resolve(result.timeline)
+      } catch {
+        cache.set(track.id, [])
+        resolve([])
+      }
     })
   })
 
@@ -183,7 +224,11 @@ function audiosToTracks(audios: AudioInfoProps[] | null): MusicTrack[] {
     artist: audio.username,
     color: TRACK_COLORS[i % TRACK_COLORS.length],
     src: audio.audio,
+    audioPath: audio.audio_path,
     thumbnail: audio.thumbnail,
+    listens: audio.listens,
+    creatorId: audio.creator_id,
+    avatarUrl: audio.avatar_url,
   }))
 }
 
@@ -192,16 +237,19 @@ type MusicPageProps = {
 }
 
 export default function MusicPage({ audios }: MusicPageProps) {
-  const tracks = audiosToTracks(audios)
+  useSignals()
+  const { supabase } = useAuth()
 
-  const [activeTrack, setActiveTrack] = useState<MusicTrack | null>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const [volume, setVolume] = useState(80)
-  const [isMuted, setIsMuted] = useState(false)
+  const tracks = useSignal<MusicTrack[]>(audiosToTracks(audios))
+  const activeTrack = useSignal<MusicTrack | null>(null)
+  const isPlaying = useSignal(false)
+  const isLoading = useSignal(false)
+  const progress = useSignal(0)
+  const currentTime = useSignal(0)
+  const duration = useSignal(0)
+  const volume = useSignal(80)
+  const isMuted = useSignal(false)
+  const beatIntensity = useSignal(0)
 
   const { trigger } = useWebHaptics({ debug: process.env.NODE_ENV !== "production" })
 
@@ -215,48 +263,49 @@ export default function MusicPage({ audios }: MusicPageProps) {
   const analyzePromisesRef = useRef<Map<string, Promise<HapticEvent[]>>>(new Map())
   const activeTimelineRef = useRef<HapticEvent[]>([])
   const nextEventIdxRef = useRef(0)
-
-  const getAudio = useCallback(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio()
-      audioRef.current.preload = "auto"
-    }
-    return audioRef.current
-  }, [])
+  const blobUrlCacheRef = useRef<Map<string, string>>(new Map())
 
   const updateLoop = useCallback(() => {
     const audio = audioRef.current
     if (!audio || audio.paused) return
 
     const time = audio.currentTime
-    setCurrentTime(time)
-    setDuration(audio.duration || 0)
-    setProgress(audio.duration ? (time / audio.duration) * 100 : 0)
+    currentTime.value = time
+    duration.value = audio.duration || 0
+    progress.value = audio.duration ? (time / audio.duration) * 100 : 0
 
     const timeline = activeTimelineRef.current
     let idx = nextEventIdxRef.current
+    let hitBeat = false
 
     while (idx < timeline.length && timeline[idx].time <= time) {
       trigger(timeline[idx].pattern)
+      hitBeat = true
       idx++
     }
     nextEventIdxRef.current = idx
 
+    if (hitBeat) {
+      beatIntensity.value = 1
+    } else {
+      beatIntensity.value = Math.max(0, beatIntensity.value * 0.82)
+    }
+
     rafRef.current = requestAnimationFrame(updateLoop)
-  }, [trigger])
+  }, [trigger, currentTime, duration, progress, beatIntensity])
 
   useEffect(() => {
-    if (isPlaying) {
+    if (isPlaying.value) {
       rafRef.current = requestAnimationFrame(updateLoop)
     }
     return () => cancelAnimationFrame(rafRef.current)
-  }, [isPlaying, updateLoop])
+  }, [isPlaying.value, updateLoop])
 
   useEffect(() => {
     if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume / 100
+      audioRef.current.volume = isMuted.value ? 0 : volume.value / 100
     }
-  }, [volume, isMuted])
+  }, [volume.value, isMuted.value, volume, isMuted])
 
   useEffect(() => {
     return () => {
@@ -265,65 +314,102 @@ export default function MusicPage({ audios }: MusicPageProps) {
         audioRef.current.pause()
         audioRef.current.src = ""
       }
+      blobUrlCacheRef.current.forEach((url) => URL.revokeObjectURL(url))
+      blobUrlCacheRef.current.clear()
     }
   }, [])
 
+  const hasInteractedRef = useRef(false)
+
   useEffect(() => {
-    for (const track of tracks) {
-      enqueueAnalysis(track, timelineCacheRef.current, analyzePromisesRef.current)
+    if (typeof window === "undefined") return
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+    if (isSafari) return
+
+    const startPreAnalysis = () => {
+      if (hasInteractedRef.current) return
+      hasInteractedRef.current = true
+      for (const track of tracks.value) {
+        enqueueAnalysis(track, timelineCacheRef.current, analyzePromisesRef.current)
+      }
+    }
+
+    document.addEventListener("click", startPreAnalysis, { once: true })
+    document.addEventListener("touchstart", startPreAnalysis, { once: true })
+    return () => {
+      document.removeEventListener("click", startPreAnalysis)
+      document.removeEventListener("touchstart", startPreAnalysis)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const incrementListens = useCallback(async (trackId: string) => {
+    const current = tracks.value.find((t) => t.id === trackId)
+    if (!current) return
+    const newCount = (current.listens ?? 0) + 1
+    tracks.value = tracks.value.map((t) => t.id === trackId ? { ...t, listens: newCount } : t)
+    await supabase.from("audios").update({ listens: newCount }).eq("audio_id", trackId)
+  }, [tracks, supabase])
+
   const playTrack = useCallback(
     async (track: MusicTrack) => {
-      const audio = getAudio()
-      const isNewTrack = activeTrack?.id !== track.id
+      const audio = audioRef.current
+      if (!audio) return
 
-      if (isNewTrack) {
-        audio.pause()
-        cancelAnimationFrame(rafRef.current)
-        setIsPlaying(false)
-        setActiveTrack(track)
-        setProgress(0)
-        setCurrentTime(0)
+      const isNew = activeTrack.value?.id !== track.id
 
-        let timeline = timelineCacheRef.current.get(track.id)
-
-        if (!timeline) {
-          setIsLoading(true)
-          try {
-            timeline = await enqueueAnalysis(track, timelineCacheRef.current, analyzePromisesRef.current)
-          } finally {
-            setIsLoading(false)
-          }
-        }
-
-        activeTimelineRef.current = timeline
-        nextEventIdxRef.current = 0
-
-        audio.src = track.src
-        audio.load()
-        audio.volume = isMuted ? 0 : volume / 100
-
-        audio.onended = () => {
-          setIsPlaying(false)
-          setProgress(100)
-        }
-
-        audio.onloadedmetadata = () => {
-          setDuration(audio.duration)
-        }
-
-        await new Promise<void>((resolve) => {
-          audio.oncanplay = () => resolve()
-        })
+      if (!isNew) {
+        audio.play()
+        isPlaying.value = true
+        return
       }
 
-      await audio.play()
-      setIsPlaying(true)
+      audio.pause()
+      cancelAnimationFrame(rafRef.current)
+      isPlaying.value = false
+      activeTrack.value = track
+      progress.value = 0
+      currentTime.value = 0
+      isLoading.value = true
+
+      const cached = timelineCacheRef.current.get(track.id)
+      activeTimelineRef.current = cached ?? []
+      nextEventIdxRef.current = 0
+
+      let blobUrl = blobUrlCacheRef.current.get(track.id)
+      if (!blobUrl) {
+        const { data } = await supabase.storage.from("audios").download(track.audioPath || "")
+        if (data) {
+          blobUrl = URL.createObjectURL(data)
+          blobUrlCacheRef.current.set(track.id, blobUrl)
+        }
+      }
+
+      if (!blobUrl) {
+        isLoading.value = false
+        return
+      }
+
+      audio.src = blobUrl
+      audio.volume = isMuted.value ? 0 : volume.value / 100
+      audio.load()
+
+      audio.addEventListener("canplay", () => {
+        audio.play()
+        isPlaying.value = true
+        isLoading.value = false
+      }, { once: true })
+
+      incrementListens(track.id)
+
+      if (!cached) {
+        enqueueAnalysis(track, timelineCacheRef.current, analyzePromisesRef.current)
+          .then((timeline) => {
+            activeTimelineRef.current = timeline
+          })
+      }
     },
-    [activeTrack, isMuted, volume, getAudio]
+    [activeTrack, isMuted, volume, supabase, incrementListens, isPlaying, isLoading, progress, currentTime, beatIntensity, duration]
   )
 
   const handlePlay = useCallback(
@@ -338,8 +424,9 @@ export default function MusicPage({ audios }: MusicPageProps) {
     tap()
     audioRef.current?.pause()
     cancelAnimationFrame(rafRef.current)
-    setIsPlaying(false)
-  }, [tap])
+    isPlaying.value = false
+    beatIntensity.value = 0
+  }, [tap, isPlaying, beatIntensity])
 
   const handleSeek = useCallback(
     (percent: number) => {
@@ -348,68 +435,90 @@ export default function MusicPage({ audios }: MusicPageProps) {
       tap()
       const seekTime = (percent / 100) * audio.duration
       audio.currentTime = seekTime
-      setCurrentTime(seekTime)
-      setProgress(percent)
+      currentTime.value = seekTime
+      progress.value = percent
 
       const timeline = activeTimelineRef.current
       let idx = 0
       while (idx < timeline.length && timeline[idx].time < seekTime) idx++
       nextEventIdxRef.current = idx
     },
-    [tap]
+    [tap, currentTime, progress]
   )
 
   const handlePrev = useCallback(() => {
-    if (!activeTrack || tracks.length === 0) return
+    if (!activeTrack.value || tracks.value.length === 0) return
     tap()
-    const idx = tracks.findIndex((t) => t.id === activeTrack.id)
-    const prev = tracks[(idx - 1 + tracks.length) % tracks.length]
+    const idx = tracks.value.findIndex((t) => t.id === activeTrack.value?.id)
+    const prev = tracks.value[(idx - 1 + tracks.value.length) % tracks.value.length]
     playTrack(prev)
   }, [activeTrack, tracks, playTrack, tap])
 
   const handleNext = useCallback(() => {
-    if (!activeTrack || tracks.length === 0) return
+    if (!activeTrack.value || tracks.value.length === 0) return
     tap()
-    const idx = tracks.findIndex((t) => t.id === activeTrack.id)
-    const next = tracks[(idx + 1) % tracks.length]
+    const idx = tracks.value.findIndex((t) => t.id === activeTrack.value?.id)
+    const next = tracks.value[(idx + 1) % tracks.value.length]
     playTrack(next)
   }, [activeTrack, tracks, playTrack, tap])
 
   return (
     <main className="min-h-screen pt-15 p-4 pb-28 bg-background">
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <audio
+        ref={audioRef}
+        playsInline
+        preload="auto"
+        onEnded={() => {
+          isPlaying.value = false
+          progress.value = 100
+          beatIntensity.value = 0
+          nextEventIdxRef.current = 0
+        }}
+        onLoadedMetadata={(e) => {
+          duration.value = (e.target as HTMLAudioElement).duration
+        }}
+      />
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">music</h1>
           <p className="text-muted-foreground mt-1">click a tile to start playing</p>
         </div>
 
-        {tracks.length === 0 ? (
+        {tracks.value.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <Music className="h-16 w-16 text-muted-foreground/40 mb-4" />
             <h2 className="text-xl font-semibold mb-2">no music yet</h2>
-            <p className="text-muted-foreground max-w-md">
+            <p className="text-muted-foreground max-w-md mb-4">
               upload some tracks to get started. head over to the upload page to add your first song.
             </p>
+            <Link href="/upload/music">
+              <Button>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Music
+              </Button>
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {tracks.map((track) => (
+            {tracks.value.map((track) => (
               <MusicTile
                 key={track.id}
                 track={track}
-                isPlaying={isPlaying && activeTrack?.id === track.id}
-                isActive={activeTrack?.id === track.id}
-                isLoading={isLoading && activeTrack?.id === track.id}
+                isPlaying={isPlaying.value && activeTrack.value?.id === track.id}
+                isActive={activeTrack.value?.id === track.id}
+                isLoading={isLoading.value && activeTrack.value?.id === track.id}
                 onPlay={handlePlay}
                 onPause={handlePause}
-                progress={activeTrack?.id === track.id ? progress : 0}
+                progress={activeTrack.value?.id === track.id ? progress.value : 0}
                 currentTime={
-                  activeTrack?.id === track.id ? formatTime(currentTime) : "0:00"
+                  activeTrack.value?.id === track.id ? formatTime(currentTime.value) : "0:00"
                 }
                 duration={
-                  activeTrack?.id === track.id ? formatTime(duration) : "0:00"
+                  activeTrack.value?.id === track.id ? formatTime(duration.value) : "0:00"
                 }
-                onSeek={activeTrack?.id === track.id ? handleSeek : undefined}
+                onSeek={activeTrack.value?.id === track.id ? handleSeek : undefined}
+                beatIntensity={activeTrack.value?.id === track.id ? beatIntensity.value : 0}
               />
             ))}
           </div>
@@ -419,70 +528,70 @@ export default function MusicPage({ audios }: MusicPageProps) {
       <div
         className={cn(
           "fixed bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 transition-transform duration-300",
-          activeTrack ? "translate-y-0" : "translate-y-full"
+          activeTrack.value ? "translate-y-0" : "translate-y-full"
         )}
       >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-4">
           <div
             className="w-10 h-10 rounded-md flex items-center justify-center shrink-0 overflow-hidden"
-            style={{ backgroundColor: activeTrack?.color }}
+            style={{ backgroundColor: activeTrack.value?.color }}
           >
-            {isLoading ? (
+            {isLoading.value ? (
               <Loader2 className="h-4 w-4 text-white animate-spin" />
-            ) : activeTrack?.thumbnail && activeTrack.thumbnail !== "/placeholder.png" ? (
+            ) : activeTrack.value?.thumbnail && activeTrack.value.thumbnail !== "/placeholder.png" ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={activeTrack.thumbnail} alt={activeTrack.title} className="w-full h-full object-cover" />
+              <img src={activeTrack.value.thumbnail} alt={activeTrack.value.title} className="w-full h-full object-cover" />
             ) : (
               <span className="text-white text-xs font-bold">
-                {activeTrack?.title.charAt(0)}
+                {activeTrack.value?.title.charAt(0)}
               </span>
             )}
           </div>
 
           <div className="min-w-0 flex-1 hidden sm:block">
-            <p className="text-sm font-medium truncate">{activeTrack?.title}</p>
+            <p className="text-sm font-medium truncate">{activeTrack.value?.title}</p>
             <p className="text-xs text-muted-foreground truncate">
-              {isLoading ? "Analyzing beats..." : activeTrack?.artist}
+              {isLoading.value ? "Analyzing beats..." : activeTrack.value?.artist}
             </p>
           </div>
 
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrev} disabled={isLoading}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrev} disabled={isLoading.value}>
               <SkipBack className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
               className="h-9 w-9"
-              disabled={isLoading}
-              onClick={() => (isPlaying ? handlePause() : activeTrack && handlePlay(activeTrack))}
+              disabled={isLoading.value}
+              onClick={() => (isPlaying.value ? handlePause() : activeTrack.value && handlePlay(activeTrack.value))}
             >
-              {isLoading ? (
+              {isLoading.value ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
-              ) : isPlaying ? (
+              ) : isPlaying.value ? (
                 <Pause className="h-5 w-5" />
               ) : (
                 <Play className="h-5 w-5 ml-0.5" />
               )}
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNext} disabled={isLoading}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNext} disabled={isLoading.value}>
               <SkipForward className="h-4 w-4" />
             </Button>
           </div>
 
           <div className="flex-1 hidden md:flex items-center gap-2">
             <span className="text-xs tabular-nums text-muted-foreground w-10 text-right">
-              {formatTime(currentTime)}
+              {formatTime(currentTime.value)}
             </span>
             <Slider
-              value={[progress]}
+              value={[progress.value]}
               max={100}
               step={0.1}
               className="flex-1"
               onValueChange={(v) => handleSeek(v[0])}
             />
             <span className="text-xs tabular-nums text-muted-foreground w-10">
-              {formatTime(duration)}
+              {formatTime(duration.value)}
             </span>
           </div>
 
@@ -491,18 +600,18 @@ export default function MusicPage({ audios }: MusicPageProps) {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={() => { tap(); setIsMuted(!isMuted) }}
+              onClick={() => { tap(); isMuted.value = !isMuted.value }}
             >
-              {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              {isMuted.value ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </Button>
             <Slider
-              value={[isMuted ? 0 : volume]}
+              value={[isMuted.value ? 0 : volume.value]}
               max={100}
               step={1}
               className="flex-1"
               onValueChange={(v) => {
-                setVolume(v[0])
-                setIsMuted(v[0] === 0)
+                volume.value = v[0]
+                isMuted.value = v[0] === 0
               }}
             />
           </div>

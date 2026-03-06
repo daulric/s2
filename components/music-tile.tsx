@@ -1,11 +1,13 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useEffect } from "react"
 import { Card, CardContent } from "./ui/card"
 import { Button } from "./ui/button"
 import { Slider } from "./ui/slider"
 import { Play, Pause, Music, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
+import { useSignal } from "@preact/signals-react/runtime"
 
 export type MusicTrack = {
   id: string
@@ -13,7 +15,11 @@ export type MusicTrack = {
   artist: string
   color: string
   src: string
+  audioPath?: string
   thumbnail?: string
+  listens?: number
+  creatorId?: string
+  avatarUrl?: string
 }
 
 type MusicTileProps = {
@@ -27,6 +33,7 @@ type MusicTileProps = {
   currentTime: string
   duration: string
   onSeek?: (value: number) => void
+  beatIntensity?: number
 }
 
 export function MusicTile({
@@ -40,7 +47,18 @@ export function MusicTile({
   currentTime,
   duration,
   onSeek,
+  beatIntensity = 0,
 }: MusicTileProps) {
+  const tick = useSignal(0)
+
+  useEffect(() => {
+    if (!isActive || !isPlaying) return
+    let raf: number
+    const loop = () => { tick.value++; raf = requestAnimationFrame(loop) }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [isActive, isPlaying, tick])
+
   const handleClick = useCallback(() => {
     if (isLoading) return
     if (isActive && isPlaying) {
@@ -72,7 +90,7 @@ export function MusicTile({
           <Music className="h-16 w-16 text-white/40" />
         ) : null}
         <div className={cn(
-          "absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity",
+          "absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity z-10",
           isLoading ? "opacity-100" : "opacity-0 hover:opacity-100"
         )}>
           <Button
@@ -95,8 +113,49 @@ export function MusicTile({
           </Button>
         </div>
 
+        {isActive && isPlaying && (() => {
+          const barCount = 48
+          const bars: number[] = []
+          for (let i = 0; i < barCount; i++) {
+            const norm = i / (barCount - 1)
+            const center = Math.abs(norm - 0.5) * 2
+            const envelope = 1 - center * center
+
+            const p1 = Math.sin(tick.value * 0.08 + i * 0.75) * 0.5
+            const p2 = Math.sin(tick.value * 0.055 + i * 1.3) * 0.3
+            const idle = (1 - beatIntensity) * 0.06 * (Math.abs(p1) + Math.abs(p2))
+
+            const beatPhase = Math.abs(Math.sin(i * 0.5 + tick.value * 0.04))
+            const beat = beatIntensity * beatIntensity * 0.9 * beatPhase
+
+            const h = (0.04 + beat + idle) * envelope
+            bars.push(Math.max(0.03, Math.min(1, h)))
+          }
+
+          return (
+            <div
+              className="absolute inset-x-0 bottom-0 top-0 flex items-center justify-center pointer-events-none z-20"
+              style={{ padding: "0 6%" }}
+            >
+              <div className="flex items-center w-full h-full gap-[1.5px]">
+                {bars.map((h, i) => (
+                  <span
+                    key={i}
+                    className="flex-1 rounded-full backdrop-blur-sm"
+                    style={{
+                      height: `${h * 80}%`,
+                      background: "rgba(255, 255, 255, 0.7)",
+                      
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+
         {isActive && (
-          <div className="absolute bottom-0 left-0 right-0 px-3 pb-2">
+          <div className="absolute bottom-0 left-0 right-0 px-3 pb-2 z-30">
             <div className="flex items-center gap-2">
               <Slider
                 value={[progress]}
@@ -113,9 +172,34 @@ export function MusicTile({
 
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-2">
+          {track.creatorId && track.avatarUrl && (
+            <Link
+              href={`/user/${track.creatorId}`}
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={track.avatarUrl}
+                alt={track.artist}
+                className="w-8 h-8 rounded-full object-cover hover:ring-2 hover:ring-primary transition-all"
+              />
+            </Link>
+          )}
           <div className="min-w-0 flex-1">
             <h3 className="font-medium text-sm truncate">{track.title}</h3>
-            <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {track.creatorId ? (
+                <Link
+                  href={`/user/${track.creatorId}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="hover:underline"
+                >
+                  {track.artist}
+                </Link>
+              ) : track.artist}
+              {track.listens != null && ` · ${track.listens.toLocaleString()} listens`}
+            </p>
           </div>
           {isActive && (
             <div className="flex items-center gap-1.5 shrink-0">
