@@ -45,6 +45,33 @@ function yieldToMain(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function getAudioMimeFromPath(path?: string): string {
+  if (!path) return "audio/mpeg"
+  const ext = path.split(".").pop()?.toLowerCase()
+  if (ext === "mp3") return "audio/mpeg"
+  if (ext === "m4a") return "audio/mp4"
+  if (ext === "aac") return "audio/aac"
+  if (ext === "wav") return "audio/wav"
+  if (ext === "ogg") return "audio/ogg"
+  return "audio/mpeg"
+}
+
+function toPlayableAudioBlob(blob: Blob, path?: string): Blob {
+  const mime = getAudioMimeFromPath(path)
+  if (blob.type === mime) return blob
+  return new Blob([blob], { type: mime })
+}
+
+async function fetchAudioBlob(src: string): Promise<Blob | null> {
+  try {
+    const res = await fetch(src)
+    if (!res.ok) return null
+    return await res.blob()
+  } catch {
+    return null
+  }
+}
+
 async function analyzeAudio(src: string): Promise<{ timeline: HapticEvent[]; duration: number }> {
   const response = await fetch(src)
   const arrayBuffer = await response.arrayBuffer()
@@ -239,6 +266,8 @@ type MusicPageProps = {
 export default function MusicPage({ audios }: MusicPageProps) {
   useSignals()
   const { supabase } = useAuth()
+  const isSafariBrowser =
+    typeof navigator !== "undefined" && /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
 
   const tracks = useSignal<MusicTrack[]>(audiosToTracks(audios))
   const activeTrack = useSignal<MusicTrack | null>(null)
@@ -308,7 +337,23 @@ export default function MusicPage({ audios }: MusicPageProps) {
   }, [volume.value, isMuted.value, volume, isMuted])
 
   useEffect(() => {
+    let cancelled = false
+    const preloadBlobs = async () => {
+      if (isSafariBrowser) return
+      for (const track of tracks.value) {
+        if (cancelled) break
+        if (blobUrlCacheRef.current.has(track.id)) continue
+        if (!track.audioPath) continue
+        const data = await fetchAudioBlob(track.src)
+        if (data && !cancelled) {
+          const playableBlob = toPlayableAudioBlob(data, track.audioPath || track.src)
+          blobUrlCacheRef.current.set(track.id, URL.createObjectURL(playableBlob))
+        }
+      }
+    }
+    preloadBlobs()
     return () => {
+      cancelled = true
       cancelAnimationFrame(rafRef.current)
       if (audioRef.current) {
         audioRef.current.pause()
@@ -317,14 +362,14 @@ export default function MusicPage({ audios }: MusicPageProps) {
       blobUrlCacheRef.current.forEach((url) => URL.revokeObjectURL(url))
       blobUrlCacheRef.current.clear()
     }
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSafariBrowser])
 
   const hasInteractedRef = useRef(false)
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-    if (isSafari) return
+    if (isSafariBrowser) return
 
     const startPreAnalysis = () => {
       if (hasInteractedRef.current) return
@@ -341,7 +386,7 @@ export default function MusicPage({ audios }: MusicPageProps) {
       document.removeEventListener("touchstart", startPreAnalysis)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [isSafariBrowser])
 
   const incrementListens = useCallback(async (trackId: string) => {
     const current = tracks.value.find((t) => t.id === trackId)
@@ -351,16 +396,60 @@ export default function MusicPage({ audios }: MusicPageProps) {
     await supabase.from("audios").update({ listens: newCount }).eq("audio_id", trackId)
   }, [tracks, supabase])
 
+  const startPlayback = useCallback(
+    (track: MusicTrack, blobUrl: string) => {
+      const audio = audioRef.current
+      if (!audio) return
+
+      audio.src = blobUrl
+      audio.volume = isMuted.value ? 0 : volume.value / 100
+      const playPromise = audio.play()
+      if (playPromise) {
+        playPromise
+          .then(() => {
+            isPlaying.value = true
+            isLoading.value = false
+            incrementListens(track.id)
+          })
+          .catch(() => {
+            isPlaying.value = false
+            isLoading.value = false
+          })
+      } else {
+        isPlaying.value = true
+        isLoading.value = false
+        incrementListens(track.id)
+      }
+
+      const cached = timelineCacheRef.current.get(track.id)
+      if (!cached) {
+        enqueueAnalysis(track, timelineCacheRef.current, analyzePromisesRef.current)
+          .then((timeline) => {
+            activeTimelineRef.current = timeline
+          })
+      }
+    },
+    [isMuted, volume, incrementListens, isPlaying, isLoading]
+  )
+
   const playTrack = useCallback(
-    async (track: MusicTrack) => {
+    (track: MusicTrack) => {
       const audio = audioRef.current
       if (!audio) return
 
       const isNew = activeTrack.value?.id !== track.id
 
       if (!isNew) {
-        audio.play()
-        isPlaying.value = true
+        const p = audio.play()
+        if (p) {
+          p.then(() => {
+            isPlaying.value = true
+          }).catch(() => {
+            isPlaying.value = false
+          })
+        } else {
+          isPlaying.value = true
+        }
         return
       }
 
@@ -370,46 +459,53 @@ export default function MusicPage({ audios }: MusicPageProps) {
       activeTrack.value = track
       progress.value = 0
       currentTime.value = 0
-      isLoading.value = true
 
       const cached = timelineCacheRef.current.get(track.id)
       activeTimelineRef.current = cached ?? []
       nextEventIdxRef.current = 0
 
-      let blobUrl = blobUrlCacheRef.current.get(track.id)
-      if (!blobUrl) {
-        const { data } = await supabase.storage.from("audios").download(track.audioPath || "")
-        if (data) {
-          blobUrl = URL.createObjectURL(data)
-          blobUrlCacheRef.current.set(track.id, blobUrl)
+      if (isSafariBrowser) {
+        audio.src = track.src
+        audio.volume = isMuted.value ? 0 : volume.value / 100
+        const p = audio.play()
+        if (p) {
+          p.then(() => {
+            isPlaying.value = true
+            isLoading.value = false
+            incrementListens(track.id)
+          }).catch(() => {
+            isPlaying.value = false
+            isLoading.value = false
+          })
+        } else {
+          isPlaying.value = true
+          isLoading.value = false
+          incrementListens(track.id)
         }
-      }
-
-      if (!blobUrl) {
-        isLoading.value = false
+        activeTimelineRef.current = []
         return
       }
 
-      audio.src = blobUrl
-      audio.volume = isMuted.value ? 0 : volume.value / 100
-      audio.load()
-
-      audio.addEventListener("canplay", () => {
-        audio.play()
-        isPlaying.value = true
-        isLoading.value = false
-      }, { once: true })
-
-      incrementListens(track.id)
-
-      if (!cached) {
-        enqueueAnalysis(track, timelineCacheRef.current, analyzePromisesRef.current)
-          .then((timeline) => {
-            activeTimelineRef.current = timeline
-          })
+      const blobUrl = blobUrlCacheRef.current.get(track.id)
+      if (blobUrl) {
+        startPlayback(track, blobUrl)
+      } else {
+        isLoading.value = true
+        fetchAudioBlob(track.src).then((data) => {
+          if (data) {
+            const playableBlob = toPlayableAudioBlob(data, track.audioPath || track.src)
+            const url = URL.createObjectURL(playableBlob)
+            blobUrlCacheRef.current.set(track.id, url)
+            if (activeTrack.value?.id === track.id) {
+              startPlayback(track, url)
+            }
+          } else {
+            isLoading.value = false
+          }
+        })
       }
     },
-    [activeTrack, isMuted, volume, supabase, incrementListens, isPlaying, isLoading, progress, currentTime, beatIntensity, duration]
+    [activeTrack, supabase, isSafariBrowser, isMuted, volume, incrementListens, isPlaying, isLoading, progress, currentTime, startPlayback]
   )
 
   const handlePlay = useCallback(
