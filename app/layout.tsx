@@ -2,12 +2,12 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "../context/theme-provider"
-import { AuthProvider } from "../context/AuthProvider"
-import { NavigationProvider } from "../context/NavigationProvider"
-import { Header } from "../components/header"
-import {Toaster} from "../components/ui/sonner"
-import NextTopLoader from "../components/theme-top-loader"
+import { ThemeProvider } from "@/context/theme-provider"
+import { AuthProvider } from "@/context/AuthProvider"
+import { NavigationProvider } from "@/context/NavigationProvider"
+import { Header } from "@/components/header"
+import {Toaster} from "@/components/ui/sonner"
+import NextTopLoader from "@/components/theme-top-loader"
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from "@vercel/speed-insights/next";
 

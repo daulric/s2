@@ -7,6 +7,9 @@ on:
     branches: ['**']
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   count-loc:
     name: Count Lines of Code
@@ -21,12 +24,12 @@ jobs:
 
       - name: Count lines of code
         run: |
-          echo "📊 Lines of Code Report"
+          echo "Lines of Code Report"
           echo "========================"
           cloc . --vcs=git --exclude-dir=node_modules,dist,.expo,.next --exclude-ext=lock | tee cloc-output.txt
           
           # Also write to summary
-          echo "## 📊 Lines of Code Report" >> $GITHUB_STEP_SUMMARY
+          echo "## Lines of Code Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat cloc-output.txt >> $GITHUB_STEP_SUMMARY
@@ -35,11 +38,11 @@ jobs:
       - name: Breakdown by directory
         run: |
           echo ""
-          echo "📁 By Directory"
+          echo "By Directory"
           echo "==============="
           
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📁 By Directory" >> $GITHUB_STEP_SUMMARY
+          echo "### By Directory" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           for dir in app components lib contexts hooks supabase; do

@@ -2,10 +2,10 @@
 
 import { useEffect, useRef } from "react"
 import { useSignal } from "@preact/signals-react"
-import { ShortVideo } from "../../components/scrolling-video/short-video"
-import { useAuth } from "../../context/AuthProvider"
+import { ShortVideo } from "@/components/scrolling-video/short-video"
+import { useAuth } from "@/context/AuthProvider"
 import { useSignals } from "@preact/signals-react/runtime"
-import converttoVideo, { type VideoData, type VideoInfoProps } from "../../lib/videos/data-to-video-format"
+import converttoVideo, { type VideoData, type VideoInfoProps } from "@/lib/videos/data-to-video-format"
 
 interface shorts_extends extends VideoInfoProps {
   likes?: number

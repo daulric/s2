@@ -6,7 +6,7 @@ import { Card, CardContent } from "./ui/card"
 import { Play } from "lucide-react"
 import Image from "next/image"
 
-import { VideoInfoProps } from "../lib/videos/data-to-video-format"
+import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { SupabaseClient } from "@supabase/supabase-js"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
 import { useEffect } from "react"

@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 import { Card, CardContent } from "./ui/card"
 import { Users, Video, Calendar } from "lucide-react"
-import { UserInfoProps } from "../lib/user/data-to-user-format"
+import { UserInfoProps } from "@/lib/user/data-to-user-format"
 import { useWebHaptics } from "web-haptics/react"
 
 interface UserCardProps {

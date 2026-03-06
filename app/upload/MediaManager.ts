@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from "../../lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 
 export async function compressAndUpload(file: File): Promise<string> {
 

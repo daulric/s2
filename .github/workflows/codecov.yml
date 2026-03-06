@@ -3,6 +3,9 @@ name: Codecov Tests and Upload Coverage
 on: 
   push
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Run tests and collect coverage

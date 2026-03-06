@@ -2,18 +2,18 @@
 
 import { useEffect, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
-import { Button } from "../../components/ui/button"
-import { Card } from "../../components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select"
-import { Separator } from "../../components/ui/separator"
-import { VideoCard, VideoProps } from "../../components/video-card"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
+import { VideoCard, VideoProps } from "@/components/video-card"
 import { Filter, Search } from "lucide-react"
-import GetSearchDetails from "../../lib/videos/GetSearchDetails";
+import GetSearchDetails from "@/lib/videos/GetSearchDetails";
 import { useSignal } from "@preact/signals-react"
 import { useSignals } from "@preact/signals-react/runtime"
-import { ProfileCard } from "../../components/profile-card"
-import profile_convert,{ UserData, UserInfoProps } from "../../lib/user/data-to-user-format"
-import { useAuth } from "../../context/AuthProvider"
+import { ProfileCard } from "@/components/profile-card"
+import profile_convert,{ UserData, UserInfoProps } from "@/lib/user/data-to-user-format"
+import { useAuth } from "@/context/AuthProvider"
 import { useWebHaptics } from "web-haptics/react"
 
 export default function SearchPage() {
