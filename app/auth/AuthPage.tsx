@@ -1,7 +1,6 @@
 "use client"
 
-import React, { useRef, useState, useEffect } from "react"
-import Link from "next/link"
+import React, { useRef, useEffect } from "react"
 import { Github } from "lucide-react"
 import { FcGoogle } from "react-icons/fc"
 import { Button } from "@/components/ui/button"
