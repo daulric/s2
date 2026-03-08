@@ -21,6 +21,24 @@ export async function compressAndUpload(file: File): Promise<string> {
     return file_name;
 }
 
+export async function uploadAudio(file: File): Promise<string> {
+    if (!file) throw new Error("No Audio Provided");
+
+    const supabase = createClient();
+    const file_name = `${Date.now()}-${file.name}`;
+
+    const { error } = await supabase.storage
+        .from("audios")
+        .upload(file_name, file, {
+            contentType: file.type || "audio/mpeg",
+            upsert: true,
+        });
+
+    if (error) throw new Error(`Upload failed: ${error.message}`);
+
+    return file_name;
+}
+
 export async function uploadThumbnail(file: File) {
     if (!file) throw new Error("No Thumbnail Provided");
 

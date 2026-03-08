@@ -13,6 +13,7 @@ export type MusicTrack = {
   artist: string
   color: string
   src: string
+  thumbnail?: string
 }
 
 type MusicTileProps = {
@@ -58,14 +59,18 @@ export function MusicTile({
       onClick={handleClick}
     >
       <div
-        className="relative h-40 flex items-center justify-center"
+        className="relative h-40 flex items-center justify-center overflow-hidden"
         style={{ backgroundColor: track.color }}
       >
+        {track.thumbnail && track.thumbnail !== "/placeholder.png" ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={track.thumbnail} alt={track.title} className="absolute inset-0 w-full h-full object-cover" />
+        ) : null}
         {isLoading ? (
-          <Loader2 className="h-16 w-16 text-white/60 animate-spin" />
-        ) : (
+          <Loader2 className="h-16 w-16 text-white/60 animate-spin relative z-10" />
+        ) : !track.thumbnail || track.thumbnail === "/placeholder.png" ? (
           <Music className="h-16 w-16 text-white/40" />
-        )}
+        ) : null}
         <div className={cn(
           "absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity",
           isLoading ? "opacity-100" : "opacity-0 hover:opacity-100"
