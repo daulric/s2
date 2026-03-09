@@ -5,10 +5,11 @@ import Image from "next/image"
 import { ModeToggle } from "./mode-toggle"
 import { ProfileIcon } from "./profile-icon"
 import { SearchInput } from "./search-input"
-import { Button } from "./ui/button"
-import { Upload, Shell } from "lucide-react"
+import { Upload, Shell, Music } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
 import { useWebHaptics } from "web-haptics/react"
+import { cn } from "@/lib/utils"
+
 export function Header() {
   const { user: { user } } = useAuth()
   const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
@@ -37,18 +38,42 @@ export function Header() {
           <SearchInput mobile />
         </div>
 
-        <Link href="/shorts">
-          <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" aria-label="Explore" onClick={() => trigger("light")}>
-            <Shell className="h-4 w-4 sm:h-5 sm:w-5"/>
-          </Button>
+        <Link
+          href="/shorts"
+          aria-label="Explore"
+          onClick={() => trigger("light")}
+          className={cn(
+            "inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-md",
+            "hover:bg-muted hover:text-foreground transition-colors"
+          )}
+        >
+          <Shell className="h-4 w-4 sm:h-5 sm:w-5"/>
+        </Link>
+
+        <Link
+          href="/music"
+          aria-label="Listen"
+          onClick={() => trigger("light")}
+          className={cn(
+            "inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-md",
+            "hover:bg-muted hover:text-foreground transition-colors"
+          )}
+        >
+          <Music className="h-4 w-4 sm:h-5 sm:w-5"/>
         </Link>
 
         {/* Upload button - only visible if user is logged in */}
         {user && (
-          <Link href="/upload">
-            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" aria-label="Upload video" onClick={() => trigger("light")}>
-              <Upload className="h-4 w-4 sm:h-5 sm:w-5" />
-            </Button>
+          <Link
+            href="/upload"
+            aria-label="Upload video"
+            onClick={() => trigger("light")}
+            className={cn(
+              "inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-md",
+              "hover:bg-muted hover:text-foreground transition-colors"
+            )}
+          >
+            <Upload className="h-4 w-4 sm:h-5 sm:w-5" />
           </Link>
         )}
         <ModeToggle />

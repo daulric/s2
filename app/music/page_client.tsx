@@ -684,7 +684,7 @@ export default function MusicPage({ audios }: MusicPageProps) {
               max={100}
               step={0.1}
               className="flex-1"
-              onValueChange={(v) => handleSeek(v[0])}
+              onValueChange={(v) => handleSeek(Array.isArray(v) ? v[0] : v)}
             />
             <span className="text-xs tabular-nums text-muted-foreground w-10">
               {formatTime(duration.value)}
@@ -706,8 +706,9 @@ export default function MusicPage({ audios }: MusicPageProps) {
               step={1}
               className="flex-1"
               onValueChange={(v) => {
-                volume.value = v[0]
-                isMuted.value = v[0] === 0
+                const next = Array.isArray(v) ? v[0] : v
+                volume.value = next
+                isMuted.value = next === 0
               }}
             />
           </div>

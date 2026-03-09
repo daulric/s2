@@ -248,7 +248,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
               <Label>Category</Label>
               <Select
                 value={ formData.value.category }
-                onValueChange={(value) =>{formData.value = { ...formData.value, category: value } }}
+                onValueChange={(value) =>{formData.value = { ...formData.value, category: value ?? formData.value.category } }}
               >
                 <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Select category" />
@@ -267,7 +267,7 @@ export function VideoEditDialog({ video, isOpen, onClose, onSave }: VideoEditDia
               <Label>Visibility</Label>
               <Select
                 value={formData.value.visibility}
-                onValueChange={(value) =>{formData.value = { ...formData.value, visibility: value } }}
+                onValueChange={(value) =>{formData.value = { ...formData.value, visibility: value ?? formData.value.visibility } }}
               >
                 <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Select visibility" />

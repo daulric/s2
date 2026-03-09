@@ -10,6 +10,7 @@ import {Toaster} from "@/components/ui/sonner"
 import NextTopLoader from "@/components/theme-top-loader"
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 const inter = Inter({ subsets: ["latin"], display: "swap" })
 
@@ -33,18 +34,20 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <NavigationProvider>
-            <AuthProvider>
-                <Header />
-                <NextTopLoader />
-                {children}
-                <Toaster position="top-right" />
-                <Analytics />
-                <SpeedInsights />
-            </AuthProvider>
-          </NavigationProvider>
-        </ThemeProvider>
+        <TooltipProvider delay={0}>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            <NavigationProvider>
+              <AuthProvider>
+                  <Header />
+                  <NextTopLoader />
+                  {children}
+                  <Toaster position="top-right" />
+                  <Analytics />
+                  <SpeedInsights />
+              </AuthProvider>
+            </NavigationProvider>
+          </ThemeProvider>
+        </TooltipProvider>
       </body>
     </html>
   )

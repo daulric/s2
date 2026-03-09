@@ -341,7 +341,7 @@ export function UploadForm({ config }: { config: UploadConfig }) {
 
                 <div className="space-y-2">
                   <Label htmlFor="visibility">Visibility</Label>
-                  <Select value={visibility.value} onValueChange={(e) => { visibility.value = e; trigger("light") }}>
+                  <Select value={visibility.value} onValueChange={(e) => { visibility.value = e ?? "private"; trigger("light") }}>
                     <SelectTrigger id="visibility">
                       <SelectValue placeholder="Select visibility" onClick={() => trigger("light")} />
                     </SelectTrigger>

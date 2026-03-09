@@ -162,7 +162,7 @@ export function MusicTile({
                 max={100}
                 step={0.1}
                 className="flex-1 [&_[data-slot=slider-track]]:h-1 [&_[data-slot=slider-thumb]]:h-3 [&_[data-slot=slider-thumb]]:w-3"
-                onValueChange={(v) => onSeek?.(v[0])}
+                onValueChange={(v) => onSeek?.(Array.isArray(v) ? v[0] : v)}
                 onClick={(e) => e.stopPropagation()}
               />
             </div>

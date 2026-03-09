@@ -76,7 +76,7 @@ export default function AuthRequiredPage() {
           </CardContent>
 
           <CardFooter className="flex flex-col sm:flex-row sm:justify-center gap-4 pt-2">
-            <Button asChild className="w-full sm:w-auto sm:min-w-[200px]" size="lg">
+            <Button className="w-full sm:w-auto sm:min-w-[200px]" size="lg">
               <Link href="/auth">
                 <UserPlus className="mr-2 h-5 w-5" />
                 get started
