@@ -61,7 +61,7 @@
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.71.1",
     "react-icons": "^5.5.0",
-    "react-resizable-panels": "^3.0.6",
+    "react-resizable-panels": "^4.7.2",
     "recharts": "^3.7.0",
     "sonner": "^2.0.7",
     "standardized-audio-context": "^25.3.77",
