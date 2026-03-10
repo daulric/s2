@@ -1,8 +1,7 @@
 "use client"
 
 import * as React from "react"
-import * as LabelPrimitive from "@radix-ui/react-label"
-import { Slot } from "@radix-ui/react-slot"
+import { Field as FieldPrimitive } from "@base-ui/react/field"
 import {
   Controller,
   FormProvider,
@@ -14,7 +13,6 @@ import {
 } from "react-hook-form"
 
 import { cn } from "../../lib/utils"
-import { Label } from "./label"
 
 const Form = FormProvider
 
@@ -90,11 +88,11 @@ function FormItem({ className, ...props }: React.ComponentProps<"div">) {
 function FormLabel({
   className,
   ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+}: React.ComponentProps<typeof FieldPrimitive.Label>) {
   const { error, formItemId } = useFormField()
 
   return (
-    <Label
+    <FieldPrimitive.Label
       data-slot="form-label"
       data-error={!!error}
       className={cn("data-[error=true]:text-destructive", className)}
@@ -104,11 +102,11 @@ function FormLabel({
   )
 }
 
-function FormControl({ ...props }: React.ComponentProps<typeof Slot>) {
+function FormControl({ ...props }: React.ComponentProps<typeof FieldPrimitive.Control>) {
   const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
 
   return (
-    <Slot
+    <FieldPrimitive.Control
       data-slot="form-control"
       id={formItemId}
       aria-describedby={
