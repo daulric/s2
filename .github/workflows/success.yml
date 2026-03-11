@@ -1,6 +1,7 @@
 name: Notify Successful Workflow Runs
 
 on:
+  workflow_dispatch:
   workflow_run:
     branches:
       - "**"
