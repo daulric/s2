@@ -21,9 +21,19 @@ permissions:
 jobs:
   notify:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
+      - name: Ensure Discord webhook secret exists
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "Missing required secret: DISCORD_WEBHOOK_URL"
+            exit 1
+          fi
+
       - name: Check monitored workflow status for this commit
+        if: ${{ github.event_name == 'workflow_run' }}
         id: status
         uses: actions/github-script@v7
         with:
@@ -86,22 +96,32 @@ jobs:
             core.setOutput("event_name", currentEvent);
             core.setOutput("run_url", context.payload.workflow_run.html_url);
 
+      - name: Prepare manual dispatch status output
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        id: status_manual
+        run: |
+          echo "all_success=true" >> "$GITHUB_OUTPUT"
+          echo "details=- Manual workflow_dispatch test run" >> "$GITHUB_OUTPUT"
+          echo "head_sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "event_name=workflow_dispatch" >> "$GITHUB_OUTPUT"
+          echo "run_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+
       - name: Send Discord notification
-        if: ${{ steps.status.outputs.all_success == 'true' }}
+        if: ${{ steps.status.outputs.all_success == 'true' || steps.status_manual.outputs.all_success == 'true' }}
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           MESSAGE: |
             ✅ All monitored workflows completed successfully.
             Repository: ${{ github.repository }}
-            Branch: ${{ github.event.workflow_run.head_branch }}
-            Event: ${{ steps.status.outputs.event_name }}
-            Commit: ${{ steps.status.outputs.head_sha }}
+            Branch: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+            Event: ${{ steps.status.outputs.event_name || steps.status_manual.outputs.event_name }}
+            Commit: ${{ steps.status.outputs.head_sha || steps.status_manual.outputs.head_sha }}
 
             Results:
-            ${{ steps.status.outputs.details }}
+            ${{ steps.status.outputs.details || steps.status_manual.outputs.details }}
 
             Triggering workflow run:
-            ${{ steps.status.outputs.run_url }}
+            ${{ steps.status.outputs.run_url || steps.status_manual.outputs.run_url }}
         run: |
           payload=$(python - <<'PY'
           import json, os
