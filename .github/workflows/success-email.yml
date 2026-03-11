@@ -1,0 +1,112 @@
+name: Notify Successful Workflow Runs
+
+on:
+  workflow_run:
+    workflows:
+      - App Build
+      - Codecov Tests and Upload Coverage
+      - Lines of Code
+      - OSV-Scanner
+      - CodeQL Advanced
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Check monitored workflow status for this commit
+        id: status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const monitoredNames = new Set([
+              "App Build",
+              "Codecov Tests and Upload Coverage",
+              "Lines of Code",
+              "OSV-Scanner",
+              "CodeQL Advanced",
+            ]);
+
+            const { owner, repo } = context.repo;
+            const headSha = context.payload.workflow_run.head_sha;
+            const currentEvent = context.payload.workflow_run.event;
+
+            const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner,
+              repo,
+              head_sha: headSha,
+              per_page: 100,
+            });
+
+            const candidates = data.workflow_runs.filter((run) => {
+              return monitoredNames.has(run.name) && run.event === currentEvent;
+            });
+
+            const latestRunByWorkflowId = new Map();
+            for (const run of candidates) {
+              const existing = latestRunByWorkflowId.get(run.workflow_id);
+              if (!existing) {
+                latestRunByWorkflowId.set(run.workflow_id, run);
+                continue;
+              }
+
+              const runIsNewer =
+                run.run_attempt > existing.run_attempt ||
+                (run.run_attempt === existing.run_attempt && run.id > existing.id);
+
+              if (runIsNewer) {
+                latestRunByWorkflowId.set(run.workflow_id, run);
+              }
+            }
+
+            const latestRuns = [...latestRunByWorkflowId.values()];
+            const pendingRuns = latestRuns.filter((run) => run.status !== "completed");
+            const failedRuns = latestRuns.filter((run) => run.conclusion !== "success");
+            const allSuccess =
+              latestRuns.length > 0 &&
+              pendingRuns.length === 0 &&
+              failedRuns.length === 0;
+
+            const details = latestRuns
+              .map((run) => `- ${run.name}: ${run.conclusion || run.status}`)
+              .join("\n");
+
+            core.setOutput("all_success", allSuccess ? "true" : "false");
+            core.setOutput("details", details || "- No monitored runs found");
+            core.setOutput("head_sha", headSha);
+            core.setOutput("event_name", currentEvent);
+            core.setOutput("run_url", context.payload.workflow_run.html_url);
+
+      - name: Send Discord notification
+        if: ${{ steps.status.outputs.all_success == 'true' }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          MESSAGE: |
+            ✅ All monitored workflows completed successfully.
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.event.workflow_run.head_branch }}
+            Event: ${{ steps.status.outputs.event_name }}
+            Commit: ${{ steps.status.outputs.head_sha }}
+
+            Results:
+            ${{ steps.status.outputs.details }}
+
+            Triggering workflow run:
+            ${{ steps.status.outputs.run_url }}
+        run: |
+          payload=$(python - <<'PY'
+          import json, os
+          print(json.dumps({"content": os.environ["MESSAGE"]}))
+          PY
+          )
+          curl --fail --silent --show-error \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d "$payload" \
+            "$DISCORD_WEBHOOK_URL"
