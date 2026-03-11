@@ -106,6 +106,14 @@ jobs:
           echo "event_name=workflow_dispatch" >> "$GITHUB_OUTPUT"
           echo "run_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
 
+      - name: Show notification decision
+        run: |
+          echo "workflow event: ${{ github.event_name }}"
+          echo "workflow_run all_success: ${{ steps.status.outputs.all_success }}"
+          echo "workflow_dispatch all_success: ${{ steps.status_manual.outputs.all_success }}"
+          echo "details:"
+          echo "${{ steps.status.outputs.details || steps.status_manual.outputs.details }}"
+
       - name: Send Discord notification
         if: ${{ steps.status.outputs.all_success == 'true' || steps.status_manual.outputs.all_success == 'true' }}
         env:
