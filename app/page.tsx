@@ -22,10 +22,10 @@ export default async function Home() {
             <p className="text-muted-foreground mt-2">choose one move forward</p>
           </div>
           <div className="space-y-4">
-            <Button asChild className="w-full" size="lg">
+            <Button className="w-full" size="lg">
               <Link href="/auth">get started</Link>
             </Button>
-            <Button asChild variant="outline" className="w-full" size="lg">
+            <Button variant="outline" className="w-full" size="lg">
               <Link href="/home">browse as guest</Link>
             </Button>
           </div>

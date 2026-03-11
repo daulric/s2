@@ -664,7 +664,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
                   <div className="flex items-center space-x-2">
                     <TooltipProvider>
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger>
                           <Button onClick={togglePlay} variant="ghost" size="icon" className="text-white">
                             {isPlaying.value ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                           </Button>
@@ -675,7 +675,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
                     <TooltipProvider>
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger>
                           <Button onClick={toggleMute} variant="ghost" size="icon" className="text-white">
                             {isMuted.value ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                           </Button>
@@ -691,7 +691,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
                   <div className="flex items-center space-x-2">
                     <Dialog open={isKeyboardShortcutsOpen.value} onOpenChange={() => isKeyboardShortcutsOpen.value = !isKeyboardShortcutsOpen.value}>
-                      <DialogTrigger asChild>
+                      <DialogTrigger>
                         <Button variant="ghost" size="icon" className="text-white">
                           <Keyboard className="h-5 w-5" />
                         </Button>
@@ -716,7 +716,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
                     <TooltipProvider>
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger>
                           <Button onClick={toggleFullscreen} variant="ghost" size="icon" className="text-white">
                             <Maximize className="h-5 w-5" />
                           </Button>

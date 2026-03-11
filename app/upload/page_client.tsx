@@ -52,7 +52,7 @@ export default function UploadPage() {
     extraFields: (
       <div className="space-y-2">
         <Label htmlFor="category">Category</Label>
-        <Select value={category.value} onValueChange={(e) => { category.value = e; trigger("light") }}>
+        <Select value={category.value} onValueChange={(e) => { category.value = e ?? "education"; trigger("light") }}>
           <SelectTrigger id="category">
             <SelectValue placeholder="Select a category" />
           </SelectTrigger>

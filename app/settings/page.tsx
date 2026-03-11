@@ -523,7 +523,7 @@ export default function ProfilePage() {
                     <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No videos yet</h3>
                     <p className="text-muted-foreground mb-4">Start creating content by uploading your first video</p>
-                    <Button asChild>
+                    <Button>
                       <Link href="/upload">Upload Video</Link>
                     </Button>
                   </div>
@@ -595,7 +595,7 @@ export default function ProfilePage() {
                         isDeleteDialogOpen.value = open
                       }}
                     >
-                      <DialogTrigger asChild>
+                      <DialogTrigger>
                         <Button variant="destructive" className="w-full sm:w-auto">
                           <AlertTriangle className="h-4 w-4 mr-2" />
                           Delete Account

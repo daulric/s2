@@ -81,7 +81,8 @@ export default function SearchPage() {
     getVideoData();
   }, [query, getVideoData, getProfilesData]);
 
-  const handleSortChange = (value: string) => {
+  const handleSortChange = (value: string | null) => {
+    if (!value) return
     sortBy.value = value;
     // In a real app, this would trigger a new search with sorting
     const sortedResults = [...results.value]
@@ -160,7 +161,7 @@ export default function SearchPage() {
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Upload time</label>
-                  <Select value={uploadTime.value} onValueChange={ (value) => { uploadTime.value = value; trigger("light") } }>
+                  <Select value={uploadTime.value} onValueChange={(value) => { uploadTime.value = value ?? "any"; trigger("light") }}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
