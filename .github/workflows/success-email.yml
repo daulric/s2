@@ -2,6 +2,8 @@ name: Notify Successful Workflow Runs
 
 on:
   workflow_run:
+    branches:
+      - "**"
     workflows:
       - App Build
       - Codecov Tests and Upload Coverage
