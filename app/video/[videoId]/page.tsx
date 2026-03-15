@@ -5,7 +5,6 @@ import { cache, Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import Loading from "@/app/loading";
 
-// Updated type to use Promise
 type PageProps = {
   params: Promise<{ videoId: string }>;
 };
@@ -13,7 +12,6 @@ type PageProps = {
 const CachedVideo = cache(async (id: string) => await GetVideoDetails(id));
 
 export async function generateMetadata({ params }: PageProps) {
-  // Await the params promise
   const { videoId } = await params;
   const data = await CachedVideo(videoId);
 
@@ -30,9 +28,7 @@ export async function generateMetadata({ params }: PageProps) {
   };
 }
 
-export default async function PAGE({ params }: PageProps) {
-  // Await the params promise
-  const { videoId } = await params;
+async function VideoContent({ videoId }: { videoId: string }) {
   const supabase = await createClient();
 
   const [data, PublicVideos] = await Promise.all([
@@ -48,11 +44,16 @@ export default async function PAGE({ params }: PageProps) {
     .eq("video_id", videoId);
 
   if (error) return <div>View update problem</div>;
-  
+
+  return <VideoPage videoData={data} public_videos={PublicVideos ?? []} />;
+}
+
+export default async function PAGE({ params }: PageProps) {
+  const { videoId } = await params;
+
   return (
     <Suspense fallback={<Loading />}>
-      <VideoPage videoData={data} public_videos={PublicVideos ?? []} />;
+      <VideoContent videoId={videoId} />
     </Suspense>
   )
-
 }

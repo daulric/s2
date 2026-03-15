@@ -141,3 +141,9 @@ jobs:
             -X POST \
             -d "$payload" \
             "$DISCORD_WEBHOOK_URL"
+
+      - name: Notify Vercel
+        if: ${{ steps.status.outputs.all_success == 'true' || steps.status_manual.outputs.all_success == 'true' }}
+        uses: vercel/repository-dispatch/actions/status@v1
+        with:
+          name: 'Vercel - s2: lint'

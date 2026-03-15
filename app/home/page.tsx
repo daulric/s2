@@ -9,15 +9,18 @@ export const metadata = {
     description: "s2 - a fuze successor",
 }
 
-export default async function HOMEPAGE() {
+async function HomeContent() {
     const public_videos = await GetPublicVideos();
-
     if (!public_videos) return (<NotFound /> );
 
+    return <HomePage videos={public_videos} />
+}
+
+export default function HOMEPAGE() {
     return (
         <main className="min-h-screen pt-15 p-4 bg-background">
             <Suspense fallback={<Loading />}>
-                <HomePage videos={public_videos} />
+                <HomeContent />
             </Suspense>
         </main>
     )

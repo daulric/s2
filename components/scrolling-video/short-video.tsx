@@ -9,12 +9,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { ShortsControls } from "./shorts-controls"
 import { Play, VolumeX, Volume2, X } from "lucide-react"
-import type { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { useSignal } from "@preact/signals-react"
 import { useSignals } from "@preact/signals-react/runtime"
+import type { ShortVideoData } from "./types"
 
 type ShortVideoProps = {
-  short: VideoInfoProps
+  short: ShortVideoData
   isActive: boolean
   currentUser: any
 }

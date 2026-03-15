@@ -9,13 +9,17 @@ export const metadata: Metadata = {
     description: "Listen to Music"
 }
 
-export default async function PAGE({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
+async function MusicContent({ selectedId }: { selectedId?: string }) {
     const audios = await GetPublicAudios(3600)
+    return <MusicPage audios={audios} selectedId={selectedId} />
+}
+
+export default async function PAGE({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
     const params = await searchParams
 
     return (
         <Suspense fallback={<Loading />}>
-            <MusicPage audios={audios} selectedId={params.id} />
+            <MusicContent selectedId={params.id} />
         </Suspense>
     )
 }
