@@ -2,23 +2,18 @@
 
 import type React from "react"
 
-import { useSignal, effect } from "@preact/signals-react"
+import { useRef } from "react"
+import { useSignal } from "@preact/signals-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Heart, MessageCircle, Share, MoreHorizontal } from "lucide-react"
 import { toast } from "sonner"
-import type { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { useSignals } from "@preact/signals-react/runtime"
-
-interface shorts_extends extends VideoInfoProps {
-  likes?: number
-  is_liked?: boolean
-  is_subscribed?: boolean | null,
-  subscribers?: number
-}
+import { useAuth } from "@/context/AuthProvider"
+import type { ShortVideoData } from "./types"
 
 type ShortsControlsProps = {
-  short: shorts_extends
+  short: ShortVideoData
   currentUser: any
   onInteraction?: () => void
   alwaysVisible?: boolean
@@ -26,18 +21,13 @@ type ShortsControlsProps = {
 
 
 export function ShortsControls({ short, currentUser, onInteraction, alwaysVisible = false }: ShortsControlsProps) {
-  useSignals();
-  // Get or create signals for this short
-  const isLiked = useSignal(false);
-  const likeCount = useSignal(0);
+  useSignals()
+  const auth = useAuth()
+  const supabase = auth?.supabase
 
-  if (short.is_liked) {
-    isLiked.value = short.is_liked;
-  }
-
-  if (short.likes) {
-    likeCount.value = short.likes;
-  }
+  const isLiked = useSignal(short.is_liked ?? false)
+  const likeCount = useSignal(short.likes ?? 0)
+  const isUpdating = useRef(false)
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) {
@@ -48,21 +38,42 @@ export function ShortsControls({ short, currentUser, onInteraction, alwaysVisibl
     return num.toString()
   }
 
-  const handleLike = (e: React.MouseEvent) => {
+  const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation()
+    onInteraction?.()
 
     if (!currentUser) {
       toast.error("Please sign in to like videos")
       return
     }
 
-    isLiked.value = !(isLiked.value);
+    if (isUpdating.current) return
+    isUpdating.current = true
 
-    likeCount.value = isLiked.value
-      ? likeCount.value + 1 
-      : Math.max(0, likeCount.value - 1);
+    const newLiked = !isLiked.value
+    isLiked.value = newLiked
+    likeCount.value = newLiked
+      ? likeCount.value + 1
+      : Math.max(0, likeCount.value - 1)
 
-    toast.success(isLiked.value ? "Added to liked videos" : "Removed from liked videos")
+    try {
+      if (supabase) {
+        await supabase
+          .from("video_likes")
+          .upsert(
+            { userid: currentUser.id, video_id: short.id, is_liked: newLiked },
+            { onConflict: "userid,video_id" },
+          )
+      }
+    } catch {
+      isLiked.value = !newLiked
+      likeCount.value = newLiked
+        ? Math.max(0, likeCount.value - 1)
+        : likeCount.value + 1
+      toast.error("Failed to update like")
+    } finally {
+      isUpdating.current = false
+    }
   }
 
   /*const handleComment = (e: React.MouseEvent) => {
@@ -93,9 +104,19 @@ export function ShortsControls({ short, currentUser, onInteraction, alwaysVisibl
 
   return (
     <div className="flex flex-col items-center gap-4">
-      {/* Like button - Always visible */}
+      <div className="flex flex-col items-center">
+        <Button
+          onClick={handleLike}
+          variant="ghost"
+          size="icon"
+          className="rounded-full h-12 w-12 bg-white/20 hover:bg-white/30 backdrop-blur-sm"
+        >
+          <Heart className={`h-6 w-6 ${isLiked.value ? "fill-red-500 text-red-500" : "text-white"}`} />
+        </Button>
+        <span className="text-white text-xs mt-1 font-medium">{formatNumber(likeCount.value)}</span>
+      </div>
 
-      {/* Comment button - Always visible */}
+      {/* Comment button */}
       {/*
       <div className="flex flex-col items-center">
         <Button
