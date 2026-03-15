@@ -1,5 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js"
-import { VideoData } from "../videos/data-to-video-format"
+import { VideoData } from "@/lib/videos/data-to-video-format"
 
 export type UserInfoProps = {
     id: string

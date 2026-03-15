@@ -1,7 +1,7 @@
 "use server"
 
-import { createClient } from "../lib/supabase/server"
-import converttoVideo, { VideoInfoProps } from "../lib/videos/data-to-video-format";
+import { createClient } from "@/lib/supabase/server"
+import converttoVideo, { VideoInfoProps } from "@/lib/videos/data-to-video-format";
 import { SupabaseClient } from "@supabase/supabase-js";
 
 export async function GetVideoDetails(id: string, time_allowed: number = 30): Promise<VideoInfoProps | null> {
