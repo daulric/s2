@@ -22,17 +22,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Mail, Calendar, Camera, Edit3, Save, X, Video, Eye, ThumbsUp, Users, AlertTriangle } from "lucide-react"
+import { Mail, Calendar, Camera, Edit3, Save, X, Video, Eye, ThumbsUp, Users, AlertTriangle, Music } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
 import { VideoCard } from "@/components/video-card"
 import { VideoEditDialog } from "@/components/video-edit-dialog"
+import { MusicEditDialog } from "@/components/music-edit-dialog"
+import { MediaManageCard } from "@/components/media-manage-card"
 import { useSignal } from "@preact/signals-react"
 import Link from "next/link"
 import converttovideoformat, { type VideoData, type VideoInfoProps } from "@/lib/videos/data-to-video-format"
+import convertToAudio, { type AudioData, type AudioInfoProps } from "@/lib/audios/data-to-audio-format"
 import { useSignals } from "@preact/signals-react/runtime"
 import { useRouter } from "next/navigation"
 import { deleteAccount } from "./user-management"
 import { useWebHaptics } from "web-haptics/react"
+import { updateAudioDetails } from "@/serverActions/GetAudioDetails"
 
 interface VideoWithLikes extends VideoData {
   video_likes: { is_liked: boolean; videos?: VideoData }[]
@@ -75,6 +79,7 @@ export default function ProfilePage() {
   const total_likes = useSignal(0)
   const total_liked_videos = useSignal<VideoInfoProps[]>([])
   const user_videos = useSignal<VideoInfoProps[]>([])
+  const user_audios = useSignal<AudioInfoProps[]>([])
 
   const loadProfile = useCallback(async () => {
     if (!user) return
@@ -173,6 +178,19 @@ export default function ProfilePage() {
     })
   }, [user, supabase, total_liked_videos])
 
+  const editingAudio = useSignal<AudioInfoProps | null>(null)
+  const isAudioEditOpen = useSignal(false)
+
+  const load_audios = useCallback(async () => {
+    if (!user) return
+
+    const { data, error } = await supabase.from("audios").select("*").eq("userid", user.id)
+    if (error || !data) return
+
+    const audios = await Promise.all(data.map((audio: AudioData) => convertToAudio(supabase, audio, 120)))
+    user_audios.value = audios
+  }, [user, supabase, user_audios])
+
   useEffect(() => {
     if (user) {
       document.title = "s2 - Settings"
@@ -181,6 +199,7 @@ export default function ProfilePage() {
       load_subs()
       load_videos()
       load_liked_video()
+      load_audios()
       return
     } else {
       document.title = "s2 - 401"
@@ -188,13 +207,14 @@ export default function ProfilePage() {
 
     return () => {
       user_videos.value = []
+      user_audios.value = []
       total_liked_videos.value = []
       total_likes.value = 0
       total_video_count.value = 0
       subscribers.value = 0
       views.value = 0
     }
-  }, [user, loadProfile, load_subs, load_videos, load_liked_video, user_videos, total_liked_videos, total_likes, total_video_count, subscribers, views])
+  }, [user, loadProfile, load_subs, load_videos, load_liked_video, load_audios, user_videos, user_audios, total_liked_videos, total_likes, total_video_count, subscribers, views])
 
   const handleSaveProfile = async () => {
     if (!user) return
@@ -284,6 +304,29 @@ export default function ProfilePage() {
 
     trigger("success");
     editingVideo.value = null
+  }
+
+  const handleEditAudio = (audio: AudioInfoProps) => {
+    editingAudio.value = { ...audio }
+    isAudioEditOpen.value = true
+    trigger("light")
+  }
+
+  const handleSaveAudio = async (updatedAudio: AudioData) => {
+    const payload = {
+      title: updatedAudio.title,
+      description: updatedAudio.description || "",
+      visibility: updatedAudio.visibility,
+      thumbnail_path: updatedAudio.thumbnail_path ?? null,
+    }
+
+    await updateAudioDetails(updatedAudio.audio_id, payload)
+
+    await load_audios()
+
+    editingAudio.value = null
+    isAudioEditOpen.value = false
+    trigger("success")
   }
 
   const handleDeleteAccount = async () => {
@@ -487,8 +530,9 @@ export default function ProfilePage() {
 
         {/* Content Tabs */}
         <Tabs defaultValue="videos" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="videos">My Videos</TabsTrigger>
+            <TabsTrigger value="audio">My Audio</TabsTrigger>
             <TabsTrigger value="liked">Liked Videos</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -503,19 +547,9 @@ export default function ProfilePage() {
                 {user_videos.value !== null && user_videos.value.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {user_videos.value?.map((video) => (
-                      <div key={video.id} className="relative group">
+                      <MediaManageCard key={video.id} onEdit={() => handleEditVideo(video)}>
                         <VideoCard key={video.id} video={video} compact supabase={supabase} />
-                        <div className="absolute top-2 right-2 opacity-100 transition-opacity">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleEditVideo(video)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Edit3 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                      </MediaManageCard>
                     ))}
                   </div>
                 ) : (
@@ -550,6 +584,51 @@ export default function ProfilePage() {
                     <ThumbsUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No liked videos</h3>
                     <p className="text-muted-foreground">Videos you like will appear here</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="audio" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Audio</CardTitle>
+                <CardDescription>Manage your uploaded tracks and privacy settings</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {user_audios.value.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {user_audios.value.map((audio) => (
+                      <MediaManageCard key={audio.id} onEdit={() => handleEditAudio(audio)}>
+                        <Card className="border-muted">
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-3 min-w-0 pr-10">
+                              <div className="h-12 w-12 rounded-md overflow-hidden bg-muted shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={audio.thumbnail} alt={audio.title} className="h-full w-full object-cover" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{audio.title}</p>
+                                <p className="text-sm text-muted-foreground truncate">{audio.description || "No description"}</p>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  {audio.listens?.toLocaleString() || 0} listens · {audio.visibility || "public"}
+                                </p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </MediaManageCard>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No tracks yet</h3>
+                    <p className="text-muted-foreground mb-4">Upload your first song to start building your catalog</p>
+                    <Button>
+                      <Link href="/upload/music">Upload Music</Link>
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -675,6 +754,14 @@ export default function ProfilePage() {
             isVideoEditOpen.value = false
           }}
           onSave={handleSaveVideo}
+        />
+        <MusicEditDialog
+          audio={editingAudio.value}
+          isOpen={isAudioEditOpen.value}
+          onClose={() => {
+            isAudioEditOpen.value = false
+          }}
+          onSave={handleSaveAudio}
         />
       </div>
     </main>

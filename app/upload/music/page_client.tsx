@@ -2,7 +2,7 @@
 
 import { Music, Video } from "lucide-react"
 import { UploadForm, type UploadConfig } from "@/components/upload-form"
-import { uploadAudio } from "../MediaManager"
+import { uploadAudio } from "@/app/upload/MediaManager"
 
 export default function UploadMusicPage() {
   const config: UploadConfig = {
@@ -24,7 +24,7 @@ export default function UploadMusicPage() {
     submitLabel: "Upload Track",
     tableName: "audios",
     pathField: "audio_path",
-    redirectTo: () => "/music",
+    redirectTo: (id?: string) => `/music${id ? `?id=${id}` : ""}`,
     uploadFn: uploadAudio,
     crossLink: { href: "/upload", label: "Upload Video", icon: Video },
     dropZoneIcon: Music,

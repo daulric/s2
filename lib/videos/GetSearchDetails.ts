@@ -1,5 +1,5 @@
-import { createClient } from "../supabase/client";
-import { VideoProps  } from "../../components/video-card"
+import { createClient } from "@/lib/supabase/client";
+import { VideoProps  } from "@/components/video-card"
 
 export default async function GetSearchVideos(search: string, time_allowed: number = 10) {
   if (!search) return null;

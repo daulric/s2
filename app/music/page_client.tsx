@@ -261,9 +261,10 @@ function audiosToTracks(audios: AudioInfoProps[] | null): MusicTrack[] {
 
 type MusicPageProps = {
   audios: AudioInfoProps[] | null
+  selectedId?: string
 }
 
-export default function MusicPage({ audios }: MusicPageProps) {
+export default function MusicPage({ audios, selectedId }: MusicPageProps) {
   useSignals()
   const { supabase } = useAuth()
   const isSafariBrowser =
@@ -293,6 +294,7 @@ export default function MusicPage({ audios }: MusicPageProps) {
   const activeTimelineRef = useRef<HapticEvent[]>([])
   const nextEventIdxRef = useRef(0)
   const blobUrlCacheRef = useRef<Map<string, string>>(new Map())
+  const hasResolvedSelectedIdRef = useRef(false)
 
   const updateLoop = useCallback(() => {
     const audio = audioRef.current
@@ -507,6 +509,17 @@ export default function MusicPage({ audios }: MusicPageProps) {
     },
     [activeTrack, supabase, isSafariBrowser, isMuted, volume, incrementListens, isPlaying, isLoading, progress, currentTime, startPlayback]
   )
+
+  useEffect(() => {
+    if (!selectedId) return
+    if (hasResolvedSelectedIdRef.current) return
+
+    const matchedTrack = tracks.value.find((track) => track.id === selectedId)
+    hasResolvedSelectedIdRef.current = true
+
+    if (!matchedTrack) return
+    playTrack(matchedTrack)
+  }, [selectedId, tracks, playTrack])
 
   const handlePlay = useCallback(
     (track: MusicTrack) => {
