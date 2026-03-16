@@ -17,14 +17,26 @@ import { SupabaseClient } from "@supabase/supabase-js"
 export async function GetAllStocks(): Promise<StockWithPrediction[]> {
   const supabase = (await createClient()) as SupabaseClient
 
-  const { data: stocks, error } = await supabase
-    .from("stocks")
-    .select("*")
-    .order("ticker")
+  const allStocks: Stock[] = []
+  const PAGE = 1000
+  let from = 0
 
-  if (error || !stocks) return []
+  while (true) {
+    const { data, error } = await supabase
+      .from("stocks")
+      .select("*")
+      .order("ticker")
+      .range(from, from + PAGE - 1)
 
-  const tickers = stocks.map((s: Stock) => s.ticker)
+    if (error || !data || data.length === 0) break
+    allStocks.push(...(data as Stock[]))
+    if (data.length < PAGE) break
+    from += PAGE
+  }
+
+  if (allStocks.length === 0) return []
+
+  const tickers = allStocks.map((s) => s.ticker)
 
   const { data: predictions } = await supabase
     .from("stock_predictions")
@@ -52,7 +64,7 @@ export async function GetAllStocks(): Promise<StockWithPrediction[]> {
     sentimentMap.set(s.ticker, entry)
   }
 
-  return (stocks as Stock[]).map((stock) => {
+  return allStocks.map((stock) => {
     const sentEntry = sentimentMap.get(stock.ticker)
     return {
       ...stock,
