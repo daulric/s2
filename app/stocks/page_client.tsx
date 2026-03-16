@@ -45,10 +45,12 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
   const router = useRouter()
   const { user: { user } } = useAuth()
 
+  const PAGE_SIZE = 48
   const search = useSignal("")
   const selectedSector = useSignal("All")
   const watchlist = useSignal<Set<string>>(new Set(watchlistTickers))
   const sortBy = useSignal<"ticker" | "score" | "change">("score")
+  const visibleCount = useSignal(PAGE_SIZE)
 
   const handleToggleWatchlist = useCallback(async (ticker: string) => {
     if (!user) {
@@ -71,7 +73,7 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
     }
   }, [user, watchlist])
 
-  const filteredStocks = stocks
+  const allFilteredStocks = stocks
     .filter((s) => {
       if (search.value) {
         const q = search.value.toLowerCase()
@@ -89,6 +91,9 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
       return Math.abs(b.prediction?.score ?? 0) - Math.abs(a.prediction?.score ?? 0)
     })
 
+  const filteredStocks = allFilteredStocks.slice(0, visibleCount.value)
+  const hasMore = allFilteredStocks.length > visibleCount.value
+
   const watchedStocks = stocks.filter((s) => watchlist.value.has(s.ticker))
 
   const bullishCount = stocks.filter((s) => s.prediction?.direction === "bullish").length
@@ -100,7 +105,7 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-3xl font-bold">stock predictions</h1>
-          <p className="text-muted-foreground mt-1">news-driven sentiment analysis across 50 stocks</p>
+          <p className="text-muted-foreground mt-1">news-driven sentiment analysis across {stocks.length.toLocaleString()} stocks</p>
         </div>
 
         <div className="mb-6 p-4 rounded-lg border bg-card">
@@ -173,7 +178,7 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
                   placeholder="Search stocks..."
                   className="pl-9"
                   value={search.value}
-                  onChange={(e) => { search.value = e.target.value }}
+                  onChange={(e) => { search.value = e.target.value; visibleCount.value = PAGE_SIZE }}
                 />
               </div>
               <div className="flex gap-2">
@@ -210,12 +215,17 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
                     "cursor-pointer transition-colors",
                     selectedSector.value === sector && "bg-primary text-primary-foreground",
                   )}
-                  onClick={() => { selectedSector.value = sector }}
+                  onClick={() => { selectedSector.value = sector; visibleCount.value = PAGE_SIZE }}
                 >
                   {sector}
                 </Badge>
               ))}
             </div>
+
+            <p className="text-sm text-muted-foreground mb-3">
+              {allFilteredStocks.length.toLocaleString()} stocks
+              {search.value && ` matching "${search.value}"`}
+            </p>
 
             {filteredStocks.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -226,27 +236,40 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredStocks.map((stock) => (
-                  <div key={stock.ticker} className="relative group">
-                    <StockCard stock={stock} />
-                    {user && (
-                      <button
-                        onClick={(e) => { e.preventDefault(); handleToggleWatchlist(stock.ticker) }}
-                        className={cn(
-                          "absolute top-2 right-2 p-1.5 rounded-md transition-all z-10",
-                          "opacity-0 group-hover:opacity-100",
-                          watchlist.value.has(stock.ticker)
-                            ? "text-yellow-500 bg-yellow-500/10"
-                            : "text-muted-foreground hover:text-yellow-500 bg-background/80",
-                        )}
-                      >
-                        <Star className={cn("h-4 w-4", watchlist.value.has(stock.ticker) && "fill-current")} />
-                      </button>
-                    )}
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {filteredStocks.map((stock) => (
+                    <div key={stock.ticker} className="relative group">
+                      <StockCard stock={stock} />
+                      {user && (
+                        <button
+                          onClick={(e) => { e.preventDefault(); handleToggleWatchlist(stock.ticker) }}
+                          className={cn(
+                            "absolute top-2 right-2 p-1.5 rounded-md transition-all z-10",
+                            "opacity-0 group-hover:opacity-100",
+                            watchlist.value.has(stock.ticker)
+                              ? "text-yellow-500 bg-yellow-500/10"
+                              : "text-muted-foreground hover:text-yellow-500 bg-background/80",
+                          )}
+                        >
+                          <Star className={cn("h-4 w-4", watchlist.value.has(stock.ticker) && "fill-current")} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {hasMore && (
+                  <div className="flex justify-center mt-6">
+                    <Button
+                      variant="outline"
+                      onClick={() => { visibleCount.value += PAGE_SIZE }}
+                    >
+                      Load More ({(allFilteredStocks.length - visibleCount.value).toLocaleString()} remaining)
+                    </Button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </TabsContent>
 

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { SupabaseClient } from "@supabase/supabase-js"
-import { TOP_50_STOCKS } from "@/lib/stocks/types"
 import {
   fetchAlphaVantageNewsSentiment,
   fetchFinnhubQuote,
@@ -31,18 +30,20 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = (await createClient()) as SupabaseClient
-  const allTickers = TOP_50_STOCKS.map((s) => s.ticker)
-  const results: { ticker: string; status: string }[] = []
 
-  await supabase.from("stocks").upsert(
-    TOP_50_STOCKS.map((s) => ({
-      ticker: s.ticker,
-      name: s.name,
-      sector: s.sector,
-      updated_at: new Date().toISOString(),
-    })),
-    { onConflict: "ticker" },
-  )
+  const { data: stockRows, error: stocksError } = await supabase
+    .from("stocks")
+    .select("ticker")
+
+  if (stocksError || !stockRows || stockRows.length === 0) {
+    return NextResponse.json(
+      { error: stocksError?.message ?? "No stocks in database. Run /api/stocks/seed first." },
+      { status: 500 },
+    )
+  }
+
+  const allTickers = stockRows.map((r: { ticker: string }) => r.ticker)
+  const results: { ticker: string; status: string }[] = []
 
   for (let i = 0; i < allTickers.length; i += BATCH_SIZE) {
     const batch = allTickers.slice(i, i + BATCH_SIZE)
