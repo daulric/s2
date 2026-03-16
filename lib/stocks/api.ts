@@ -242,7 +242,7 @@ export async function fetchActiveListings(): Promise<ListedStock[]> {
   }
 
   const res = await fetch(SEC_TICKERS_URL, {
-    headers: { "User-Agent": "s2-stock-app" },
+    headers: { "User-Agent": "s2-stock-app admin@daulric.dev", "Accept": "application/json" },
   })
 
   if (!res.ok) {
