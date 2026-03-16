@@ -194,10 +194,8 @@ This project supports deployment to [Cloudflare Workers](https://developers.clou
 
 ---
 
-## Author
+## Authors
 
-<a href="https://github.com/daulric">
-  <img src="https://github.com/daulric.png?size=80" alt="daulric" width="80" height="80" />
+<a href="https://github.com/daulric/s2/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=daulric/s2" alt="Contributors" />
 </a>
-
-[**daulric**  ](https://github.com/daulric)
