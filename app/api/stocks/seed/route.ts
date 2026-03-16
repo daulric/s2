@@ -12,18 +12,13 @@ function delay(ms: number) {
 }
 
 export async function GET() {
-  const alphaKey = process.env.ALPHAVANTAGE_API_KEY
   const finnhubKey = process.env.FINNHUB_API_KEY
-
-  if (!alphaKey) {
-    return NextResponse.json({ error: "Missing ALPHAVANTAGE_API_KEY" }, { status: 500 })
-  }
 
   const supabase = (await createClient()) as SupabaseClient
 
-  const listings = await fetchActiveListings(alphaKey)
+  const listings = await fetchActiveListings()
   if (listings.length === 0) {
-    return NextResponse.json({ error: "No listings returned from Alpha Vantage" }, { status: 500 })
+    return NextResponse.json({ error: "No listings returned from SEC EDGAR" }, { status: 500 })
   }
 
   const rows = listings.map((s) => ({

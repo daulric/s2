@@ -230,57 +230,39 @@ function parseAlphaVantageDate(raw: string): string {
   return `${y}-${m}-${d}T${h}:${min}:${s}Z`
 }
 
-const VALID_EXCHANGES = new Set(["NYSE", "NASDAQ"])
+const SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers_exchange.json"
+const VALID_EXCHANGES = new Set(["NYSE", "Nasdaq"])
 const LISTING_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 let listingCache: { data: ListedStock[]; fetchedAt: number } | null = null
 
-export async function fetchActiveListings(apiKey: string): Promise<ListedStock[]> {
+export async function fetchActiveListings(): Promise<ListedStock[]> {
   if (listingCache && Date.now() - listingCache.fetchedAt < LISTING_CACHE_TTL_MS) {
     return listingCache.data
   }
 
-  const keysToTry = [apiKey, "demo"]
-  let csv = ""
+  const res = await fetch(SEC_TICKERS_URL, {
+    headers: { "User-Agent": "s2-stock-app" },
+  })
 
-  for (const key of keysToTry) {
-    const url = `${ALPHAVANTAGE_BASE}?function=LISTING_STATUS&apikey=${key}`
-    const res = await fetch(url)
-    if (!res.ok) continue
-
-    const text = await res.text()
-    if (text.startsWith("symbol,") || text.startsWith("symbol\t")) {
-      csv = text
-      break
-    }
+  if (!res.ok) {
+    throw new Error(`SEC EDGAR returned ${res.status}`)
   }
 
-  if (!csv) throw new Error("Alpha Vantage LISTING_STATUS returned no data (rate limit likely hit)")
+  const json: {
+    fields: string[]
+    data: [number, string, string, string][]
+  } = await res.json()
 
-  const lines = csv.trim().split("\n")
-  if (lines.length < 2) return []
-
-  const headers = lines[0].split(",")
-  const symbolIdx = headers.indexOf("symbol")
-  const nameIdx = headers.indexOf("name")
-  const exchangeIdx = headers.indexOf("exchange")
-  const assetTypeIdx = headers.indexOf("assetType")
-
-  if (symbolIdx === -1 || nameIdx === -1 || exchangeIdx === -1 || assetTypeIdx === -1) {
-    throw new Error("Unexpected CSV format from LISTING_STATUS")
+  if (!json.data || !Array.isArray(json.data)) {
+    throw new Error("Unexpected response format from SEC EDGAR")
   }
 
   const stocks: ListedStock[] = []
 
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(",")
-    const assetType = cols[assetTypeIdx]?.trim()
-    const exchange = cols[exchangeIdx]?.trim()
-    const ticker = cols[symbolIdx]?.trim()
-    const name = cols[nameIdx]?.trim()
-
-    if (assetType !== "Stock" || !VALID_EXCHANGES.has(exchange) || !ticker || !name) continue
-    if (ticker.includes(".") || ticker.includes("-")) continue
+  for (const [, name, ticker, exchange] of json.data) {
+    if (!VALID_EXCHANGES.has(exchange) || !ticker || !name) continue
+    if (ticker.includes(".") || ticker.includes("-") || ticker.includes("/")) continue
 
     stocks.push({ ticker, name, exchange })
   }
