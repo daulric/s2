@@ -11,6 +11,9 @@ import { ShortsControls } from "./shorts-controls"
 import { Play, VolumeX, Volume2, X } from "lucide-react"
 import { useSignal } from "@preact/signals-react"
 import { useSignals } from "@preact/signals-react/runtime"
+import { useAuth } from "@/context/AuthProvider"
+import upsert from "@/lib/supabase/upsert"
+import { toast } from "sonner"
 import type { ShortVideoData } from "./types"
 
 type ShortVideoProps = {
@@ -22,16 +25,39 @@ type ShortVideoProps = {
 export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
   useSignals();
   const router = useRouter()
+  const auth = useAuth()
+  const supabase = auth?.supabase
   const videoRef = useRef<HTMLVideoElement>(null)
   const controlsTimeoutRef = useRef<NodeJS.Timeout>(null)
   const interactionTimeoutRef = useRef<NodeJS.Timeout>(null)
   const showEndOverlay = useSignal(false)
 
-  // Create signals for video state
   const isPlaying = useSignal(false)
   const isMuted = useSignal(true)
   const showControls = useSignal(true)
   const isInteracting = useSignal(false)
+  const isSubscribed = useSignal(short.is_subscribed ?? false)
+  const subscriberCount = useSignal(short.subscribers ?? 0)
+
+  const handleSubscribe = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!currentUser) {
+      toast.error("Please sign in to subscribe")
+      return
+    }
+    if (!supabase || currentUser.id === short.creator_id) return
+
+    const newVal = !isSubscribed.value
+    isSubscribed.value = newVal
+    subscriberCount.value += newVal ? 1 : -1
+
+    await upsert(
+      supabase,
+      "subscribers",
+      { vendor: short.creator_id, subscriber: currentUser.id },
+      { is_subscribed: newVal },
+    )
+  }
 
   const cutDurationHalf = useCallback(() => {
     if (videoRef.current) {
@@ -254,14 +280,28 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
                       </Avatar>
                     </Link>
                     <div>
-                      <Link
-                        href={`/user/${short.creator_id}`}
-                        className="text-white font-semibold hover:underline text-sm"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        @{short.username}
-                      </Link>
-                      <p className="text-white/80 text-xs">{formatNumber(100)} subscribers</p>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/user/${short.creator_id}`}
+                          className="text-white font-semibold hover:underline text-sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          @{short.username}
+                        </Link>
+                        {currentUser && currentUser.id !== short.creator_id && (
+                          <button
+                            onClick={handleSubscribe}
+                            className={`px-3 py-0.5 rounded-full text-xs font-semibold transition-colors ${
+                              isSubscribed.value
+                                ? "bg-white/20 text-white/80 hover:bg-white/30"
+                                : "bg-white text-black hover:bg-white/90"
+                            }`}
+                          >
+                            {isSubscribed.value ? "Subscribed" : "Subscribe"}
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-white/80 text-xs">{formatNumber(subscriberCount.value)} subscribers</p>
                     </div>
                   </div>
 
