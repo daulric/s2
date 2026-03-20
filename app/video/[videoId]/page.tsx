@@ -1,5 +1,5 @@
 import VideoPage from "./VideoPage";
-import { GetVideoDetails, GetPublicVideos } from "@/serverActions/GetVideoDetails";
+import { GetVideoDetails, GetVideoSidebarVideos } from "@/serverActions/GetVideoDetails";
 import { notFound as NotFound } from "next/navigation";
 import { cache, Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
@@ -31,9 +31,9 @@ export async function generateMetadata({ params }: PageProps) {
 async function VideoContent({ videoId }: { videoId: string }) {
   const supabase = await createClient();
 
-  const [data, PublicVideos] = await Promise.all([
+  const [data, sidebar] = await Promise.all([
     CachedVideo(videoId),
-    GetPublicVideos()
+    GetVideoSidebarVideos(videoId),
   ]);
 
   if (!data) return <NotFound />;
@@ -45,7 +45,13 @@ async function VideoContent({ videoId }: { videoId: string }) {
 
   if (error) return <div>View update problem</div>;
 
-  return <VideoPage videoData={data} public_videos={PublicVideos ?? []} />;
+  return (
+    <VideoPage
+      videoData={data}
+      trendingVideos={sidebar.trending}
+      newVideos={sidebar.newest}
+    />
+  );
 }
 
 export default async function PAGE({ params }: PageProps) {
