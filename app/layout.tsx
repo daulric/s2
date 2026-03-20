@@ -1,5 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/context/theme-provider"
@@ -41,7 +42,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <AuthProvider>
                   <Header />
                   <NextTopLoader />
-                  <StocksRouteTeardown />
+                  <Suspense fallback={null}>
+                    <StocksRouteTeardown />
+                  </Suspense>
                   {children}
                   <Toaster position="top-right" />
                   <Analytics />
