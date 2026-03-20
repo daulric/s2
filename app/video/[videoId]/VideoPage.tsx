@@ -7,7 +7,20 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 //import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
-import { Play, Pause, Volume2, VolumeX, Maximize, ThumbsUp, ThumbsDown, Share, MessageSquare, Clock, Bookmark, MoreHorizontal, Flame, Heart, Keyboard } from 'lucide-react'
+import {
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Maximize,
+  ThumbsUp,
+  ThumbsDown,
+  Share,
+  Clock,
+  Flame,
+  Keyboard,
+  BadgeCheckIcon,
+} from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { 
   Dialog, 
@@ -25,11 +38,9 @@ import Link from "next/link"
 import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
-import { BadgeCheckIcon } from 'lucide-react'
 import { effect } from "@preact/signals-react"
 import { useWebHaptics } from "web-haptics/react"
 
-// Keyboard shortcuts help data
 const keyboardShortcuts = [
   { key: "Space", action: "Play/Pause" },
   { key: "K", action: "Play/Pause (alternative)" },
@@ -45,7 +56,15 @@ const keyboardShortcuts = [
   { key: "L", action: "Forward 10 seconds" },
 ]
 
-export default function VideoPage({ videoData, public_videos }: { videoData: VideoInfoProps, public_videos: VideoInfoProps[] }) {
+export default function VideoPage({
+  videoData,
+  trendingVideos,
+  newVideos,
+}: {
+  videoData: VideoInfoProps
+  trendingVideos: VideoInfoProps[]
+  newVideos: VideoInfoProps[]
+}) {
   useSignals();
   const { user: { user }, supabase } = useAuth();
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -175,21 +194,16 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     }
   }, [user, videoData, getTotalLikes, getTotalSubs, setIsSubscribe, getIsUserLikedVideo, subscribers, total_likes, isLiked, isDisliked, isSubscribed])
 
-  isPlaying.subscribe((value) => {
-    if (videoRef.current) {
-      if (value) {
-        videoRef.current.play()
-      } else {
-        videoRef.current.pause()
-      }
+  // Sync play state to <video> (subscriptions in render caused leaks); re-run when src is ready.
+  useEffect(() => {
+    const el = videoRef.current
+    if (!el) return
+    if (isPlaying.value) {
+      void el.play().catch(() => {})
+    } else {
+      el.pause()
     }
-  })
-
-  isMuted.subscribe((value) => {
-    if (videoRef.current) {
-      videoRef.current.muted = value;
-    }
-  })
+  }, [isPlaying.value, video_url.value])
 
   effect(() => {
     if (videoRef.current) {
@@ -370,26 +384,24 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
       }, 3000)
     }
 
+    const handleMouseLeave = () => {
+      if (isPlaying.value) {
+        showControls.value = false;
+      }
+    }
+
     const playerElement = containerRef.current
     if (playerElement) {
       playerElement.addEventListener("mousemove", handleMouseMove)
       playerElement.addEventListener("mouseenter", handleMouseMove)
-      playerElement.addEventListener("mouseleave", () => {
-        if (isPlaying.value) {
-          showControls.value = false;
-        }
-      })
+      playerElement.addEventListener("mouseleave", handleMouseLeave)
     }
 
     return () => {
       if (playerElement) {
         playerElement.removeEventListener("mousemove", handleMouseMove)
         playerElement.removeEventListener("mouseenter", handleMouseMove)
-        playerElement.removeEventListener("mouseleave", () => {
-          if (isPlaying.value) {
-            showControls.value = false;
-          }
-        })
+        playerElement.removeEventListener("mouseleave", handleMouseLeave)
       }
 
       if (controlsTimeoutRef.current) {
@@ -591,24 +603,6 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
     }
   };
 
-  const trending_vids = public_videos
-    .sort((a, b) => (b.views - a.views))
-    .filter((d) => d.id !== videoData.id)
-    .slice(0, 4);
-
-  const related_vids = public_videos
-    .filter((d) => d.category === videoData.category)
-    .map(d => ({ value: d, sort: Math.random() }))
-    .sort((a, b) => a.sort - b.sort)
-    .map(({ value }) => value)
-    .filter((d) => d.id !== videoData.id)
-    .slice(0, 4);
-
-  const new_vids = public_videos
-    .sort((a, b) => (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()))
-    .filter(d => d.id !== videoData.id)
-    .slice(0, 8);
-
   return (
     <main className="min-h-screen pt-5 p-4 bg-background">
       <div className="max-w-6xl mx-auto">
@@ -630,7 +624,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
                 onClick={togglePlay}
                 onEnded={() => { isPlaying.value = false }}
                 playsInline
-                preload="auto"
+                preload="metadata"
               />
 
               {/* Play button overlay - only show when paused */}
@@ -660,72 +654,92 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
                   <div className="bg-primary h-full" style={{ width: `${(currentTime.value / duration.value) * 100 || 0}%` }}></div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <TooltipProvider>
+                <TooltipProvider>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
                       <Tooltip>
-                        <TooltipTrigger>
-                          <Button onClick={togglePlay} variant="ghost" size="icon" className="text-white">
-                            {isPlaying.value ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                          </Button>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              onClick={togglePlay}
+                              variant="ghost"
+                              size="icon"
+                              className="text-white"
+                            />
+                          }
+                        >
+                          {isPlaying.value ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                         </TooltipTrigger>
                         <TooltipContent side="top">{isPlaying.value ? "Pause (Space)" : "Play (Space)"}</TooltipContent>
                       </Tooltip>
-                    </TooltipProvider>
 
-                    <TooltipProvider>
                       <Tooltip>
-                        <TooltipTrigger>
-                          <Button onClick={toggleMute} variant="ghost" size="icon" className="text-white">
-                            {isMuted.value ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                          </Button>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              onClick={toggleMute}
+                              variant="ghost"
+                              size="icon"
+                              className="text-white"
+                            />
+                          }
+                        >
+                          {isMuted.value ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                         </TooltipTrigger>
                         <TooltipContent side="top">{isMuted.value ? "Unmute (M)" : "Mute (M)"}</TooltipContent>
                       </Tooltip>
-                    </TooltipProvider>
 
-                    <div className="text-white text-xs">
-                      {formatTime(currentTime.value)} / {formatTime(duration.value)}
+                      <div className="text-white text-xs">
+                        {formatTime(currentTime.value)} / {formatTime(duration.value)}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center space-x-2">
-                    <Dialog open={isKeyboardShortcutsOpen.value} onOpenChange={() => isKeyboardShortcutsOpen.value = !isKeyboardShortcutsOpen.value}>
-                      <DialogTrigger>
-                        <Button variant="ghost" size="icon" className="text-white">
+                    <div className="flex items-center space-x-2">
+                      <Dialog
+                        open={isKeyboardShortcutsOpen.value}
+                        onOpenChange={(open) => {
+                          isKeyboardShortcutsOpen.value = open
+                        }}
+                      >
+                        <DialogTrigger render={<Button variant="ghost" size="icon" className="text-white" />}>
                           <Keyboard className="h-5 w-5" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Keyboard Shortcuts</DialogTitle>
-                          <DialogDescription>
-                            Use these keyboard shortcuts to control the video player
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid grid-cols-2 gap-4 py-4">
-                          {keyboardShortcuts.map((shortcut, index) => (
-                            <div key={index} className="flex justify-between">
-                              <span className="font-medium">{shortcut.key}</span>
-                              <span className="text-muted-foreground">{shortcut.action}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Keyboard Shortcuts</DialogTitle>
+                            <DialogDescription>
+                              Use these keyboard shortcuts to control the video player
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid grid-cols-2 gap-4 py-4">
+                            {keyboardShortcuts.map((shortcut, index) => (
+                              <div key={index} className="flex justify-between">
+                                <span className="font-medium">{shortcut.key}</span>
+                                <span className="text-muted-foreground">{shortcut.action}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
 
-                    <TooltipProvider>
                       <Tooltip>
-                        <TooltipTrigger>
-                          <Button onClick={toggleFullscreen} variant="ghost" size="icon" className="text-white">
-                            <Maximize className="h-5 w-5" />
-                          </Button>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              onClick={toggleFullscreen}
+                              variant="ghost"
+                              size="icon"
+                              className="text-white"
+                            />
+                          }
+                        >
+                          <Maximize className="h-5 w-5" />
                         </TooltipTrigger>
                         <TooltipContent side="top">Fullscreen (F)</TooltipContent>
                       </Tooltip>
-                    </TooltipProvider>
+                    </div>
                   </div>
-                </div>
+                </TooltipProvider>
               </div>
             </div>
           </div>
@@ -831,7 +845,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
             <TabsContent value="trending" className="mt-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {trending_vids.map((video) => (
+                {trendingVideos.map((video) => (
                   <VideoCard key={video.id} video={video} supabase={supabase} />
                 ))}
               </div>
@@ -839,7 +853,7 @@ export default function VideoPage({ videoData, public_videos }: { videoData: Vid
 
             <TabsContent value="new" className="mt-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {new_vids.map((video) => (
+                {newVideos.map((video) => (
                   <VideoCard key={video.id} video={video} supabase={supabase} />
                 ))}
               </div>

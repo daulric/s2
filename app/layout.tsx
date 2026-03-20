@@ -1,5 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/context/theme-provider"
@@ -11,6 +12,7 @@ import NextTopLoader from "@/components/theme-top-loader"
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { StocksRouteTeardown } from "@/components/stocks-route-teardown"
 
 const inter = Inter({ subsets: ["latin"], display: "swap" })
 
@@ -40,6 +42,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <AuthProvider>
                   <Header />
                   <NextTopLoader />
+                  <Suspense fallback={null}>
+                    <StocksRouteTeardown />
+                  </Suspense>
                   {children}
                   <Toaster position="top-right" />
                   <Analytics />

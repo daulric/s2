@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils"
 import { ToggleWatchlist } from "@/serverActions/GetStockDetails"
 import type { StockDetail, ArticleSentiment } from "@/lib/stocks/types"
+import { AnimatedStockPrice } from "@/components/animated-stock-price"
 import { StockChart } from "@/components/stock-chart"
 import { useStockFeed } from "@/hooks/use-stock-feed"
 import { useAuth } from "@/context/AuthProvider"
@@ -90,6 +91,15 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
   useSignals()
   const { user: { user } } = useAuth()
   const watched = useSignal(isWatched)
+  const pageMountedRef = useRef(true)
+
+  useEffect(() => {
+    pageMountedRef.current = true
+    return () => {
+      pageMountedRef.current = false
+    }
+  }, [])
+
   const latestTrade = useStockFeed(detail.ticker)
 
   const livePrice = latestTrade.value?.price ?? null
@@ -106,9 +116,11 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
     }
     try {
       const { added } = await ToggleWatchlist(detail.ticker)
+      if (!pageMountedRef.current) return
       watched.value = added
       toast.success(added ? `${detail.ticker} added to watchlist` : `${detail.ticker} removed from watchlist`)
     } catch {
+      if (!pageMountedRef.current) return
       toast.error("Failed to update watchlist")
     }
   }, [user, detail.ticker, watched])
@@ -168,7 +180,11 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
                 )}
               </div>
               <div className="flex items-baseline gap-2">
-                <span className={cn("text-2xl font-bold", livePrice !== null && "tabular-nums")}>{formatPrice(displayPrice)}</span>
+                <AnimatedStockPrice
+                  key={detail.ticker}
+                  value={displayPrice}
+                  className="text-2xl font-bold"
+                />
                 <span className={cn(
                   "text-sm font-medium",
                   livePct >= 0 ? "text-emerald-500" : "text-red-500",
@@ -235,6 +251,7 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
         </div>
 
         <StockChart
+          key={detail.ticker}
           ticker={detail.ticker}
           initialCandles={detail.candles}
           priceChangePct={detail.price_change_pct}

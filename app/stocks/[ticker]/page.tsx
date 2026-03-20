@@ -17,7 +17,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-async function StockContent({ ticker }: { ticker: string }) {
+async function StockContent({ params }: { params: Promise<{ ticker: string }> }) {
+  const { ticker } = await params
+
   const [detail, watchlist] = await Promise.all([
     GetStockDetail(ticker),
     GetUserWatchlist(),
@@ -30,12 +32,11 @@ async function StockContent({ ticker }: { ticker: string }) {
   return <StockDetailPage detail={detail} isWatched={isWatched} />
 }
 
-export default async function PAGE({ params }: Props) {
-  const { ticker } = await params
-
+/** Sync shell + Suspense so `await params` and cookie-backed fetches run inside the boundary (Next.js PPR). */
+export default function PAGE({ params }: Props) {
   return (
     <Suspense fallback={<Loading />}>
-      <StockContent ticker={ticker} />
+      <StockContent params={params} />
     </Suspense>
   )
 }

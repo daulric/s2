@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useRef, useCallback } from "react"
+import { useEffect, useRef, useCallback, useState } from "react"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
 import type { PriceCandle } from "@/lib/stocks/types"
-import { GetStockCandles } from "@/serverActions/GetStockDetails"
+import { enqueueSparklineWeekCandles } from "@/lib/stocks/sparkline-candle-queue"
 import { useStockFeed, type TradeUpdate } from "@/hooks/use-stock-feed"
 
 type SparklineProps = {
@@ -66,16 +66,35 @@ function drawSparkline(
 export function StockSparkline({ ticker, width = 100, height = 32, positive = true }: SparklineProps) {
   useSignals()
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [shouldLoad, setShouldLoad] = useState(false)
   const prices = useSignal<number[]>([])
   const throttleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mountedRef = useRef(true)
 
   useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ob = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) setShouldLoad(true)
+      },
+      { root: null, rootMargin: "100px", threshold: 0 },
+    )
+    ob.observe(el)
+    return () => ob.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!shouldLoad) return
+
     let cancelled = false
+    mountedRef.current = true
 
     async function load() {
       let candles = sparklineCache.get(ticker)
       if (!candles) {
-        candles = await GetStockCandles(ticker, "1W")
+        candles = await enqueueSparklineWeekCandles(ticker)
         if (!cancelled && candles.length > 0) {
           sparklineCache.set(ticker, candles)
         }
@@ -88,15 +107,20 @@ export function StockSparkline({ ticker, width = 100, height = 32, positive = tr
     load()
     return () => {
       cancelled = true
-      if (throttleRef.current) clearTimeout(throttleRef.current)
+      mountedRef.current = false
+      if (throttleRef.current) {
+        clearTimeout(throttleRef.current)
+        throttleRef.current = null
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticker])
+  }, [ticker, shouldLoad])
 
   useStockFeed(ticker, useCallback((update: TradeUpdate) => {
+    if (!mountedRef.current) return
     if (throttleRef.current) return
     throttleRef.current = setTimeout(() => {
       throttleRef.current = null
+      if (!mountedRef.current) return
 
       const current = prices.value
       if (current.length === 0) return
@@ -114,15 +138,21 @@ export function StockSparkline({ ticker, width = 100, height = 32, positive = tr
     drawSparkline(canvas, prices.value, width, height, dynamicPositive)
   }, [prices.value, width, height, positive])
 
-  if (prices.value.length < 2) return null
-
   return (
-    <canvas
-      ref={canvasRef}
-      width={width}
-      height={height}
-      style={{ width, height }}
-      className="block"
-    />
+    <div
+      ref={containerRef}
+      className="inline-block shrink-0"
+      style={{ width, height, minWidth: width, minHeight: height }}
+    >
+      {prices.value.length >= 2 ? (
+        <canvas
+          ref={canvasRef}
+          width={width}
+          height={height}
+          style={{ width, height }}
+          className="block"
+        />
+      ) : null}
+    </div>
   )
 }

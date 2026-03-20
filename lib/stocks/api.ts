@@ -176,7 +176,7 @@ export async function fetchStockCandles(
   } else {
     fn = "TIME_SERIES_DAILY"
     seriesKey = "Time Series (Daily)"
-    params = range === "1Y" ? "&outputsize=full" : "&outputsize=compact"
+    params = range === "1Y" || range === "3M" ? "&outputsize=full" : "&outputsize=compact"
   }
 
   const url = `${ALPHAVANTAGE_BASE}?function=${fn}&symbol=${ticker}&apikey=${alphaKey}${params}`
@@ -185,7 +185,7 @@ export async function fetchStockCandles(
 
   const data = await res.json()
 
-  if (data["Note"] || data["Information"]) return []
+  if (data["Note"] || data["Information"] || data["Error Message"]) return []
 
   const series: Record<string, AVTimeSeriesEntry> | undefined = data[seriesKey]
   if (!series) return []
@@ -216,7 +216,273 @@ export async function fetchStockCandles(
     })
   }
 
-  return candles.reverse()
+  return filterValidCandles(candles.reverse())
+}
+
+function filterValidCandles(candles: PriceCandle[]): PriceCandle[] {
+  return candles.filter(
+    (c) =>
+      Number.isFinite(c.open) &&
+      Number.isFinite(c.high) &&
+      Number.isFinite(c.low) &&
+      Number.isFinite(c.close),
+  )
+}
+
+/** OHLCV when Alpha Vantage is rate-limited or errors. */
+export async function fetchFinnhubStockCandles(
+  ticker: string,
+  token: string,
+  range: CandleRange,
+): Promise<PriceCandle[]> {
+  const sym = ticker.trim().toUpperCase()
+  if (!sym) return []
+
+  const now = Math.floor(Date.now() / 1000)
+  let fromSec: number
+  let resolution: string
+
+  switch (range) {
+    case "1D":
+      fromSec = now - 86400
+      resolution = "5"
+      break
+    case "1W":
+      fromSec = now - 7 * 86400
+      resolution = "60"
+      break
+    case "1M":
+      fromSec = now - 30 * 86400
+      resolution = "D"
+      break
+    case "3M":
+      fromSec = now - 90 * 86400
+      resolution = "D"
+      break
+    case "1Y":
+      fromSec = now - 370 * 86400
+      resolution = "D"
+      break
+    case "5Y":
+      fromSec = now - 5 * 370 * 86400
+      resolution = "W"
+      break
+    case "10Y":
+      fromSec = now - 10 * 370 * 86400
+      resolution = "W"
+      break
+    case "ALL":
+      fromSec = now - 40 * 370 * 86400
+      resolution = "W"
+      break
+    default:
+      fromSec = now - 90 * 86400
+      resolution = "D"
+  }
+
+  const url = `${FINNHUB_BASE}/stock/candle?symbol=${encodeURIComponent(sym)}&resolution=${resolution}&from=${fromSec}&to=${now}&token=${encodeURIComponent(token)}`
+  const res = await fetch(url)
+  if (!res.ok) return []
+
+  const data: {
+    s?: string
+    t?: number[]
+    o?: number[]
+    h?: number[]
+    l?: number[]
+    c?: number[]
+    v?: number[]
+  } = await res.json()
+
+  if (data.s !== "ok" || !Array.isArray(data.t) || data.t.length === 0) return []
+
+  const { t, o, h, l, c, v } = data
+  const out: PriceCandle[] = []
+  for (let i = 0; i < t.length; i++) {
+    const close = c?.[i]
+    if (typeof close !== "number" || !Number.isFinite(close)) continue
+    out.push({
+      date: new Date(t[i]! * 1000).toISOString(),
+      open: typeof o?.[i] === "number" && Number.isFinite(o[i]!) ? o[i]! : close,
+      high: typeof h?.[i] === "number" && Number.isFinite(h[i]!) ? h[i]! : close,
+      low: typeof l?.[i] === "number" && Number.isFinite(l[i]!) ? l[i]! : close,
+      close,
+      volume:
+        typeof v?.[i] === "number" && Number.isFinite(v[i]!) ? Math.max(0, Math.round(v[i]!)) : 0,
+    })
+  }
+
+  return out
+}
+
+const CHART_FETCH_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+  Accept: "*/*",
+} as const
+
+function yahooChartQuery(range: CandleRange): { range: string; interval: string } {
+  switch (range) {
+    case "1D":
+      return { range: "1d", interval: "5m" }
+    case "1W":
+      return { range: "5d", interval: "1h" }
+    case "1M":
+      return { range: "1mo", interval: "1d" }
+    case "3M":
+      return { range: "3mo", interval: "1d" }
+    case "1Y":
+      return { range: "1y", interval: "1d" }
+    case "5Y":
+      return { range: "5y", interval: "1wk" }
+    case "10Y":
+      return { range: "10y", interval: "1wk" }
+    case "ALL":
+      return { range: "max", interval: "1mo" }
+    default:
+      return { range: "3mo", interval: "1d" }
+  }
+}
+
+/** No API key — used when AV + Finnhub return nothing (rate limits, free-tier no_data). */
+export async function fetchYahooFinanceCandles(ticker: string, range: CandleRange): Promise<PriceCandle[]> {
+  const yahooSymbol = ticker.trim().toUpperCase().replace(/\./g, "-")
+  const { range: r, interval } = yahooChartQuery(range)
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?range=${r}&interval=${interval}`
+
+  try {
+    const res = await fetch(url, { cache: "no-store", headers: CHART_FETCH_HEADERS })
+    if (!res.ok) return []
+    const json: {
+      chart?: { result?: Array<{
+        timestamp: number[]
+        indicators?: { quote?: Array<{
+          open?: (number | null)[]
+          high?: (number | null)[]
+          low?: (number | null)[]
+          close?: (number | null)[]
+          volume?: (number | null)[]
+        }> }
+      }>; error?: unknown }
+    } = await res.json()
+
+    const result = json?.chart?.result?.[0]
+    const ts = result?.timestamp
+    const q = result?.indicators?.quote?.[0]
+    if (!result || !ts?.length || !q) return []
+
+    const out: PriceCandle[] = []
+    for (let i = 0; i < ts.length; i++) {
+      const close = q.close?.[i]
+      if (close == null || !Number.isFinite(close)) continue
+      const open = q.open?.[i] ?? close
+      const high = q.high?.[i] ?? close
+      const low = q.low?.[i] ?? close
+      const vol = q.volume?.[i]
+      out.push({
+        date: new Date(ts[i]! * 1000).toISOString(),
+        open: typeof open === "number" && Number.isFinite(open) ? open : close,
+        high: typeof high === "number" && Number.isFinite(high) ? high : close,
+        low: typeof low === "number" && Number.isFinite(low) ? low : close,
+        close,
+        volume:
+          typeof vol === "number" && Number.isFinite(vol) ? Math.max(0, Math.round(vol)) : 0,
+      })
+    }
+    return filterValidCandles(out)
+  } catch {
+    return []
+  }
+}
+
+/** Stooq CSV — last resort, US symbols as `ticker.us`. */
+export async function fetchStooqDailyCandles(ticker: string, range: CandleRange): Promise<PriceCandle[]> {
+  const sym = `${ticker.trim().toLowerCase()}.us`
+  const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d`
+
+  try {
+    const res = await fetch(url, { cache: "no-store", headers: CHART_FETCH_HEADERS })
+    if (!res.ok) return []
+    const text = await res.text()
+    const lines = text.trim().split(/\r?\n/).filter(Boolean)
+    if (lines.length < 2) return []
+    if (!lines[0].toLowerCase().includes("date")) return []
+
+    const daysBack =
+      range === "1D"
+        ? 2
+        : range === "1W"
+          ? 10
+          : range === "1M"
+            ? 35
+            : range === "3M"
+              ? 100
+              : range === "1Y"
+                ? 400
+                : range === "5Y"
+                  ? 2000
+                  : range === "10Y"
+                    ? 4000
+                    : range === "ALL"
+                      ? 20000
+                      : 100
+
+    const cutoff =
+      daysBack >= 20000 ? new Date(0) : new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000)
+
+    const candles: PriceCandle[] = []
+    for (let li = 1; li < lines.length; li++) {
+      const parts = lines[li].split(",")
+      if (parts.length < 5) continue
+      const date = new Date(parts[0]!)
+      if (Number.isNaN(date.getTime()) || date < cutoff) continue
+      const open = parseFloat(parts[1]!)
+      const high = parseFloat(parts[2]!)
+      const low = parseFloat(parts[3]!)
+      const close = parseFloat(parts[4]!)
+      const volRaw = parts[5] ? parseFloat(parts[5]) : 0
+      candles.push({
+        date: date.toISOString(),
+        open,
+        high,
+        low,
+        close,
+        volume: Number.isFinite(volRaw) ? Math.max(0, Math.round(volRaw)) : 0,
+      })
+    }
+
+    candles.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    return filterValidCandles(candles)
+  } catch {
+    return []
+  }
+}
+
+export async function fetchStockCandlesWithFallback(
+  ticker: string,
+  range: CandleRange,
+  options: { alphaKey?: string; finnhubKey?: string },
+): Promise<PriceCandle[]> {
+  const sym = ticker.trim().toUpperCase()
+  if (!sym) return []
+
+  if (options.alphaKey) {
+    const av = await fetchStockCandles(sym, options.alphaKey, range)
+    if (av.length > 0) return av
+  }
+
+  if (options.finnhubKey) {
+    const fh = await fetchFinnhubStockCandles(sym, options.finnhubKey, range)
+    if (fh.length > 0) return fh
+  }
+
+  const yh = await fetchYahooFinanceCandles(sym, range)
+  if (yh.length > 0) return yh
+
+  const st = await fetchStooqDailyCandles(sym, range)
+  if (st.length > 0) return st
+
+  return []
 }
 
 function parseAlphaVantageDate(raw: string): string {

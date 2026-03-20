@@ -98,7 +98,11 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
 
   const bullishCount = stocks.filter((s) => s.prediction?.direction === "bullish").length
   const bearishCount = stocks.filter((s) => s.prediction?.direction === "bearish").length
-  const neutralCount = stocks.filter((s) => s.prediction?.direction === "neutral").length
+  // Include no prediction yet so cards reflect the full list (bullish + bearish + neutral === stocks.length)
+  const neutralCount = stocks.filter((s) => {
+    const d = s.prediction?.direction
+    return d !== "bullish" && d !== "bearish"
+  }).length
 
   return (
     <main className="min-h-screen pt-15 p-4 pb-8 bg-background">
@@ -141,6 +145,11 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
             <p className="text-xs text-muted-foreground">Bearish</p>
           </div>
         </div>
+        {stocks.some((s) => s.prediction == null) && (
+          <p className="text-xs text-muted-foreground text-center -mt-3 mb-6">
+            Neutral includes stocks still awaiting sentiment analysis
+          </p>
+        )}
 
         <Tabs
           defaultValue={initialTab}
