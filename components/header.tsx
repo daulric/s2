@@ -133,13 +133,7 @@ export function Header() {
           <DropdownMenuLabel>Stocks</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem>
-              <Link href="/stocks" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
-                <TrendingUp className="h-4 w-4" />
-                <span>All Stocks</span>
-              </Link>
-            </DropdownMenuItem>
-            {user && (
+          {user && (
               <DropdownMenuItem>
                 <Link href="/stocks?tab=watchlist" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
                   <Star className="h-4 w-4" />
@@ -147,6 +141,12 @@ export function Header() {
                 </Link>
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem>
+              <Link href="/stocks" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                <TrendingUp className="h-4 w-4" />
+                <span>All Stocks</span>
+              </Link>
+            </DropdownMenuItem>
           </DropdownMenuGroup>
         </NavDropdown>
 

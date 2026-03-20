@@ -27,9 +27,18 @@ function getApiKey(): string {
   return process.env.NEXT_PUBLIC_FINNHUB_API_KEY ?? ""
 }
 
+function clearReconnectTimer() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+}
+
 function connect() {
   const apiKey = getApiKey()
   if (!apiKey) return
+  /** Avoid opening a socket after the user left (reconnect timer fired with 0 tickers). */
+  if (subscribedTickers.size === 0) return
 
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
     return
@@ -62,13 +71,15 @@ function connect() {
       }
 
       for (const [symbol, update] of tradesBySymbol) {
+        if (!subscribedTickers.has(symbol)) continue
+
+        const subs = subscribers.get(symbol)
+        if (!subs?.size) continue
+
         const priceSignal = latestPrices.get(symbol)
         if (priceSignal) priceSignal.value = update
 
-        const subs = subscribers.get(symbol)
-        if (subs) {
-          for (const cb of subs) cb(update)
-        }
+        for (const cb of subs) cb(update)
       }
     } catch {
       // malformed message
@@ -123,6 +134,8 @@ function unsubscribeTicker(ticker: string) {
   }
 
   if (subscribedTickers.size === 0 && ws) {
+    clearReconnectTimer()
+    reconnectAttempts = 0
     ws.close()
     ws = null
     wsReady = false
@@ -146,6 +159,32 @@ function removeSubscriber(ticker: string, cb: Subscriber) {
       unsubscribeTicker(ticker)
     }
   }
+}
+
+/** Call when leaving `/stocks/*` — closes WS, clears subs, stops reconnects. */
+export function shutdownAllStockFeeds(): void {
+  clearReconnectTimer()
+  reconnectAttempts = 0
+  subscribers.clear()
+  subscribedTickers.clear()
+
+  const socket = ws
+  ws = null
+  wsReady = false
+
+  if (socket) {
+    socket.onopen = null
+    socket.onmessage = null
+    socket.onerror = null
+    socket.onclose = null
+    try {
+      socket.close()
+    } catch {
+      /* ignore */
+    }
+  }
+
+  latestPrices.clear()
 }
 
 export function useStockFeed(ticker: string, onUpdate?: (update: TradeUpdate) => void) {

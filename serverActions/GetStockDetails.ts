@@ -11,7 +11,7 @@ import type {
   UserWatchlistEntry,
   PriceCandle,
 } from "@/lib/stocks/types"
-import { fetchStockCandles, type CandleRange } from "@/lib/stocks/api"
+import { fetchStockCandlesWithFallback, type CandleRange } from "@/lib/stocks/api"
 import { SupabaseClient } from "@supabase/supabase-js"
 
 export async function GetAllStocks(): Promise<StockWithPrediction[]> {
@@ -117,11 +117,12 @@ export async function GetStockDetail(ticker: string): Promise<StockDetail | null
     }
   }
 
-  let candles: PriceCandle[] = []
   const alphaKey = process.env.ALPHAVANTAGE_API_KEY
-  if (alphaKey) {
-    candles = await fetchStockCandles(ticker.toUpperCase(), alphaKey, "1M")
-  }
+  const finnhubKey = process.env.FINNHUB_API_KEY
+  const candles =
+    alphaKey || finnhubKey
+      ? await fetchStockCandlesWithFallback(ticker.toUpperCase(), "3M", { alphaKey, finnhubKey })
+      : []
 
   return {
     ...(stock as Stock),
@@ -139,9 +140,10 @@ export async function GetStockCandles(
   ticker: string,
   range: CandleRange,
 ): Promise<PriceCandle[]> {
-  const alphaKey = process.env.ALPHAVANTAGE_API_KEY
-  if (!alphaKey) return []
-  return fetchStockCandles(ticker.toUpperCase(), alphaKey, range)
+  return fetchStockCandlesWithFallback(ticker.toUpperCase(), range, {
+    alphaKey: process.env.ALPHAVANTAGE_API_KEY,
+    finnhubKey: process.env.FINNHUB_API_KEY,
+  })
 }
 
 export async function GetUserWatchlist(): Promise<UserWatchlistEntry[]> {

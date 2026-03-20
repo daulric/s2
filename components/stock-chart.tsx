@@ -29,6 +29,9 @@ type StockChartProps = {
   priceChangePct: number | null
 }
 
+/** Keep in sync with `GetStockDetail` initial candle range. */
+const DEFAULT_CHART_RANGE: CandleRange = "3M"
+
 const RANGES: { label: string; value: CandleRange }[] = [
   { label: "1D", value: "1D" },
   { label: "1W", value: "1W" },
@@ -98,7 +101,7 @@ function CustomTooltip({ active, payload, label, range }: {
 export function StockChart({ ticker, initialCandles, priceChangePct }: StockChartProps) {
   useSignals()
 
-  const activeRange = useSignal<CandleRange>("1M")
+  const activeRange = useSignal<CandleRange>(DEFAULT_CHART_RANGE)
   const candles = useSignal<PriceCandle[]>(initialCandles)
   const loading = useSignal(false)
   const showVolume = useSignal(true)
@@ -106,14 +109,18 @@ export function StockChart({ ticker, initialCandles, priceChangePct }: StockChar
   const isLive = useSignal(false)
 
   const throttleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mountedRef = useRef(true)
+  const candleFetchSeq = useRef(0)
 
   const latestTrade = useStockFeed(ticker, useCallback((update: TradeUpdate) => {
+    if (!mountedRef.current) return
     livePrice.value = update.price
     isLive.value = true
 
     if (throttleRef.current) return
     throttleRef.current = setTimeout(() => {
       throttleRef.current = null
+      if (!mountedRef.current) return
 
       const current = candles.value
       if (current.length === 0) return
@@ -150,24 +157,56 @@ export function StockChart({ ticker, initialCandles, priceChangePct }: StockChar
   }, [candles, activeRange, livePrice, isLive]))
 
   useEffect(() => {
+    mountedRef.current = true
     return () => {
-      if (throttleRef.current) clearTimeout(throttleRef.current)
+      mountedRef.current = false
+      if (throttleRef.current) {
+        clearTimeout(throttleRef.current)
+        throttleRef.current = null
+      }
     }
   }, [])
+
+  /** If the server returned no candles (e.g. AV throttled), load the default range on mount. */
+  useEffect(() => {
+    if (initialCandles.length > 0) return
+
+    let cancelled = false
+    loading.value = true
+    GetStockCandles(ticker, DEFAULT_CHART_RANGE)
+      .then((data) => {
+        if (!cancelled) candles.value = data
+      })
+      .catch(() => {
+        /* keep [] */
+      })
+      .finally(() => {
+        if (!cancelled) loading.value = false
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [ticker, initialCandles.length])
 
   const handleRangeChange = useCallback(async (range: CandleRange) => {
     if (range === activeRange.value) return
     activeRange.value = range
+    const seq = ++candleFetchSeq.current
     loading.value = true
     try {
       const data = await GetStockCandles(ticker, range)
+      if (seq !== candleFetchSeq.current || !mountedRef.current) return
       candles.value = data
     } catch {
-      // keep existing data
+      if (seq !== candleFetchSeq.current || !mountedRef.current) return
+      candles.value = []
     } finally {
-      loading.value = false
+      if (seq === candleFetchSeq.current && mountedRef.current) {
+        loading.value = false
+      }
     }
-  }, [ticker, activeRange, loading, candles])
+  }, [ticker])
 
   const chartData = candles.value.map((c) => ({
     date: c.date,
@@ -250,8 +289,9 @@ export function StockChart({ ticker, initialCandles, priceChangePct }: StockChar
             No price data available.
           </div>
         ) : (
-          <div>
-            <ResponsiveContainer width="100%" height={300}>
+          <div className="w-full min-w-0">
+            <div className="h-[300px] w-full min-h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -304,9 +344,11 @@ export function StockChart({ ticker, initialCandles, priceChangePct }: StockChar
                 />
               </AreaChart>
             </ResponsiveContainer>
+            </div>
 
             {showVolume.value && (
-              <ResponsiveContainer width="100%" height={80}>
+              <div className="mt-2 h-20 w-full min-h-20">
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 0, right: 5, left: 0, bottom: 0 }}>
                   <XAxis dataKey="date" hide />
                   <YAxis hide />
@@ -320,6 +362,7 @@ export function StockChart({ ticker, initialCandles, priceChangePct }: StockChar
                   />
                 </BarChart>
               </ResponsiveContainer>
+              </div>
             )}
           </div>
         )}
