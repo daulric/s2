@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { Button } from "./ui/button"
-import { Card, CardContent } from "./ui/card"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Play } from "lucide-react"
 import Image from "next/image"
 

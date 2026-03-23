@@ -189,7 +189,10 @@ export function shutdownAllStockFeeds(): void {
 
 export function useStockFeed(ticker: string, onUpdate?: (update: TradeUpdate) => void) {
   const callbackRef = useRef(onUpdate)
-  callbackRef.current = onUpdate
+
+  useEffect(() => {
+    callbackRef.current = onUpdate
+  }, [onUpdate])
 
   useEffect(() => {
     const cb: Subscriber = (update) => {
@@ -208,7 +211,10 @@ export function useStockFeed(ticker: string, onUpdate?: (update: TradeUpdate) =>
 
 export function useStockFeedMulti(tickers: string[], onUpdate?: (ticker: string, update: TradeUpdate) => void) {
   const callbackRef = useRef(onUpdate)
-  callbackRef.current = onUpdate
+
+  useEffect(() => {
+    callbackRef.current = onUpdate
+  }, [onUpdate])
 
   useEffect(() => {
     const cbs = new Map<string, Subscriber>()
@@ -226,7 +232,7 @@ export function useStockFeedMulti(tickers: string[], onUpdate?: (ticker: string,
         removeSubscriber(ticker, cb)
       }
     }
-  }, [tickers.join(",")])
+  }, [tickers])
 
   const result = useCallback((ticker: string) => {
     if (!latestPrices.has(ticker)) {

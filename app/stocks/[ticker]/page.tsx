@@ -1,4 +1,4 @@
-import { Metadata } from "next"
+import type { Metadata } from "next"
 import { Suspense } from "react"
 import { notFound } from "next/navigation"
 import Loading from "@/app/loading"
@@ -32,7 +32,6 @@ async function StockContent({ params }: { params: Promise<{ ticker: string }> })
   return <StockDetailPage detail={detail} isWatched={isWatched} />
 }
 
-/** Sync shell + Suspense so `await params` and cookie-backed fetches run inside the boundary (Next.js PPR). */
 export default function PAGE({ params }: Props) {
   return (
     <Suspense fallback={<Loading />}>

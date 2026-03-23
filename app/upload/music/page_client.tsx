@@ -1,7 +1,7 @@
 "use client"
 
 import { Music, Video } from "lucide-react"
-import { UploadForm, type UploadConfig } from "@/components/upload-form"
+import { UploadForm, type UploadConfig } from "@/components/media"
 import { uploadAudio } from "@/app/upload/MediaManager"
 
 export default function UploadMusicPage() {

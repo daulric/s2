@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import converttoVideo, { type VideoData } from "@/lib/videos/data-to-video-format"
 import type { SupabaseClient } from "@supabase/supabase-js"
-import type { ShortVideoData } from "@/components/scrolling-video/types"
+import type { ShortVideoData } from "@/components/video"
 
 export async function GetShortsData(): Promise<ShortVideoData[]> {
   const supabase = (await createClient()) as SupabaseClient

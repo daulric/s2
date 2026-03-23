@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react"
 import { useSignal } from "@preact/signals-react"
 import { useAuth } from "@/context/AuthProvider"
 import converttoVideo, { type VideoData } from "@/lib/videos/data-to-video-format"
-import type { ShortVideoData } from "@/components/scrolling-video/types"
+import type { ShortVideoData } from "@/components/video"
 
 export function useShorts(initialData?: ShortVideoData[]) {
   const auth = useAuth()

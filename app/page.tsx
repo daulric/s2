@@ -1,4 +1,4 @@
-import { HomeLandingClient } from "@/components/home-landing-client"
+import { HomeLandingClient } from "@/components/home"
 
 /** Hero is sync server output; auth + CTAs are client-only (no Supabase on the critical path). */
 export default function Home() {

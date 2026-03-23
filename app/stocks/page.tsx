@@ -28,7 +28,11 @@ async function StocksContent({ initialTab }: { initialTab: string }) {
   )
 }
 
-export default async function PAGE({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+export default async function PAGE({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>
+}) {
   const { tab } = await searchParams
   const initialTab = ["all", "movers", "watchlist"].includes(tab ?? "") ? tab! : "all"
 

@@ -3,7 +3,7 @@
 import { useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
-import { StockCard } from "@/components/stock-card"
+import { StockCard, UsMarketStatusBadge } from "@/components/stocks"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -18,6 +18,10 @@ import {
 import { cn } from "@/lib/utils"
 import { ToggleWatchlist } from "@/serverActions/GetStockDetails"
 import type { StockWithPrediction } from "@/lib/stocks/types"
+
+function listDisplayDirection(s: StockWithPrediction): "bullish" | "bearish" | "neutral" {
+  return s.prediction?.direction ?? s.article_majority_direction ?? "neutral"
+}
 import { useAuth } from "@/context/AuthProvider"
 import { toast } from "sonner"
 
@@ -88,7 +92,10 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
     .sort((a, b) => {
       if (sortBy.value === "ticker") return a.ticker.localeCompare(b.ticker)
       if (sortBy.value === "change") return (b.price_change_pct ?? 0) - (a.price_change_pct ?? 0)
-      return Math.abs(b.prediction?.score ?? 0) - Math.abs(a.prediction?.score ?? 0)
+      return (
+        Math.abs(b.prediction?.score ?? b.sentiment_avg ?? 0) -
+        Math.abs(a.prediction?.score ?? a.sentiment_avg ?? 0)
+      )
     })
 
   const filteredStocks = allFilteredStocks.slice(0, visibleCount.value)
@@ -96,19 +103,18 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
 
   const watchedStocks = stocks.filter((s) => watchlist.value.has(s.ticker))
 
-  const bullishCount = stocks.filter((s) => s.prediction?.direction === "bullish").length
-  const bearishCount = stocks.filter((s) => s.prediction?.direction === "bearish").length
-  // Include no prediction yet so cards reflect the full list (bullish + bearish + neutral === stocks.length)
-  const neutralCount = stocks.filter((s) => {
-    const d = s.prediction?.direction
-    return d !== "bullish" && d !== "bearish"
-  }).length
+  const bullishCount = stocks.filter((s) => listDisplayDirection(s) === "bullish").length
+  const bearishCount = stocks.filter((s) => listDisplayDirection(s) === "bearish").length
+  const neutralCount = stocks.filter((s) => listDisplayDirection(s) === "neutral").length
 
   return (
     <main className="min-h-screen pt-15 p-4 pb-8 bg-background">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">stock predictions</h1>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="text-3xl font-bold">stock predictions</h1>
+            <UsMarketStatusBadge />
+          </div>
           <p className="text-muted-foreground mt-1">news-driven sentiment analysis across {stocks.length.toLocaleString()} stocks</p>
         </div>
 
@@ -145,9 +151,9 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
             <p className="text-xs text-muted-foreground">Bearish</p>
           </div>
         </div>
-        {stocks.some((s) => s.prediction == null) && (
+        {stocks.some((s) => s.article_count === 0 && s.prediction == null) && (
           <p className="text-xs text-muted-foreground text-center -mt-3 mb-6">
-            Neutral includes stocks still awaiting sentiment analysis
+            Neutral includes stocks with no scored news yet
           </p>
         )}
 

@@ -1,6 +1,6 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js"
 import converttoVideo, { type VideoData } from "@/lib/videos/data-to-video-format"
-import type { ShortVideoData } from "@/components/scrolling-video/types"
+import type { ShortVideoData } from "@/components/video"
 
 const parsed = Number(process.env.NEXT_PUBLIC_SHORTS_FEED_PAGE_SIZE)
 

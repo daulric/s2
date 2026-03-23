@@ -2,7 +2,7 @@
 
 //import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card" //future use
 import { useAuth } from "@/context/AuthProvider"
-import { VideoCard } from "@/components/video-card"
+import { VideoCard } from "@/components/video"
 import { VideoInfoProps } from "@/lib/videos/data-to-video-format";
 
 export default function HomePage({videos}: { videos: VideoInfoProps[] }) {

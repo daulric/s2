@@ -3,7 +3,7 @@
 import { Upload, Music } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { UploadForm, type UploadConfig } from "@/components/upload-form"
+import { UploadForm, type UploadConfig } from "@/components/media"
 import { compressAndUpload } from "./MediaManager"
 import { categories } from "@/lib/videos/details"
 import captureThumbnail from "@/lib/videos/captureThumbnail"

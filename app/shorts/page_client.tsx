@@ -5,9 +5,13 @@ import { useSignals } from "@preact/signals-react/runtime"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useShorts } from "@/hooks/use-shorts"
-import { ShortsFeed } from "@/components/scrolling-video/shorts-feed"
-import { ShortsEmpty, HideHeader, ShortsLoading } from "@/components/scrolling-video/shorts-overlay"
-import type { ShortVideoData } from "@/components/scrolling-video/types"
+import {
+  HideHeader,
+  ShortsEmpty,
+  ShortsFeed,
+  ShortsLoading,
+  type ShortVideoData,
+} from "@/components/video"
 import { isStandaloneDisplay } from "@/lib/user/use-pwa"
 
 interface ShortsClientProps {
@@ -27,7 +31,7 @@ export default function ShortsClient({ initialData }: ShortsClientProps) {
     } else {
       router.replace("/install-app")
     }
-  }, [router])
+  }, [router, shortsAllowed])
 
   if (!shortsAllowed.value) {
     return <ShortsLoading />

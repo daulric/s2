@@ -30,7 +30,7 @@ import {
   DialogTitle, 
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { VideoCard } from "@/components/video-card"
+import { VideoCard } from "@/components/video"
 import { useAuth } from "@/context/AuthProvider"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
 import upsert from "@/lib/supabase/upsert"
@@ -57,15 +57,13 @@ const keyboardShortcuts = [
   { key: "L", action: "Forward 10 seconds" },
 ]
 
-export default function VideoPage({
-  videoData,
-  trendingVideos,
-  newVideos,
-}: {
+type VideoPageProps = {
   videoData: VideoInfoProps
   trendingVideos: VideoInfoProps[]
   newVideos: VideoInfoProps[]
-}) {
+}
+
+export default function VideoPage({ videoData, trendingVideos, newVideos }: VideoPageProps) {
   useSignals();
   const { user: { user }, supabase } = useAuth();
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -92,9 +90,17 @@ export default function VideoPage({
   const isFullscreen = useSignal(false);
   const { canShare, share } = useBrowserShare()
   
-  // Video Data
+
   const video_url = useSignal<string | null>(null);
   const thumbnail_url = useSignal<string | null>(null);
+  
+  const blobUrlsRef = useRef<{ video: string | null; thumb: string | null }>({
+    video: null,
+    thumb: null,
+  })
+  
+  const playbackSignalsRef = useRef({ video_url, thumbnail_url, isPlaying })
+  playbackSignalsRef.current = { video_url, thumbnail_url, isPlaying }
 
   const getVideoBlobs = useCallback(async () => {
     return Promise.all([
@@ -159,6 +165,8 @@ export default function VideoPage({
 
   useEffect(() => {
     let cancelled = false
+    const { video_url: videoUrlSig, thumbnail_url: thumbUrlSig, isPlaying: isPlayingSig } =
+      playbackSignalsRef.current
 
     const releasePlayback = () => {
       const el = videoRef.current
@@ -171,7 +179,7 @@ export default function VideoPage({
         el.srcObject = null
         el.load()
       }
-      isPlaying.value = false
+      isPlayingSig.value = false
 
       if (typeof document !== "undefined") {
         if (document.pictureInPictureElement) {
@@ -182,15 +190,17 @@ export default function VideoPage({
         }
       }
 
-      const v = video_url.value
-      const t = thumbnail_url.value
+      const v = blobUrlsRef.current.video
+      const t = blobUrlsRef.current.thumb
       if (v) {
         URL.revokeObjectURL(v)
-        video_url.value = null
+        blobUrlsRef.current.video = null
+        videoUrlSig.value = null
       }
       if (t) {
         URL.revokeObjectURL(t)
-        thumbnail_url.value = null
+        blobUrlsRef.current.thumb = null
+        thumbUrlSig.value = null
       }
     }
 
@@ -202,8 +212,11 @@ export default function VideoPage({
           if (thumb) URL.revokeObjectURL(thumb)
           return
         }
-        video_url.value = vid
-        thumbnail_url.value = thumb
+        blobUrlsRef.current.video = vid
+        blobUrlsRef.current.thumb = thumb
+        const { video_url: vu, thumbnail_url: tu } = playbackSignalsRef.current
+        vu.value = vid
+        tu.value = thumb
       })
     }
 
@@ -211,7 +224,6 @@ export default function VideoPage({
       cancelled = true
       releasePlayback()
     }
-
   }, [videoData, getVideoBlobs, video_data_signal])
 
   useEffect(() => {
@@ -251,8 +263,8 @@ export default function VideoPage({
 
   const togglePlay = useCallback(() => {
     isPlaying.value = !isPlaying.value;
-   trigger("light");
-  }, [isPlaying]);
+    trigger("light");
+  }, [isPlaying, trigger]);
 
   const toggleMute = useCallback(() => {
     isMuted.value = !isMuted.value;
@@ -261,7 +273,7 @@ export default function VideoPage({
     } else {
       trigger("success");
     }
-  }, [isMuted])
+  }, [isMuted, trigger])
 
   const toggleFullscreen = useCallback(() => {
     const container = containerRef.current;
@@ -291,7 +303,7 @@ export default function VideoPage({
         isFullscreen.value = false
       }
     }
-  }, [isFullscreen])
+  }, [isFullscreen, trigger])
 
   const seekBackward = useCallback(() => {
     if (videoRef.current) {
@@ -302,7 +314,7 @@ export default function VideoPage({
       trigger("light");
       toast.info("-10 seconds", { duration: 1000 })
     }
-  }, [isPlaying])
+  }, [isPlaying, trigger])
 
   const seekForward = useCallback(() => {
     if (videoRef.current) {
@@ -313,7 +325,7 @@ export default function VideoPage({
       trigger("light");
       toast.info("+10 seconds", { duration: 1000 })
     }
-  }, [isPlaying])
+  }, [isPlaying, trigger])
 
   const increaseVolume = useCallback(() => {
     if (isMuted.value) {
@@ -326,7 +338,7 @@ export default function VideoPage({
       volume.value = Math.min(1, volume.value + 0.1);
     }
 
-  }, [isMuted, volume])
+  }, [isMuted, volume, trigger])
 
   const decreaseVolume = useCallback(() => {
     volume.value = Math.max(0, volume.value - 0.1);
@@ -337,7 +349,7 @@ export default function VideoPage({
       trigger("nudge");
     }
 
-  }, [volume, isMuted])
+  }, [volume, isMuted, trigger])
 
   // Effect to set up keyboard controls
   useEffect(() => {

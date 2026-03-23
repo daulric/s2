@@ -3,9 +3,12 @@ import { createClient } from "@/lib/supabase/server"
 import { SupabaseClient } from "@supabase/supabase-js"
 import {
   fetchAlphaVantageNewsSentiment,
+  fetchFinnhubCompanyNews,
   fetchFinnhubQuote,
   computePrediction,
 } from "@/lib/stocks/api"
+import { persistFinnhubArticlesIfNew } from "@/lib/stocks/persist-stock-articles"
+import { backfillArticleSentimentsForTickers } from "@/lib/stocks/backfill-article-sentiments"
 
 const BATCH_SIZE = 5
 const BATCH_DELAY_MS = 15_000
@@ -98,6 +101,21 @@ export async function GET(req: NextRequest) {
           })
         }
       }
+
+      for (const ticker of batch) {
+        try {
+          const finnhubNews = await fetchFinnhubCompanyNews(ticker, finnhubKey, 7)
+          await persistFinnhubArticlesIfNew(supabase, ticker.toUpperCase(), finnhubNews)
+        } catch {
+          // Finnhub or persist failed for this ticker
+        }
+      }
+
+      await backfillArticleSentimentsForTickers(
+        supabase,
+        batch.map((t) => t.toUpperCase()),
+        alphaKey,
+      )
 
       for (const ticker of batch) {
         const { data: recentSentiments } = await supabase

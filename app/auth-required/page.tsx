@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ModeToggle } from "@/components/mode-toggle"
+import { ModeToggle } from "@/components/layout"
 import { Shield, UserPlus, Star, LineChart, Bell } from "lucide-react"
 import { Metadata } from "next"
 import { cn } from "@/lib/utils"

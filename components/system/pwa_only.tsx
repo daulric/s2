@@ -26,7 +26,7 @@ export function NonPwaOnly({
       return
     }
     ready.value = true
-  }, [router, redirectHref])
+  }, [router, redirectHref, ready])
 
   if (!ready.value) return fallback
   return <>{children}</>

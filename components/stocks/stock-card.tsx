@@ -5,17 +5,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp, TrendingDown, Minus, Newspaper } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { StockSparkline } from "@/components/stock-sparkline"
+import { StockSparkline } from "./stock-sparkline"
 import type { StockWithPrediction } from "@/lib/stocks/types"
+import { formatStockPriceUsd } from "@/lib/stocks/format-stock-price"
 
 type StockCardProps = {
   stock: StockWithPrediction
   compact?: boolean
-}
-
-function formatPrice(price: number | null): string {
-  if (price === null) return "—"
-  return `$${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 function formatChangePct(pct: number | null): string {
@@ -54,9 +50,11 @@ const directionConfig = {
 
 export function StockCard({ stock, compact = false }: StockCardProps) {
   const prediction = stock.prediction
-  const direction = prediction?.direction ?? "neutral"
+  const direction =
+    prediction?.direction ?? stock.article_majority_direction ?? "neutral"
   const config = directionConfig[direction]
   const DirectionIcon = config.icon
+  const listScore = prediction?.score ?? stock.sentiment_avg
 
   if (compact) {
     return (
@@ -72,7 +70,7 @@ export function StockCard({ stock, compact = false }: StockCardProps) {
                 <span className="text-xs text-muted-foreground truncate">{stock.name}</span>
               </div>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs">{formatPrice(stock.last_price)}</span>
+                <span className="text-xs">{formatStockPriceUsd(stock.last_price, "list")}</span>
                 <span className={cn("text-xs", stock.price_change_pct && stock.price_change_pct >= 0 ? "text-emerald-500" : "text-red-500")}>
                   {formatChangePct(stock.price_change_pct)}
                 </span>
@@ -86,10 +84,10 @@ export function StockCard({ stock, compact = false }: StockCardProps) {
                 positive={(stock.price_change_pct ?? 0) >= 0}
               />
             </div>
-            {prediction && (
+            {listScore != null && (
               <div className="text-right shrink-0">
                 <Badge variant="outline" className={cn("text-xs", config.color, config.border)}>
-                  {formatScore(prediction.score)}
+                  {formatScore(listScore)}
                 </Badge>
               </div>
             )}
@@ -114,7 +112,7 @@ export function StockCard({ stock, compact = false }: StockCardProps) {
           </div>
 
           <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-xl font-bold">{formatPrice(stock.last_price)}</span>
+            <span className="text-xl font-bold">{formatStockPriceUsd(stock.last_price, "list")}</span>
             <span className={cn(
               "text-sm font-medium",
               stock.price_change_pct && stock.price_change_pct >= 0 ? "text-emerald-500" : "text-red-500",
@@ -132,7 +130,7 @@ export function StockCard({ stock, compact = false }: StockCardProps) {
             />
           </div>
 
-          {prediction && (
+          {(prediction || listScore != null) && (
             <div className={cn("rounded-lg p-2.5 mb-3", config.bg)}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
@@ -140,15 +138,17 @@ export function StockCard({ stock, compact = false }: StockCardProps) {
                   <span className={cn("text-sm font-medium", config.color)}>{config.label}</span>
                 </div>
                 <span className={cn("text-sm font-bold", config.color)}>
-                  {formatScore(prediction.score)}
+                  {formatScore(listScore ?? 0)}
                 </span>
               </div>
               <div className="flex items-center justify-between mt-1">
                 <span className="text-xs text-muted-foreground">
-                  Confidence: {(prediction.confidence * 100).toFixed(0)}%
+                  {prediction
+                    ? `Confidence: ${(prediction.confidence * 100).toFixed(0)}%`
+                    : `${stock.article_count} scored article${stock.article_count === 1 ? "" : "s"}`}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {prediction.timeframe}
+                  {prediction?.timeframe ?? "from news"}
                 </span>
               </div>
             </div>

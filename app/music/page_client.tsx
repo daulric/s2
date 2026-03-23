@@ -3,7 +3,7 @@
 import { useRef, useCallback, useEffect } from "react"
 import { OfflineAudioContext } from "standardized-audio-context"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
-import { MusicTile, type MusicTrack } from "@/components/music-tile"
+import { MusicTile, type MusicTrack } from "@/components/music"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import {
@@ -340,6 +340,8 @@ export default function MusicPage({ audios, selectedId }: MusicPageProps) {
 
   useEffect(() => {
     let cancelled = false
+    const audioEl = audioRef.current
+    const blobCache = blobUrlCacheRef.current
     const preloadBlobs = async () => {
       if (isSafariBrowser) return
       for (const track of tracks.value) {
@@ -357,12 +359,12 @@ export default function MusicPage({ audios, selectedId }: MusicPageProps) {
     return () => {
       cancelled = true
       cancelAnimationFrame(rafRef.current)
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.src = ""
+      if (audioEl) {
+        audioEl.pause()
+        audioEl.src = ""
       }
-      blobUrlCacheRef.current.forEach((url) => URL.revokeObjectURL(url))
-      blobUrlCacheRef.current.clear()
+      blobCache.forEach((url) => URL.revokeObjectURL(url))
+      blobCache.clear()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSafariBrowser])
@@ -507,7 +509,7 @@ export default function MusicPage({ audios, selectedId }: MusicPageProps) {
         })
       }
     },
-    [activeTrack, supabase, isSafariBrowser, isMuted, volume, incrementListens, isPlaying, isLoading, progress, currentTime, startPlayback]
+    [activeTrack, isSafariBrowser, isMuted, volume, incrementListens, isPlaying, isLoading, progress, currentTime, startPlayback]
   )
 
   useEffect(() => {
@@ -573,7 +575,7 @@ export default function MusicPage({ audios, selectedId }: MusicPageProps) {
 
   return (
     <main className="min-h-screen pt-15 p-4 pb-28 bg-background">
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      { }
       <audio
         ref={audioRef}
         playsInline
