@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import { useSignals } from "@preact/signals-react/runtime"
 import { useAuth } from "@/context/AuthProvider"
 import type { ShortVideoData } from "./types"
+import { useBrowserShare } from "@/lib/user/use-browser-share"
 
 type ShortsControlsProps = {
   short: ShortVideoData
@@ -24,7 +25,7 @@ export function ShortsControls({ short, currentUser, onInteraction, alwaysVisibl
   useSignals()
   const auth = useAuth()
   const supabase = auth?.supabase
-
+  const { canShare, share } = useBrowserShare()
   const isLiked = useSignal(short.is_liked ?? false)
   const likeCount = useSignal(short.likes ?? 0)
   const isUpdating = useRef(false)
@@ -87,12 +88,28 @@ export function ShortsControls({ short, currentUser, onInteraction, alwaysVisibl
     toast.info("Comments feature coming soon!")
   }*/
 
-  const handleShare = (e: React.MouseEvent) => {
+  const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation()
     onInteraction?.()
 
-    navigator.clipboard.writeText(globalThis.location.origin + `/video/${short.id}`)
-    toast.success("Link copied to clipboard")
+    if (!canShare.value) {
+      toast.error("Share not supported", {
+        description: "Please share this video with your friends",
+      })
+      return
+    }
+
+    const result = await share({
+      title: short.title,
+      text: short.description,
+      url: globalThis.location.origin + `/video/${short.id}`,
+    })
+
+    if (result === "shared") {
+      toast.success("Video Shared", {
+        description: "Share this video with your friends",
+      })
+    }
   }
 
   const handleMore = (e: React.MouseEvent) => {
