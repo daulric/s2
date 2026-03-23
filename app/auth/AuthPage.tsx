@@ -13,9 +13,15 @@ import { ModeToggle } from "@/components/layout"
 import { useAuth } from "@/context/AuthProvider"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import Script from "next/script"
 import { useSignal, useSignals } from "@preact/signals-react/runtime"
 import { Provider } from "@supabase/supabase-js"
-import { Turnstile } from "@marsidev/react-turnstile"
+import {
+  Turnstile,
+  DEFAULT_ONLOAD_NAME,
+  DEFAULT_SCRIPT_ID,
+  SCRIPT_URL,
+} from "@marsidev/react-turnstile"
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
 import { useWebHaptics } from "web-haptics/react"
 
@@ -35,6 +41,9 @@ export default function AuthPage() {
     user: { user },
     oauth,
   } = useAuth()
+
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY ?? ""
+  const turnstileScriptSrc = `${SCRIPT_URL}?onload=${DEFAULT_ONLOAD_NAME}&render=explicit`
 
   useEffect(() => {
     if (user) {
@@ -146,10 +155,23 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* Cloudflare Turnstile */}
-            {!otpSent.value && (
-               <Turnstile siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || ""} onSuccess={(token) => turnstileToken.value = token} />
-            )}
+            {/* Cloudflare Turnstile — script via next/script (React 19 warns on <script> inside components) */}
+            {!otpSent.value && turnstileSiteKey ? (
+              <>
+                <Script
+                  id={DEFAULT_SCRIPT_ID}
+                  src={turnstileScriptSrc}
+                  strategy="afterInteractive"
+                />
+                <Turnstile
+                  injectScript={false}
+                  siteKey={turnstileSiteKey}
+                  onSuccess={(token) => {
+                    turnstileToken.value = token
+                  }}
+                />
+              </>
+            ) : null}
 
             <Button type="submit" className="w-full" disabled={isLoading.value || (!otpSent && !turnstileToken.value)}>
               {isLoading.value ? "Loading..." : (otpSent.value ? "Verify" : "Send Code")}

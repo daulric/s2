@@ -87,6 +87,15 @@ async function scoreUnscoredArticlesForTicker(
   let alphaMatches = 0
   const L = lookup ?? { byHeadline: new Map<string, SentPayload>(), byUrl: new Map<string, SentPayload>() }
 
+  const alphaBatch: {
+    article_id: string
+    ticker: string
+    sentiment_score: number
+    sentiment_label: "bullish" | "bearish" | "neutral"
+    confidence: number
+    model_used: string
+  }[] = []
+
   for (const art of stockArticles ?? []) {
     if (scoredSet.has(art.id)) continue
 
@@ -95,7 +104,7 @@ async function scoreUnscoredArticlesForTicker(
       (fromUrl ? L.byUrl.get(fromUrl) : undefined) ?? L.byHeadline.get(normalizeHeadline(art.headline))
 
     if (match) {
-      const { error } = await supabase.from("article_sentiments").insert({
+      alphaBatch.push({
         article_id: art.id,
         ticker: tickerUpper,
         sentiment_score: match.score,
@@ -103,17 +112,23 @@ async function scoreUnscoredArticlesForTicker(
         confidence: match.confidence,
         model_used: "alphavantage",
       })
-      if (!error) {
-        scoredSet.add(art.id)
-        alphaMatches += 1
-      }
     }
   }
 
-  let neutralFallback = 0
+  const INSERT_BATCH = 40
+  for (let i = 0; i < alphaBatch.length; i += INSERT_BATCH) {
+    const slice = alphaBatch.slice(i, i + INSERT_BATCH)
+    const { error } = await supabase.from("article_sentiments").insert(slice)
+    if (!error) {
+      alphaMatches += slice.length
+      for (const row of slice) scoredSet.add(row.article_id)
+    }
+  }
+
+  const neutralBatch: typeof alphaBatch = []
   for (const art of stockArticles ?? []) {
     if (scoredSet.has(art.id)) continue
-    const { error } = await supabase.from("article_sentiments").insert({
+    neutralBatch.push({
       article_id: art.id,
       ticker: tickerUpper,
       sentiment_score: 0,
@@ -121,7 +136,13 @@ async function scoreUnscoredArticlesForTicker(
       confidence: 0.25,
       model_used: "fallback_neutral",
     })
-    if (!error) neutralFallback += 1
+  }
+
+  let neutralFallback = 0
+  for (let i = 0; i < neutralBatch.length; i += INSERT_BATCH) {
+    const slice = neutralBatch.slice(i, i + INSERT_BATCH)
+    const { error } = await supabase.from("article_sentiments").insert(slice)
+    if (!error) neutralFallback += slice.length
   }
 
   return { alphaMatches, neutralFallback }

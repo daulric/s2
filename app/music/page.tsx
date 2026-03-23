@@ -1,6 +1,6 @@
 import { Metadata } from "next"
 import { Suspense } from "react"
-import Loading from "@/app/loading"
+import { MediaListPageSkeleton } from "@/components/layout/skeletons"
 import MusicPage from "./page_client"
 import { GetPublicAudios } from "@/serverActions/GetAudioDetails"
 
@@ -18,7 +18,7 @@ export default async function PAGE({ searchParams }: { searchParams: Promise<{ i
     const params = await searchParams
 
     return (
-        <Suspense fallback={<Loading />}>
+        <Suspense fallback={<MediaListPageSkeleton />}>
             <MusicContent selectedId={params.id} />
         </Suspense>
     )

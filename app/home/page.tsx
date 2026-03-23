@@ -2,7 +2,7 @@ import { GetPublicVideos } from "@/serverActions/GetVideoDetails"
 import { notFound as NotFound } from "next/navigation";
 import HomePage from "./home_page"
 import { Suspense } from "react";
-import Loading from "@/app/loading";
+import { HomeFeedSkeleton } from "@/components/layout/skeletons"
 
 export const metadata = {
     title: "s2 - Home",
@@ -19,7 +19,7 @@ async function HomeContent() {
 export default function HOMEPAGE() {
     return (
         <main className="min-h-screen pt-15 p-4 bg-background">
-            <Suspense fallback={<Loading />}>
+            <Suspense fallback={<HomeFeedSkeleton />}>
                 <HomeContent />
             </Suspense>
         </main>

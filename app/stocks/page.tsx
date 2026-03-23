@@ -1,6 +1,6 @@
 import { Metadata } from "next"
 import { Suspense } from "react"
-import Loading from "@/app/loading"
+import { StocksPageSkeleton } from "@/components/layout/skeletons"
 import StocksPage from "./page_client"
 import { GetAllStocks, GetTopMovers, GetUserWatchlist } from "@/serverActions/GetStockDetails"
 
@@ -37,7 +37,7 @@ export default async function PAGE({
   const initialTab = ["all", "movers", "watchlist"].includes(tab ?? "") ? tab! : "all"
 
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<StocksPageSkeleton />}>
       <StocksContent initialTab={initialTab} />
     </Suspense>
   )
