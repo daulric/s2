@@ -92,9 +92,16 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
       const el = videoRef.current
       if (el) {
         el.pause()
+        el.muted = true
+        el.volume = 0
         el.removeAttribute("src")
         el.removeAttribute("poster")
-        el.load()
+        el.srcObject = null
+        try {
+          el.load()
+        } catch {
+          // ignore
+        }
       }
       isPlaying.value = false
     }

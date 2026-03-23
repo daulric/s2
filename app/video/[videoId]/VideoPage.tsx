@@ -164,8 +164,11 @@ export default function VideoPage({
       const el = videoRef.current
       if (el) {
         el.pause()
+        el.muted = true
+        el.volume = 0
         el.removeAttribute("src")
         el.removeAttribute("poster")
+        el.srcObject = null
         el.load()
       }
       isPlaying.value = false
