@@ -158,26 +158,58 @@ export default function VideoPage({
   }, [supabase, videoData, total_likes])
 
   useEffect(() => {
+    let cancelled = false
+
+    const releasePlayback = () => {
+      const el = videoRef.current
+      if (el) {
+        el.pause()
+        el.removeAttribute("src")
+        el.removeAttribute("poster")
+        el.load()
+      }
+      isPlaying.value = false
+
+      if (typeof document !== "undefined") {
+        if (document.pictureInPictureElement) {
+          void document.exitPictureInPicture().catch(() => {})
+        }
+        if (document.fullscreenElement) {
+          void document.exitFullscreen().catch(() => {})
+        }
+      }
+
+      const v = video_url.value
+      const t = thumbnail_url.value
+      if (v) {
+        URL.revokeObjectURL(v)
+        video_url.value = null
+      }
+      if (t) {
+        URL.revokeObjectURL(t)
+        thumbnail_url.value = null
+      }
+    }
+
     if (videoData) {
-      video_data_signal.value = videoData;
+      video_data_signal.value = videoData
       getVideoBlobs().then(([vid, thumb]) => {
-        video_url.value = vid;
-        thumbnail_url.value = thumb;
+        if (cancelled) {
+          if (vid) URL.revokeObjectURL(vid)
+          if (thumb) URL.revokeObjectURL(thumb)
+          return
+        }
+        video_url.value = vid
+        thumbnail_url.value = thumb
       })
     }
 
-    // Cleanup function - only revoke URLs when component unmounts or videoData changes
     return () => {
-      if (video_url.value) {
-        URL.revokeObjectURL(video_url.value)
-        video_url.value = null;
-      }
-      if (thumbnail_url.value) {
-        URL.revokeObjectURL(thumbnail_url.value)
-        thumbnail_url.value = null;
-      }
+      cancelled = true
+      releasePlayback()
     }
-  }, [videoData, getVideoBlobs, thumbnail_url, video_url, video_data_signal]);
+
+  }, [videoData, getVideoBlobs, video_data_signal])
 
   useEffect(() => {
     if (videoData) {

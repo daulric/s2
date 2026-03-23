@@ -86,6 +86,20 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
     }
   }, [isActive, isPlaying])
 
+  // Stop playback when unmounting (e.g. navigating /shorts → /settings)
+  useEffect(() => {
+    return () => {
+      const el = videoRef.current
+      if (el) {
+        el.pause()
+        el.removeAttribute("src")
+        el.removeAttribute("poster")
+        el.load()
+      }
+      isPlaying.value = false
+    }
+  }, [])
+
   useEffect(() => {
     const videoElement = videoRef.current;
     videoElement?.addEventListener("timeupdate", cutDurationHalf);
