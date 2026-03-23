@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { ModeToggle } from "./mode-toggle"
-import { ProfileIcon } from "./profile-icon"
+import { ProfileIcon } from "@/components/profile"
 import { SearchInput } from "./search-input"
 import {
   DropdownMenu,
@@ -13,7 +13,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "./ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu"
 import {
   Upload,
   Shell,

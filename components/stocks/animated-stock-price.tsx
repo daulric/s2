@@ -3,10 +3,7 @@
 import { useEffect, useRef } from "react"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
 import { cn } from "@/lib/utils"
-
-function formatPrice(price: number): string {
-  return `$${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
+import { formatStockPriceUsd } from "@/lib/stocks/format-stock-price"
 
 function easeOutCubic(t: number): number {
   return 1 - (1 - t) ** 3
@@ -85,7 +82,7 @@ export function AnimatedStockPrice({
       clearColorReset()
       cancelAnimationFrame(raf)
     }
-  }, [value, duration, colorHoldMs, display])
+  }, [value, duration, colorHoldMs, display, trend])
 
   if (display.value === null) {
     return <span className={className}>—</span>
@@ -101,7 +98,7 @@ export function AnimatedStockPrice({
         className,
       )}
     >
-      {formatPrice(display.value)}
+      {formatStockPriceUsd(display.value)}
     </span>
   )
 }

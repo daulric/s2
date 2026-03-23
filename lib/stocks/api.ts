@@ -54,6 +54,8 @@ export async function fetchAlphaVantageNewsSentiment(
 
   if (!data.feed) return { articles: [], sentiments: [] }
 
+  const tickerSetUpper = new Set(tickers.map((t) => t.toUpperCase()))
+
   const articles: Omit<StockArticle, "id" | "created_at">[] = []
   const sentiments: { headline: string; ticker: string; score: number; label: string; confidence: number }[] = []
 
@@ -62,10 +64,10 @@ export async function fetchAlphaVantageNewsSentiment(
 
     const tickerSentiments = item.ticker_sentiment ?? []
     for (const ts of tickerSentiments) {
-      if (!tickers.includes(ts.ticker)) continue
+      if (!tickerSetUpper.has(ts.ticker.toUpperCase())) continue
 
       articles.push({
-        ticker: ts.ticker,
+        ticker: ts.ticker.toUpperCase(),
         source: item.source,
         headline: item.title,
         summary: item.summary?.slice(0, 500) ?? null,
@@ -77,7 +79,7 @@ export async function fetchAlphaVantageNewsSentiment(
       const score = parseFloat(ts.ticker_sentiment_score)
       sentiments.push({
         headline: item.title,
-        ticker: ts.ticker,
+        ticker: ts.ticker.toUpperCase(),
         score: Math.max(-1, Math.min(1, score)),
         label: score > 0.15 ? "bullish" : score < -0.15 ? "bearish" : "neutral",
         confidence: Math.min(1, parseFloat(ts.relevance_score)),

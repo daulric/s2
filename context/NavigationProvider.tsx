@@ -1,7 +1,7 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef, startTransition } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface NavigationContextType {
   previousPage: string;
@@ -33,29 +33,30 @@ export const NavigationProvider: React.FC<NavigationProviderProps> = ({ children
   const [previousPage, setPreviousPage] = useState<string>('/');
   const [navigationHistory, setNavigationHistory] = useState<string[]>([]);
   const router = useRouter();
+  const pathname = usePathname();
   const lastPathRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const pathname = window.location.pathname;
-
     if (lastPathRef.current === pathname) return;
     lastPathRef.current = pathname;
 
     if (isExcludedPage(pathname)) return;
 
-    setPreviousPage(prev => {
-      if (prev === '/' || prev === pathname) return pathname;
-      return prev;
-    });
+    startTransition(() => {
+      setPreviousPage(prev => {
+        if (prev === '/' || prev === pathname) return pathname;
+        return prev;
+      });
 
-    setNavigationHistory(prev => {
-      const lastEntry = prev[prev.length - 1];
-      if (lastEntry !== pathname) {
-        return [...prev, pathname].slice(-10);
-      }
-      return prev;
+      setNavigationHistory(prev => {
+        const lastEntry = prev[prev.length - 1];
+        if (lastEntry !== pathname) {
+          return [...prev, pathname].slice(-10);
+        }
+        return prev;
+      });
     });
-  });
+  }, [pathname]);
 
   const goToPreviousPage = (): void => {
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';

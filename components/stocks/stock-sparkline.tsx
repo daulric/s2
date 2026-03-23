@@ -113,7 +113,7 @@ export function StockSparkline({ ticker, width = 100, height = 32, positive = tr
         throttleRef.current = null
       }
     }
-  }, [ticker, shouldLoad])
+  }, [ticker, shouldLoad, prices])
 
   useStockFeed(ticker, useCallback((update: TradeUpdate) => {
     if (!mountedRef.current) return

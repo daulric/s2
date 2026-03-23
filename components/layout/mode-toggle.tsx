@@ -2,7 +2,7 @@
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { useWebHaptics } from "web-haptics/react"
 

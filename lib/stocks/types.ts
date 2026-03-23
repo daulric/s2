@@ -54,6 +54,7 @@ export type StockWithPrediction = Stock & {
   prediction: StockPrediction | null
   article_count: number
   sentiment_avg: number | null
+  article_majority_direction: "bullish" | "bearish" | "neutral" | null
 }
 
 export type PriceCandle = {

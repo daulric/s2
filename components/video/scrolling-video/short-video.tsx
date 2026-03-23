@@ -88,8 +88,8 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
 
   // Stop playback when unmounting (e.g. navigating /shorts → /settings)
   useEffect(() => {
+    const el = videoRef.current
     return () => {
-      const el = videoRef.current
       if (el) {
         el.pause()
         el.muted = true
@@ -105,7 +105,7 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
       }
       isPlaying.value = false
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- unmount cleanup only; isPlaying reset is intentional
 
   useEffect(() => {
     const videoElement = videoRef.current;

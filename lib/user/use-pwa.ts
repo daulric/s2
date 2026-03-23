@@ -19,7 +19,7 @@ export function usePWA() {
     if (isStandaloneDisplay()) {
       isPWA.value = true
     }
-  }, [])
+  }, [isPWA])
 
   return isPWA
 }

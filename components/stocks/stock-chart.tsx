@@ -22,6 +22,12 @@ import type { PriceCandle } from "@/lib/stocks/types"
 import type { CandleRange } from "@/lib/stocks/api"
 import { GetStockCandles } from "@/serverActions/GetStockDetails"
 import { useStockFeed, type TradeUpdate } from "@/hooks/use-stock-feed"
+import { useUsEquitiesMarketOpen } from "@/hooks/use-us-equities-market-open"
+import {
+  formatStockAxisPriceUsd,
+  formatStockDollarChangeUsd,
+  formatStockPriceUsd,
+} from "@/lib/stocks/format-stock-price"
 
 type StockChartProps = {
   ticker: string
@@ -61,7 +67,7 @@ function formatDate(dateStr: string, range: CandleRange): string {
 }
 
 function formatAxisPrice(value: number): string {
-  return `$${value.toFixed(0)}`
+  return formatStockAxisPriceUsd(value)
 }
 
 function formatVolume(value: number): string {
@@ -85,9 +91,7 @@ function CustomTooltip({ active, payload, label, range }: {
     <div className="rounded-lg border bg-popover p-2.5 shadow-md text-sm">
       <p className="text-xs text-muted-foreground mb-1">{formatDate(label, range)}</p>
       {close && (
-        <p className="font-semibold">
-          ${close.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </p>
+        <p className="font-semibold">{formatStockPriceUsd(Number(close.value))}</p>
       )}
       {volume && (
         <p className="text-xs text-muted-foreground mt-0.5">
@@ -100,6 +104,7 @@ function CustomTooltip({ active, payload, label, range }: {
 
 export function StockChart({ ticker, initialCandles, priceChangePct }: StockChartProps) {
   useSignals()
+  const usRegularSessionOpen = useUsEquitiesMarketOpen()
 
   const activeRange = useSignal<CandleRange>(DEFAULT_CHART_RANGE)
   const candles = useSignal<PriceCandle[]>(initialCandles)
@@ -187,7 +192,7 @@ export function StockChart({ ticker, initialCandles, priceChangePct }: StockChar
     return () => {
       cancelled = true
     }
-  }, [ticker, initialCandles.length])
+  }, [ticker, initialCandles.length]) // eslint-disable-line react-hooks/exhaustive-deps -- effect sets candles/loading; adding them would loop
 
   const handleRangeChange = useCallback(async (range: CandleRange) => {
     if (range === activeRange.value) return
@@ -206,6 +211,7 @@ export function StockChart({ ticker, initialCandles, priceChangePct }: StockChar
         loading.value = false
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reads/writes signal state inside handler
   }, [ticker])
 
   const chartData = candles.value.map((c) => ({
@@ -230,15 +236,15 @@ export function StockChart({ ticker, initialCandles, priceChangePct }: StockChar
   const gradientId = `gradient-${ticker}`
 
   return (
-    <Card className="mb-6">
-      <CardContent className="p-4">
+    <Card className="mb-6 min-w-0 overflow-hidden">
+      <CardContent className="min-w-0 p-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-3">
             <h2 className="font-semibold flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Price Chart
             </h2>
-            {isLive.value && (
+            {isLive.value && usRegularSessionOpen && (
               <span className="flex items-center gap-1 text-xs text-emerald-500">
                 <Radio className="h-3 w-3 animate-pulse" />
                 Live
@@ -248,11 +254,10 @@ export function StockChart({ ticker, initialCandles, priceChangePct }: StockChar
               <span className={cn("text-sm font-medium", dynamicIsPositive ? "text-emerald-500" : "text-red-500")}>
                 {livePrice.value !== null && (
                   <span className="mr-1.5 font-bold">
-                    ${livePrice.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatStockPriceUsd(livePrice.value)}
                   </span>
                 )}
-                {dynamicIsPositive ? "+" : ""}
-                {priceChange.toFixed(2)} ({dynamicIsPositive ? "+" : ""}{priceChangePctCalc.toFixed(2)}%)
+                {`${dynamicIsPositive ? "+" : ""}${formatStockDollarChangeUsd(priceChange)} (${dynamicIsPositive ? "+" : ""}${priceChangePctCalc.toFixed(2)}%)`}
               </span>
             )}
           </div>
@@ -290,7 +295,14 @@ export function StockChart({ ticker, initialCandles, priceChangePct }: StockChar
           </div>
         ) : (
           <div className="w-full min-w-0 min-h-[300px]">
-            <ResponsiveContainer width="100%" height={300} minWidth={0}>
+            <ResponsiveContainer
+              width="100%"
+              height={300}
+              minWidth={0}
+              minHeight={0}
+              debounce={32}
+              initialDimension={{ width: 800, height: 300 }}
+            >
               <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -346,7 +358,14 @@ export function StockChart({ ticker, initialCandles, priceChangePct }: StockChar
 
             {showVolume.value && (
               <div className="mt-2 w-full min-w-0">
-                <ResponsiveContainer width="100%" height={80} minWidth={0}>
+                <ResponsiveContainer
+                  width="100%"
+                  height={80}
+                  minWidth={0}
+                  minHeight={0}
+                  debounce={32}
+                  initialDimension={{ width: 800, height: 80 }}
+                >
                 <BarChart data={chartData} margin={{ top: 0, right: 5, left: 0, bottom: 0 }}>
                   <XAxis dataKey="date" hide />
                   <YAxis hide />

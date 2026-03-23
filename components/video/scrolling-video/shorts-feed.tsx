@@ -3,8 +3,8 @@
 import { useEffect, useRef } from "react"
 import type { Signal } from "@preact/signals-react"
 import type { User } from "@supabase/supabase-js"
-import { ShortVideo } from "@/components/scrolling-video/short-video"
-import type { ShortVideoData } from "@/components/scrolling-video/types"
+import { ShortVideo } from "./short-video"
+import type { ShortVideoData } from "./types"
 
 interface ShortsFeedProps {
   shorts: Signal<ShortVideoData[]>

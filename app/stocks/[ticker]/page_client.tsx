@@ -15,24 +15,27 @@ import {
   ExternalLink,
   Newspaper,
   Clock,
+  ChartPie,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ToggleWatchlist } from "@/serverActions/GetStockDetails"
 import type { StockDetail, ArticleSentiment } from "@/lib/stocks/types"
-import { AnimatedStockPrice } from "@/components/animated-stock-price"
-import { StockChart } from "@/components/stock-chart"
+import {
+  AnimatedStockPrice,
+  StockArticleSentimentSummary,
+  StockChart,
+  UsMarketStatusBadge,
+} from "@/components/stocks"
 import { useStockFeed } from "@/hooks/use-stock-feed"
+import { useUsEquitiesMarketOpen } from "@/hooks/use-us-equities-market-open"
 import { useAuth } from "@/context/AuthProvider"
 import { toast } from "sonner"
+import { coerceFiniteNumber } from "@/lib/stocks/coerce-stock-number"
+import { articlePluralityDirection } from "@/lib/stocks/article-sentiment-plurality"
 
 type StockDetailPageProps = {
   detail: StockDetail
   isWatched: boolean
-}
-
-function formatPrice(price: number | null): string {
-  if (price === null) return "—"
-  return `$${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 function formatChangePct(pct: number | null): string {
@@ -51,8 +54,14 @@ function timeAgo(date: string): string {
   return `${days}d ago`
 }
 
-function sentimentBadge(sentiment: ArticleSentiment | null) {
-  if (!sentiment) return null
+function articleSentimentTag(sentiment: ArticleSentiment | null) {
+  if (!sentiment) {
+    return (
+      <Badge variant="outline" className="text-[10px] text-muted-foreground border-muted-foreground/25">
+        Unscored
+      </Badge>
+    )
+  }
   const config = {
     bullish: { color: "text-emerald-500 border-emerald-500/20", label: "Bullish" },
     bearish: { color: "text-red-500 border-red-500/20", label: "Bearish" },
@@ -60,7 +69,7 @@ function sentimentBadge(sentiment: ArticleSentiment | null) {
   }[sentiment.sentiment_label]
 
   return (
-    <Badge variant="outline" className={cn("text-[10px]", config.color)}>
+    <Badge variant="outline" className={cn("text-[10px] shrink-0", config.color)}>
       {config.label} ({(sentiment.confidence * 100).toFixed(0)}%)
     </Badge>
   )
@@ -92,6 +101,7 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
   const { user: { user } } = useAuth()
   const watched = useSignal(isWatched)
   const pageMountedRef = useRef(true)
+  const usRegularSessionOpen = useUsEquitiesMarketOpen()
 
   useEffect(() => {
     pageMountedRef.current = true
@@ -102,12 +112,18 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
 
   const latestTrade = useStockFeed(detail.ticker)
 
+  const storedLast = coerceFiniteNumber(detail.last_price as unknown)
+  const lastCloseFromChart =
+    detail.candles.length > 0 ? detail.candles[detail.candles.length - 1]!.close : null
+  const referenceLast = storedLast ?? lastCloseFromChart
+
   const livePrice = latestTrade.value?.price ?? null
-  const displayPrice = livePrice ?? detail.last_price
-  const basePct = detail.price_change_pct ?? 0
-  const livePct = livePrice !== null && detail.last_price
-    ? ((livePrice - detail.last_price * (1 - basePct / 100)) / (detail.last_price * (1 - basePct / 100))) * 100
-    : basePct
+  const displayPrice = livePrice ?? referenceLast
+  const basePct = coerceFiniteNumber(detail.price_change_pct as unknown) ?? 0
+  const livePct =
+    livePrice !== null && referenceLast !== null
+      ? ((livePrice - referenceLast * (1 - basePct / 100)) / (referenceLast * (1 - basePct / 100))) * 100
+      : basePct
 
   const handleToggleWatchlist = useCallback(async () => {
     if (!user) {
@@ -126,13 +142,37 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
   }, [user, detail.ticker, watched])
 
   const prediction = detail.prediction
-  const direction = prediction?.direction ?? "neutral"
-  const config = directionConfig[direction]
-  const DirectionIcon = config.icon
 
   const bullishArticles = detail.articles.filter((a) => a.sentiment?.sentiment_label === "bullish").length
   const bearishArticles = detail.articles.filter((a) => a.sentiment?.sentiment_label === "bearish").length
   const neutralArticles = detail.articles.filter((a) => a.sentiment?.sentiment_label === "neutral").length
+  const unscoredArticles = detail.articles.filter((a) => !a.sentiment).length
+
+  const scoredArticleTotal = bullishArticles + bearishArticles + neutralArticles
+  const pluralityDir = articlePluralityDirection(
+    bullishArticles,
+    bearishArticles,
+    neutralArticles,
+    prediction?.direction,
+  )
+
+  const predictionFromArticles =
+    pluralityDir !== null
+      ? (() => {
+          const winning = detail.articles.filter((a) => a.sentiment?.sentiment_label === pluralityDir)
+          const scorePct = Math.round((winning.length / scoredArticleTotal) * 100)
+          const avgConf =
+            winning.length > 0
+              ? winning.reduce((s, a) => s + (a.sentiment?.confidence ?? 0), 0) / winning.length
+              : 0
+          return { direction: pluralityDir, scorePct, avgConf }
+        })()
+      : null
+
+  const showModelPrediction = predictionFromArticles === null && prediction !== null
+  const activeDirection = predictionFromArticles?.direction ?? prediction?.direction ?? "neutral"
+  const activeConfig = directionConfig[activeDirection]
+  const ActiveDirectionIcon = activeConfig.icon
 
   return (
     <main className="min-h-screen pt-15 p-4 pb-8 bg-background">
@@ -145,8 +185,9 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
 
           <div className="flex items-start justify-between">
             <div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <h1 className="text-3xl font-bold">{detail.ticker}</h1>
+                <UsMarketStatusBadge />
                 {detail.sector && (
                   <Badge variant="secondary">{detail.sector}</Badge>
                 )}
@@ -172,7 +213,7 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-sm text-muted-foreground">Current Price</p>
-                {livePrice !== null && (
+                {livePrice !== null && usRegularSessionOpen && (
                   <span className="flex items-center gap-1 text-xs text-emerald-500">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Live
@@ -198,15 +239,29 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
           <Card>
             <CardContent className="p-4">
               <p className="text-sm text-muted-foreground mb-1">Prediction</p>
-              {prediction ? (
+              {predictionFromArticles ? (
                 <div className="flex items-center gap-2">
-                  <div className={cn("w-8 h-8 rounded-md flex items-center justify-center", config.bg)}>
-                    <DirectionIcon className={cn("h-4 w-4", config.color)} />
+                  <div className={cn("w-8 h-8 rounded-md flex items-center justify-center", activeConfig.bg)}>
+                    <ActiveDirectionIcon className={cn("h-4 w-4", activeConfig.color)} />
                   </div>
                   <div>
-                    <span className={cn("text-lg font-bold", config.color)}>{config.label}</span>
+                    <span className={cn("text-lg font-bold", activeConfig.color)}>{activeConfig.label}</span>
                     <p className="text-xs text-muted-foreground">
-                      Score: {(prediction.score * 100).toFixed(0)} | Confidence: {(prediction.confidence * 100).toFixed(0)}%
+                      Score: {predictionFromArticles.scorePct} | Confidence:{" "}
+                      {(predictionFromArticles.avgConf * 100).toFixed(0)}%
+                    </p>
+                  </div>
+                </div>
+              ) : showModelPrediction ? (
+                <div className="flex items-center gap-2">
+                  <div className={cn("w-8 h-8 rounded-md flex items-center justify-center", activeConfig.bg)}>
+                    <ActiveDirectionIcon className={cn("h-4 w-4", activeConfig.color)} />
+                  </div>
+                  <div>
+                    <span className={cn("text-lg font-bold", activeConfig.color)}>{activeConfig.label}</span>
+                    <p className="text-xs text-muted-foreground">
+                      Score: {(prediction.score * 100).toFixed(0)} | Confidence:{" "}
+                      {(prediction.confidence * 100).toFixed(0)}%
                     </p>
                   </div>
                 </div>
@@ -218,32 +273,27 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
 
           <Card>
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground mb-1">Article Sentiment</p>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="text-sm">{bullishArticles}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                  <span className="text-sm">{neutralArticles}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-red-500" />
-                  <span className="text-sm">{bearishArticles}</span>
-                </div>
-              </div>
-              {detail.articles.length > 0 && (
-                <div className="mt-2 h-2 rounded-full overflow-hidden bg-muted flex">
-                  {bullishArticles > 0 && (
-                    <div className="bg-emerald-500 h-full" style={{ width: `${(bullishArticles / detail.articles.length) * 100}%` }} />
-                  )}
-                  {neutralArticles > 0 && (
-                    <div className="bg-yellow-500 h-full" style={{ width: `${(neutralArticles / detail.articles.length) * 100}%` }} />
-                  )}
-                  {bearishArticles > 0 && (
-                    <div className="bg-red-500 h-full" style={{ width: `${(bearishArticles / detail.articles.length) * 100}%` }} />
-                  )}
+              <p className="text-sm text-muted-foreground mb-1">Article sentiment</p>
+              {detail.articles.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">No articles yet</p>
+              ) : (
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                  <span className="flex items-center gap-1.5">
+                    <span className="size-2 shrink-0 rounded-full bg-emerald-500" />
+                    Bullish {bullishArticles}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="size-2 shrink-0 rounded-full bg-yellow-500" />
+                    Neutral {neutralArticles}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="size-2 shrink-0 rounded-full bg-red-500" />
+                    Bearish {bearishArticles}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="size-2 shrink-0 rounded-full bg-zinc-500" />
+                    Unscored {unscoredArticles}
+                  </span>
                 </div>
               )}
             </CardContent>
@@ -287,6 +337,23 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
           </Card>
         )}
 
+        {detail.articles.length > 0 && (
+          <Card className="mb-6 min-w-0 overflow-hidden">
+            <CardContent className="min-w-0 p-4 md:p-6">
+              <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                <ChartPie className="h-5 w-5" />
+                Article sentiment summary
+              </h2>
+              <StockArticleSentimentSummary
+                bullish={bullishArticles}
+                neutral={neutralArticles}
+                bearish={bearishArticles}
+                unscored={unscoredArticles}
+              />
+            </CardContent>
+          </Card>
+        )}
+
         <div>
           <h2 className="font-semibold text-lg mb-3 flex items-center gap-2">
             <Newspaper className="h-5 w-5" />
@@ -306,7 +373,7 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
                           <Badge variant="outline" className="text-[10px] shrink-0">{article.source}</Badge>
-                          {sentimentBadge(article.sentiment)}
+                          {articleSentimentTag(article.sentiment)}
                           <span className="text-xs text-muted-foreground">{timeAgo(article.published_at)}</span>
                         </div>
                         <h3 className="font-medium text-sm line-clamp-2 mb-1">{article.headline}</h3>

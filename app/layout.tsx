@@ -6,14 +6,13 @@ import "./globals.css"
 import { ThemeProvider } from "@/context/theme-provider"
 import { AuthProvider } from "@/context/AuthProvider"
 import { NavigationProvider } from "@/context/NavigationProvider"
-import { Header } from "@/components/header"
+import { Header, ThemeTopLoader } from "@/components/layout"
 import {Toaster} from "@/components/ui/sonner"
-import NextTopLoader from "@/components/theme-top-loader"
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { StocksRouteTeardown } from "@/components/stocks-route-teardown"
-import { MediaRouteTeardown } from "@/components/media-route-teardown"
+import { StocksRouteTeardown } from "@/components/stocks"
+import { MediaRouteTeardown } from "@/components/media"
 
 const inter = Inter({ subsets: ["latin"], display: "swap" })
 
@@ -42,7 +41,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <NavigationProvider>
               <AuthProvider>
                   <Header />
-                  <NextTopLoader />
+                  <ThemeTopLoader />
                   <Suspense fallback={null}>
                     <StocksRouteTeardown />
                     <MediaRouteTeardown />

@@ -38,7 +38,7 @@ export function useBrowserShare() {
 
   useEffect(() => {
     canShare.value = isShareSupported()
-  }, [])
+  }, [canShare])
 
   return { canShare, share: shareBrowser }
 }

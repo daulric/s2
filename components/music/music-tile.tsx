@@ -1,9 +1,9 @@
 "use client"
 
 import { useCallback, useEffect } from "react"
-import { Card, CardContent } from "./ui/card"
-import { Button } from "./ui/button"
-import { Slider } from "./ui/slider"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Slider } from "@/components/ui/slider"
 import { Play, Pause, Music, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"

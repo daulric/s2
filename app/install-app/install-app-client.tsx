@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { NonPwaOnly } from "@/components/pwa_only"
+import { NonPwaOnly } from "@/components/system"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { cn } from "@/lib/utils"
 import { Smartphone, Share, PlusSquare } from "lucide-react"
