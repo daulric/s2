@@ -40,6 +40,7 @@ import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { effect } from "@preact/signals-react"
 import { useWebHaptics } from "web-haptics/react"
+import { useBrowserShare } from "@/lib/user/use-browser-share"
 
 const keyboardShortcuts = [
   { key: "Space", action: "Play/Pause" },
@@ -89,7 +90,8 @@ export default function VideoPage({
   const showControls = useSignal(true);
   const isKeyboardShortcutsOpen = useSignal(false);
   const isFullscreen = useSignal(false);
-
+  const { canShare, share } = useBrowserShare()
+  
   // Video Data
   const video_url = useSignal<string | null>(null);
   const thumbnail_url = useSignal<string | null>(null);
@@ -552,12 +554,28 @@ export default function VideoPage({
     }
   }
 
-  const handleShare = () => {
-    // In a real app, this would open a share dialog
-    navigator.clipboard.writeText(globalThis.location.href)
-    toast.success("Link copied to clipboard", {
-      description: "Share this video with your friends",
+  const handleShare = async () => {
+
+    if (!canShare.value) {
+      toast.error("Share not supported", {
+        description: "Please share this video with your friends",
+      })
+
+      return
+    }
+    
+    const result = await share({
+      title: videoData.title,
+      text: videoData.description,
+      url: globalThis.location.href,
     })
+
+    if (result === "shared") {
+      toast.success("Video Shared", {
+        description: "Share this video with your friends",
+      })
+    }
+
   }
 
   const handleCommentSubmit = (e: React.FormEvent<HTMLFormElement>) => {
