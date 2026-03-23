@@ -89,7 +89,6 @@ export function VideoCard({ video, compact = false,  supabase }: VideoCardProps)
                   className="w-full h-full object-cover"
                   width={1000}
                   height={1000}
-                  loading="lazy"
                   onLoad={() => { if (thumbURL.value) URL.revokeObjectURL(thumbURL.value) }}
                 />
               )}
@@ -119,7 +118,6 @@ export function VideoCard({ video, compact = false,  supabase }: VideoCardProps)
               width={1000} height={1000}
               alt={video.title}
               className="w-full h-40 object-cover"
-              loading="lazy"
               onLoad={() => { if (thumbURL.value) URL.revokeObjectURL(thumbURL.value) }}
             />
           )}

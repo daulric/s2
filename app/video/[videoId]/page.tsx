@@ -3,7 +3,7 @@ import { GetVideoDetails, GetVideoSidebarVideos } from "@/serverActions/GetVideo
 import { notFound as NotFound } from "next/navigation"
 import { cache, Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
-import Loading from "@/app/loading"
+import { VideoDetailSkeleton } from "@/components/layout/skeletons"
 
 type PageProps = {
   params: Promise<{ videoId: string }>
@@ -58,7 +58,7 @@ export default async function PAGE({ params }: PageProps) {
   const { videoId } = await params
 
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<VideoDetailSkeleton />}>
       <VideoContent videoId={videoId} />
     </Suspense>
   )

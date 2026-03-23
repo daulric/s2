@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useCallback, useState } from "react"
+import { useEffect, useRef, useCallback } from "react"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
 import type { PriceCandle } from "@/lib/stocks/types"
 import { enqueueSparklineWeekCandles } from "@/lib/stocks/sparkline-candle-queue"
@@ -67,17 +67,21 @@ export function StockSparkline({ ticker, width = 100, height = 32, positive = tr
   useSignals()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const [shouldLoad, setShouldLoad] = useState(false)
+  const shouldLoad = useSignal(false)
   const prices = useSignal<number[]>([])
   const throttleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mountedRef = useRef(true)
+
+  const inView = shouldLoad.value
 
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     const ob = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) setShouldLoad(true)
+        if (entries[0]?.isIntersecting) {
+          shouldLoad.value = true
+        }
       },
       { root: null, rootMargin: "100px", threshold: 0 },
     )
@@ -86,7 +90,7 @@ export function StockSparkline({ ticker, width = 100, height = 32, positive = tr
   }, [])
 
   useEffect(() => {
-    if (!shouldLoad) return
+    if (!inView) return
 
     let cancelled = false
     mountedRef.current = true
@@ -113,22 +117,25 @@ export function StockSparkline({ ticker, width = 100, height = 32, positive = tr
         throttleRef.current = null
       }
     }
-  }, [ticker, shouldLoad, prices])
+  }, [ticker, inView])
 
-  useStockFeed(ticker, useCallback((update: TradeUpdate) => {
-    if (!mountedRef.current) return
-    if (throttleRef.current) return
-    throttleRef.current = setTimeout(() => {
-      throttleRef.current = null
+  useStockFeed(
+    ticker,
+    useCallback((update: TradeUpdate) => {
       if (!mountedRef.current) return
+      if (throttleRef.current) return
+      throttleRef.current = setTimeout(() => {
+        throttleRef.current = null
+        if (!mountedRef.current) return
 
-      const current = prices.value
-      if (current.length === 0) return
+        const current = prices.value
+        if (current.length === 0) return
 
-      const updated = [...current.slice(1), update.price]
-      prices.value = updated
-    }, 3000)
-  }, [prices]))
+        const updated = [...current.slice(1), update.price]
+        prices.value = updated
+      }, 3000)
+    }, [prices]),
+  )
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -136,7 +143,7 @@ export function StockSparkline({ ticker, width = 100, height = 32, positive = tr
 
     const dynamicPositive = prices.value[prices.value.length - 1] >= prices.value[0]
     drawSparkline(canvas, prices.value, width, height, dynamicPositive)
-  }, [prices.value, width, height, positive])
+  }, [prices.value, width, height])
 
   return (
     <div

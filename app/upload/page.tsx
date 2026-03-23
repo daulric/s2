@@ -1,6 +1,6 @@
 import { Metadata } from "next"
 import UploadPage from "./page_client"
-import Loading from "@/app/loading"
+import { DefaultPageSkeleton } from "@/components/layout/skeletons"
 import { Suspense } from "react"
 
 export const metadata: Metadata = {
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default async function PAGE() {
     return (
-        <Suspense fallback={<Loading />}>
+        <Suspense fallback={<DefaultPageSkeleton />}>
             <UploadPage />
         </Suspense>
     )

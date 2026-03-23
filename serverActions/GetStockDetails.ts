@@ -1,6 +1,7 @@
 "use server"
 
 import { createHash } from "node:crypto"
+import { after } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import type {
   Stock,
@@ -25,6 +26,34 @@ import { SupabaseClient } from "@supabase/supabase-js"
 
 /** PostgREST `.in("ticker", …)` breaks with very large lists (URL / query limits). */
 const TICKER_IN_CHUNK = 250
+
+const ARTICLE_ID_IN_CHUNK = 200
+
+async function fetchSentimentsByArticleIds(
+  supabase: SupabaseClient,
+  articleIds: string[],
+): Promise<ArticleSentiment[]> {
+  if (articleIds.length === 0) return []
+  const merged: ArticleSentiment[] = []
+  for (let i = 0; i < articleIds.length; i += ARTICLE_ID_IN_CHUNK) {
+    const chunk = articleIds.slice(i, i + ARTICLE_ID_IN_CHUNK)
+    const { data } = await supabase
+      .from("article_sentiments")
+      .select(
+        "id, article_id, ticker, sentiment_score, sentiment_label, confidence, model_used, created_at",
+      )
+      .in("article_id", chunk)
+      .order("created_at", { ascending: false })
+    if (data?.length) merged.push(...(data as ArticleSentiment[]))
+  }
+  const sentimentByArticle = new Map<string, ArticleSentiment>()
+  for (const s of merged) {
+    if (!sentimentByArticle.has(s.article_id)) {
+      sentimentByArticle.set(s.article_id, s)
+    }
+  }
+  return [...sentimentByArticle.values()]
+}
 
 async function supabaseInChunks<T>(
   tickers: string[],
@@ -201,38 +230,32 @@ export async function GetAllStocks(): Promise<StockWithPrediction[]> {
 
 export async function GetStockDetail(ticker: string): Promise<StockDetail | null> {
   const supabase = (await createClient()) as SupabaseClient
+  const tickerUpper = ticker.toUpperCase()
+  const alphaKey = process.env.ALPHAVANTAGE_API_KEY
+  const finnhubKey = process.env.FINNHUB_API_KEY
 
-  const { data: stock, error } = await supabase
-    .from("stocks")
-    .select("*")
-    .eq("ticker", ticker.toUpperCase())
-    .single()
-
-  if (error || !stock) return null
-
-  const stockBase = parseStockRow(stock as Stock)
-
-  const [articlesRes, predictionsRes] = await Promise.all([
+  const [stockRes, articlesRes, predictionsRes] = await Promise.all([
+    supabase.from("stocks").select("*").eq("ticker", tickerUpper).single(),
     supabase
       .from("stock_articles")
       .select("*")
-      .eq("ticker", ticker.toUpperCase())
+      .eq("ticker", tickerUpper)
       .order("published_at", { ascending: false })
       .limit(60),
     supabase
       .from("stock_predictions")
       .select("*")
-      .eq("ticker", ticker.toUpperCase())
+      .eq("ticker", tickerUpper)
       .order("created_at", { ascending: false })
       .limit(30),
   ])
 
+  const { data: stock, error } = stockRes
+  if (error || !stock) return null
+
+  const stockBase = parseStockRow(stock as Stock)
   const articles = (articlesRes.data ?? []) as StockArticle[]
   const predictions = (predictionsRes.data ?? []) as StockPrediction[]
-
-  const alphaKey = process.env.ALPHAVANTAGE_API_KEY
-  const finnhubKey = process.env.FINNHUB_API_KEY
-  const tickerUpper = ticker.toUpperCase()
 
   const [candles, liveNews] = await Promise.all([
     alphaKey || finnhubKey
@@ -257,24 +280,23 @@ export async function GetStockDetail(ticker: string): Promise<StockDetail | null
     }
   }
 
-  try {
-    await backfillArticleSentimentsForTickers(supabase, [tickerUpper], alphaKey)
-  } catch {
-    // Alpha rate limit / network — page still renders with existing scores
-  }
+  const dbArticleIds = articlesForMerge
+    .map((a) => a.id)
+    .filter((id) => !id.startsWith("live-"))
 
-  const { data: sentimentsRefreshed } = await supabase
-    .from("article_sentiments")
-    .select("*")
-    .eq("ticker", tickerUpper)
-    .order("created_at", { ascending: false })
+  const sentimentRows = await fetchSentimentsByArticleIds(supabase, dbArticleIds)
+  const sentimentByArticle = new Map<string, ArticleSentiment>(
+    sentimentRows.map((s) => [s.article_id, s]),
+  )
 
-  const sentimentByArticle = new Map<string, ArticleSentiment>()
-  for (const s of (sentimentsRefreshed ?? []) as ArticleSentiment[]) {
-    if (!sentimentByArticle.has(s.article_id)) {
-      sentimentByArticle.set(s.article_id, s)
+  after(async () => {
+    try {
+      const sb = (await createClient()) as SupabaseClient
+      await backfillArticleSentimentsForTickers(sb, [tickerUpper], alphaKey)
+    } catch {
+      // Alpha rate limit / network — next visit or cron can fill scores
     }
-  }
+  })
 
   const dbArticlesWithSentiment: StockArticleWithSentiment[] = articlesForMerge.map((a) => ({
     ...a,

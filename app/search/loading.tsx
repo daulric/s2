@@ -1,3 +1,5 @@
+import { WidePageSkeleton } from "@/components/layout/skeletons"
+
 export default function Loading() {
-  return null
+  return <WidePageSkeleton />
 }

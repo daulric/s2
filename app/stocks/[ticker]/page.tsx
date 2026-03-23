@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import { notFound } from "next/navigation"
-import Loading from "@/app/loading"
+import { StockDetailPageSkeleton } from "@/components/layout/skeletons"
 import StockDetailPage from "./page_client"
 import { GetStockDetail, GetUserWatchlist } from "@/serverActions/GetStockDetails"
 
@@ -34,7 +34,7 @@ async function StockContent({ params }: { params: Promise<{ ticker: string }> })
 
 export default function PAGE({ params }: Props) {
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<StockDetailPageSkeleton />}>
       <StockContent params={params} />
     </Suspense>
   )

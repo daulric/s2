@@ -1,6 +1,6 @@
 import { Metadata } from "next"
 import AuthPage from "./AuthPage"
-import Loading from "@/app/loading"
+import { CenteredLandingSkeleton } from "@/components/layout/skeletons"
 import { Suspense } from "react"
 
 export const metadata: Metadata = {
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default async function PAGE() {
     return ( 
-        <Suspense fallback={<Loading />}>
+        <Suspense fallback={<CenteredLandingSkeleton />}>
             <AuthPage /> 
         </Suspense>
     )

@@ -18,12 +18,12 @@ import {
 import { cn } from "@/lib/utils"
 import { ToggleWatchlist } from "@/serverActions/GetStockDetails"
 import type { StockWithPrediction } from "@/lib/stocks/types"
+import { useAuth } from "@/context/AuthProvider"
+import { toast } from "sonner"
 
 function listDisplayDirection(s: StockWithPrediction): "bullish" | "bearish" | "neutral" {
   return s.prediction?.direction ?? s.article_majority_direction ?? "neutral"
 }
-import { useAuth } from "@/context/AuthProvider"
-import { toast } from "sonner"
 
 type StocksPageProps = {
   stocks: StockWithPrediction[]
@@ -49,7 +49,7 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
   const router = useRouter()
   const { user: { user } } = useAuth()
 
-  const PAGE_SIZE = 48
+  const PAGE_SIZE = 20
   const search = useSignal("")
   const selectedSector = useSignal("All")
   const watchlist = useSignal<Set<string>>(new Set(watchlistTickers))
@@ -238,7 +238,7 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
             </div>
 
             <p className="text-sm text-muted-foreground mb-3">
-              {allFilteredStocks.length.toLocaleString()} stocks
+              Showing {filteredStocks.length.toLocaleString()} of {allFilteredStocks.length.toLocaleString()} stocks
               {search.value && ` matching "${search.value}"`}
             </p>
 
@@ -278,9 +278,16 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
                   <div className="flex justify-center mt-6">
                     <Button
                       variant="outline"
-                      onClick={() => { visibleCount.value += PAGE_SIZE }}
+                      onClick={() => {
+                        visibleCount.value = Math.min(
+                          visibleCount.value + PAGE_SIZE,
+                          allFilteredStocks.length,
+                        )
+                      }}
                     >
-                      Load More ({(allFilteredStocks.length - visibleCount.value).toLocaleString()} remaining)
+                      Load {Math.min(PAGE_SIZE, allFilteredStocks.length - visibleCount.value)} more
+                      {" · "}
+                      {(allFilteredStocks.length - visibleCount.value).toLocaleString()} remaining
                     </Button>
                   </div>
                 )}

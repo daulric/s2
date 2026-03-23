@@ -1,117 +1,128 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode, useRef, startTransition } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useCallback,
+  useRef,
+  startTransition,
+  type ReactNode,
+} from 'react'
+import { useSignals, useSignal } from '@preact/signals-react/runtime'
+import { useRouter, usePathname } from 'next/navigation'
 
 interface NavigationContextType {
-  previousPage: string;
-  navigationHistory: string[];
-  goToPreviousPage: () => void;
-  goBack: (steps?: number) => void;
-  canGoBack: (steps?: number) => boolean;
-  isExcludedPage: (path: string) => boolean;
+  previousPage: string
+  navigationHistory: string[]
+  goToPreviousPage: () => void
+  goBack: (steps?: number) => void
+  canGoBack: (steps?: number) => boolean
+  isExcludedPage: (path: string) => boolean
 }
 
 interface NavigationProviderProps {
-  children: ReactNode;
+  children: ReactNode
 }
 
-const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
+const NavigationContext = createContext<NavigationContextType | undefined>(undefined)
 
 const excludedPatterns: RegExp[] = [
   /^\/auth\/.*/,
   /^\/admin\/.*/,
   /^\/api\/.*/,
-  /^\/(login|signup|forgot-password|reset-password)$/
-];
+  /^\/(login|signup|forgot-password|reset-password)$/,
+]
 
 const isExcludedPage = (path: string): boolean => {
-  return excludedPatterns.some(pattern => pattern.test(path));
-};
+  return excludedPatterns.some((pattern) => pattern.test(path))
+}
 
-export const NavigationProvider: React.FC<NavigationProviderProps> = ({ children }) => {
-  const [previousPage, setPreviousPage] = useState<string>('/');
-  const [navigationHistory, setNavigationHistory] = useState<string[]>([]);
-  const router = useRouter();
-  const pathname = usePathname();
-  const lastPathRef = useRef<string | null>(null);
+export function NavigationProvider({ children }: NavigationProviderProps) {
+  useSignals()
+  const previousPage = useSignal<string>('/')
+  const navigationHistory = useSignal<string[]>([])
+  const router = useRouter()
+  const pathname = usePathname()
+  const lastPathRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (lastPathRef.current === pathname) return;
-    lastPathRef.current = pathname;
+    if (lastPathRef.current === pathname) return
+    lastPathRef.current = pathname
 
-    if (isExcludedPage(pathname)) return;
+    if (isExcludedPage(pathname)) return
 
     startTransition(() => {
-      setPreviousPage(prev => {
-        if (prev === '/' || prev === pathname) return pathname;
-        return prev;
-      });
+      const prev = previousPage.value
+      if (prev === '/' || prev === pathname) {
+        previousPage.value = pathname
+      }
 
-      setNavigationHistory(prev => {
-        const lastEntry = prev[prev.length - 1];
-        if (lastEntry !== pathname) {
-          return [...prev, pathname].slice(-10);
-        }
-        return prev;
-      });
-    });
-  }, [pathname]);
+      const hist = navigationHistory.value
+      const lastEntry = hist[hist.length - 1]
+      if (lastEntry !== pathname) {
+        navigationHistory.value = [...hist, pathname].slice(-10)
+      }
+    })
+  }, [pathname, previousPage, navigationHistory])
 
-  const goToPreviousPage = (): void => {
-    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
-    if (previousPage && previousPage !== currentPath && !isExcludedPage(previousPage)) {
-      router.push(previousPage);
+  const goToPreviousPage = useCallback((): void => {
+    const prev = previousPage.value
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/'
+    if (prev && prev !== currentPath && !isExcludedPage(prev)) {
+      router.push(prev)
     } else {
-      router.push('/');
+      router.push('/')
     }
-  };
+  }, [router, previousPage])
 
-  const goBack = (steps: number = 1): void => {
-    const targetIndex = navigationHistory.length - 1 - steps;
-    if (targetIndex >= 0 && navigationHistory[targetIndex]) {
-      const targetPage = navigationHistory[targetIndex];
+  const goBack = useCallback((steps: number = 1): void => {
+    const hist = navigationHistory.value
+    const targetIndex = hist.length - 1 - steps
+    if (targetIndex >= 0 && hist[targetIndex]) {
+      const targetPage = hist[targetIndex]
       if (!isExcludedPage(targetPage)) {
-        router.push(targetPage);
+        router.push(targetPage)
       } else {
-        router.push('/');
+        router.push('/')
       }
     } else {
-      router.push('/');
+      router.push('/')
     }
-  };
+  }, [router, navigationHistory])
 
-  const canGoBack = (steps: number = 1): boolean => {
-    const targetIndex = navigationHistory.length - 1 - steps;
-    const targetPage = navigationHistory[targetIndex];
-    return targetIndex >= 0 && Boolean(targetPage) && !isExcludedPage(targetPage);
-  };
+  const canGoBack = useCallback((steps: number = 1): boolean => {
+    const hist = navigationHistory.value
+    const targetIndex = hist.length - 1 - steps
+    const targetPage = hist[targetIndex]
+    return targetIndex >= 0 && Boolean(targetPage) && !isExcludedPage(targetPage)
+  }, [navigationHistory])
 
   const value: NavigationContextType = {
-    previousPage,
-    navigationHistory,
+    previousPage: previousPage.value,
+    navigationHistory: navigationHistory.value,
     goToPreviousPage,
     goBack,
     canGoBack,
-    isExcludedPage
-  };
+    isExcludedPage,
+  }
 
   return (
     <NavigationContext.Provider value={value}>
       {children}
     </NavigationContext.Provider>
-  );
-};
+  )
+}
 
-export const useNavigation = (): NavigationContextType => {
-  const context = useContext(NavigationContext);
+export function useNavigation(): NavigationContextType {
+  const context = useContext(NavigationContext)
   if (!context) {
-    throw new Error('useNavigation must be used within NavigationProvider');
+    throw new Error('useNavigation must be used within NavigationProvider')
   }
-  return context;
-};
+  return context
+}
 
-export const usePreviousPage = (): string => {
-  const { previousPage } = useNavigation();
-  return previousPage;
-};
+export function usePreviousPage(): string {
+  const { previousPage } = useNavigation()
+  return previousPage
+}
