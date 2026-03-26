@@ -87,7 +87,7 @@ export function StockSparkline({ ticker, width = 100, height = 32, positive = tr
     )
     ob.observe(el)
     return () => ob.disconnect()
-  }, [])
+  }, [shouldLoad])
 
   useEffect(() => {
     if (!inView) return
@@ -117,7 +117,7 @@ export function StockSparkline({ ticker, width = 100, height = 32, positive = tr
         throttleRef.current = null
       }
     }
-  }, [ticker, inView])
+  }, [ticker, inView, prices])
 
   useStockFeed(
     ticker,
@@ -143,7 +143,7 @@ export function StockSparkline({ ticker, width = 100, height = 32, positive = tr
 
     const dynamicPositive = prices.value[prices.value.length - 1] >= prices.value[0]
     drawSparkline(canvas, prices.value, width, height, dynamicPositive)
-  }, [prices.value, width, height])
+  }, [prices.value, width, height, shouldLoad.value])
 
   return (
     <div

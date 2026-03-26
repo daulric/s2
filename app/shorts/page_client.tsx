@@ -26,6 +26,7 @@ export default function ShortsClient({ initialData }: ShortsClientProps) {
   const shortsAllowed = useSignal(false)
 
   useEffect(() => {
+    
     if (isStandaloneDisplay()) {
       shortsAllowed.value = true
     } else {
