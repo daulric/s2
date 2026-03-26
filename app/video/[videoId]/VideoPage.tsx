@@ -91,22 +91,38 @@ export default function VideoPage({ videoData, trendingVideos, newVideos }: Vide
   const { canShare, share } = useBrowserShare()
   
 
-  const video_url = useSignal<string | null>(null);
-  const thumbnail_url = useSignal<string | null>(null);
-  
-  const blobUrlsRef = useRef<{ video: string | null; thumb: string | null }>({
-    video: null,
-    thumb: null,
-  })
-  
-  const playbackSignalsRef = useRef({ video_url, thumbnail_url, isPlaying })
-  playbackSignalsRef.current = { video_url, thumbnail_url, isPlaying }
+  /** `blob:` URL from downloaded file (`video.src`). WebKit does not allow `Blob` on `video.srcObject`. */
+  const videoObjectUrl = useSignal<string | null>(null)
+  const posterObjectUrl = useSignal<string | null>(null)
+  const mediaSourceReleased = useSignal(false)
+  const videoPlaybackFallbackToSigned = useSignal(false)
 
-  const getVideoBlobs = useCallback(async () => {
-    return Promise.all([
-      supabase.storage.from("videos").download(videoData.video_path || "").then(({ data }) => data ? URL.createObjectURL(data) : null),
-      supabase.storage.from("images").download(videoData.thumbnail_path || "").then(({ data }) => data ? URL.createObjectURL(data) : null),
+  const blobUrlsRef = useRef<{ video: string | null; poster: string | null }>({
+    video: null,
+    poster: null,
+  })
+
+  const playbackSignalsRef = useRef({
+    videoObjectUrl,
+    posterObjectUrl,
+    isPlaying,
+    videoPlaybackFallbackToSigned,
+    mediaSourceReleased,
+  })
+  playbackSignalsRef.current = {
+    videoObjectUrl,
+    posterObjectUrl,
+    isPlaying,
+    videoPlaybackFallbackToSigned,
+    mediaSourceReleased,
+  }
+
+  const getVideoBlobs = useCallback(async (): Promise<[Blob | null, Blob | null]> => {
+    const [vRes, tRes] = await Promise.all([
+      supabase.storage.from("videos").download(videoData.video_path || ""),
+      supabase.storage.from("images").download(videoData.thumbnail_path || ""),
     ])
+    return [vRes.data ?? null, tRes.data ?? null]
   }, [supabase, videoData])
 
   const setIsSubscribe = useCallback(async () => {
@@ -165,8 +181,13 @@ export default function VideoPage({ videoData, trendingVideos, newVideos }: Vide
 
   useEffect(() => {
     let cancelled = false
-    const { video_url: videoUrlSig, thumbnail_url: thumbUrlSig, isPlaying: isPlayingSig } =
-      playbackSignalsRef.current
+    const {
+      videoObjectUrl: videoUrlSig,
+      posterObjectUrl: posterSig,
+      isPlaying: isPlayingSig,
+      videoPlaybackFallbackToSigned: fallbackSig,
+      mediaSourceReleased: releasedSig,
+    } = playbackSignalsRef.current
 
     const releasePlayback = () => {
       const el = videoRef.current
@@ -190,33 +211,62 @@ export default function VideoPage({ videoData, trendingVideos, newVideos }: Vide
         }
       }
 
-      const v = blobUrlsRef.current.video
-      const t = blobUrlsRef.current.thumb
-      if (v) {
-        URL.revokeObjectURL(v)
+      const videoRevoke = blobUrlsRef.current.video
+      if (videoRevoke) {
+        URL.revokeObjectURL(videoRevoke)
         blobUrlsRef.current.video = null
-        videoUrlSig.value = null
       }
-      if (t) {
-        URL.revokeObjectURL(t)
-        blobUrlsRef.current.thumb = null
-        thumbUrlSig.value = null
+      const posterRevoke = blobUrlsRef.current.poster
+      if (posterRevoke) {
+        URL.revokeObjectURL(posterRevoke)
+        blobUrlsRef.current.poster = null
       }
+      posterSig.value = null
+      videoUrlSig.value = null
+      fallbackSig.value = false
+      releasedSig.value = false
     }
 
     if (videoData) {
       video_data_signal.value = videoData
-      getVideoBlobs().then(([vid, thumb]) => {
-        if (cancelled) {
-          if (vid) URL.revokeObjectURL(vid)
-          if (thumb) URL.revokeObjectURL(thumb)
-          return
+      getVideoBlobs().then(([vidBlob, thumbBlob]) => {
+        if (cancelled) return
+
+        const { videoObjectUrl: vu, posterObjectUrl: ps, videoPlaybackFallbackToSigned: fb } =
+          playbackSignalsRef.current
+
+        const prevVideo = blobUrlsRef.current.video
+        if (prevVideo) {
+          URL.revokeObjectURL(prevVideo)
+          blobUrlsRef.current.video = null
         }
-        blobUrlsRef.current.video = vid
-        blobUrlsRef.current.thumb = thumb
-        const { video_url: vu, thumbnail_url: tu } = playbackSignalsRef.current
-        vu.value = vid
-        tu.value = thumb
+        const prevPoster = blobUrlsRef.current.poster
+        if (prevPoster) {
+          URL.revokeObjectURL(prevPoster)
+          blobUrlsRef.current.poster = null
+        }
+
+        vu.value = null
+        ps.value = null
+        fb.value = false
+
+        if (vidBlob) {
+          const playUrl = URL.createObjectURL(vidBlob)
+          blobUrlsRef.current.video = playUrl
+          vu.value = playUrl
+          if (thumbBlob) {
+            const posterUrl = URL.createObjectURL(thumbBlob)
+            blobUrlsRef.current.poster = posterUrl
+            ps.value = posterUrl
+          }
+        } else if (videoData.video?.trim()) {
+          fb.value = true
+          if (thumbBlob) {
+            const posterUrl = URL.createObjectURL(thumbBlob)
+            blobUrlsRef.current.poster = posterUrl
+            ps.value = posterUrl
+          }
+        }
       })
     }
 
@@ -252,7 +302,51 @@ export default function VideoPage({ videoData, trendingVideos, newVideos }: Vide
     } else {
       el.pause()
     }
-  }, [isPlaying.value, video_url.value])
+  }, [isPlaying.value, videoObjectUrl.value, videoPlaybackFallbackToSigned.value])
+
+  useEffect(() => {
+    const el = videoRef.current
+    if (!el) return
+
+    const hasPoster = !!(blobUrlsRef.current.poster || posterObjectUrl.value)
+    if (!hasPoster) return
+
+    const hasMedia =
+      videoObjectUrl.value != null ||
+      (videoPlaybackFallbackToSigned.value && !!videoData.video?.trim())
+    if (!hasMedia) return
+
+    const releasePoster = () => {
+      mediaSourceReleased.value = true
+      const u = blobUrlsRef.current.poster
+      if (u) {
+        URL.revokeObjectURL(u)
+        blobUrlsRef.current.poster = null
+        posterObjectUrl.value = null
+      }
+    }
+
+    const onCanPlayThrough = () => {
+      el.removeEventListener("canplaythrough", onCanPlayThrough)
+      releasePoster()
+    }
+
+    if (el.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+      releasePoster()
+      return
+    }
+
+    el.addEventListener("canplaythrough", onCanPlayThrough)
+    return () => {
+      el.removeEventListener("canplaythrough", onCanPlayThrough)
+    }
+  }, [
+    videoObjectUrl,
+    videoPlaybackFallbackToSigned,
+    posterObjectUrl,
+    videoData.video,
+    mediaSourceReleased,
+  ])
 
   effect(() => {
     if (videoRef.current) {
@@ -668,11 +762,15 @@ export default function VideoPage({ videoData, trendingVideos, newVideos }: Vide
     }
   };
 
+  const relatedTrending = trendingVideos.filter((v) => v.id !== videoData.id)
+  const relatedNew = newVideos.filter((v) => v.id !== videoData.id)
+
   return (
     <main className="min-h-screen pt-5 p-4 bg-background">
-      <div className="max-w-6xl mx-auto">
-        {/* Video Player Section */}
-        <div className="mb-8">
+      <div className="max-w-[1600px] mx-auto">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-8">
+          {/* Player + metadata */}
+          <div className="flex-1 min-w-0 space-y-4">
           <div
             className="relative bg-black rounded-lg overflow-hidden"
             ref={containerRef}
@@ -681,9 +779,14 @@ export default function VideoPage({ videoData, trendingVideos, newVideos }: Vide
             <div className="aspect-video flex items-center justify-center">
               <video
                 ref={videoRef}
-                src={video_url.value ?? undefined}
+                src={
+                  videoPlaybackFallbackToSigned.value
+                    ? videoData.video
+                    : (videoObjectUrl.value ?? undefined)
+                }
                 className="w-full h-full object-contain"
-                poster={thumbnail_url.value ?? undefined}
+                poster={posterObjectUrl.value ?? undefined}
+                data-signed-source-released={mediaSourceReleased.value ? "true" : undefined}
                 onLoadedMetadata={handleMetadataLoaded}
                 onTimeUpdate={handleTimeUpdate}
                 onClick={togglePlay}
@@ -810,7 +913,7 @@ export default function VideoPage({ videoData, trendingVideos, newVideos }: Vide
           </div>
 
           {/* Video Info */}
-          <div className="mt-4">
+          <div>
             <h1 className="text-2xl font-bold">{videoData.title}</h1>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-2 text-sm text-muted-foreground">
               <div>
@@ -889,41 +992,41 @@ export default function VideoPage({ videoData, trendingVideos, newVideos }: Vide
                 </Button>
               )}
             </div>
-
-            <Separator className="my-6" />
           </div>
-        </div>
+          </div>
 
-        {/* Video Recommendations */}
-        <div className="mt-12">
-          <Tabs defaultValue="trending" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="trending" onClick={() => trigger("light")}>
-                <Flame className="h-4 w-4 mr-2" />
-                Trending
-              </TabsTrigger>
-              <TabsTrigger value="new" onClick={() => trigger("light")}>
-                <Clock className="h-4 w-4 mr-2" />
-                New
-              </TabsTrigger>
-            </TabsList>
+          {/* Related videos: beside player on desktop, below on smaller screens */}
+          <aside className="w-full lg:w-[min(100%,402px)] shrink-0 border-t border-border pt-8 lg:border-t-0 lg:pt-0 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto lg:overflow-x-hidden">
+            <p className="text-sm font-semibold text-muted-foreground mb-3 hidden lg:block">Up next</p>
+            <Tabs defaultValue="trending" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="trending" onClick={() => trigger("light")}>
+                  <Flame className="h-4 w-4 mr-2" />
+                  Trending
+                </TabsTrigger>
+                <TabsTrigger value="new" onClick={() => trigger("light")}>
+                  <Clock className="h-4 w-4 mr-2" />
+                  New
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="trending" className="mt-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {trendingVideos.map((video) => (
-                  <VideoCard key={video.id} video={video} supabase={supabase} />
-                ))}
-              </div>
-            </TabsContent>
+              <TabsContent value="trending" className="mt-0">
+                <div className="flex flex-col gap-3">
+                  {relatedTrending.map((video) => (
+                    <VideoCard key={video.id} video={video} supabase={supabase} compact />
+                  ))}
+                </div>
+              </TabsContent>
 
-            <TabsContent value="new" className="mt-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {newVideos.map((video) => (
-                  <VideoCard key={video.id} video={video} supabase={supabase} />
-                ))}
-              </div>
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="new" className="mt-0">
+                <div className="flex flex-col gap-3">
+                  {relatedNew.map((video) => (
+                    <VideoCard key={video.id} video={video} supabase={supabase} compact />
+                  ))}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </aside>
         </div>
       </div>
     </main>

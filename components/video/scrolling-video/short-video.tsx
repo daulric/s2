@@ -16,6 +16,14 @@ import upsert from "@/lib/supabase/upsert"
 import { toast } from "sonner"
 import type { ShortVideoData } from "./types"
 
+/** `play()` rejects with AbortError if `pause()` runs first (scroll/unmount) — must catch to avoid unhandled rejections. */
+function safePlay(video: HTMLVideoElement) {
+  const p = video.play()
+  if (p !== undefined) {
+    void p.catch(() => {})
+  }
+}
+
 type ShortVideoProps = {
   short: ShortVideoData
   isActive: boolean
@@ -38,6 +46,117 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
   const isInteracting = useSignal(false)
   const isSubscribed = useSignal(short.is_subscribed ?? false)
   const subscriberCount = useSignal(short.subscribers ?? 0)
+
+  const videoMediaBlob = useSignal<Blob | null>(null)
+  const videoSrcFallbackToSigned = useSignal(false)
+  /** After blob playback: signed URL is no longer used locally; fetch controller aborted at media ready. */
+  const signedUrlReleased = useSignal(false)
+  const fetchAbortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    const signed = short.video?.trim()
+    if (!signed) {
+      videoMediaBlob.value = null
+      videoSrcFallbackToSigned.value = false
+      signedUrlReleased.value = false
+      fetchAbortRef.current?.abort()
+      fetchAbortRef.current = null
+      return
+    }
+
+    if (!isActive) {
+      videoMediaBlob.value = null
+      videoSrcFallbackToSigned.value = false
+      signedUrlReleased.value = false
+      fetchAbortRef.current?.abort()
+      fetchAbortRef.current = null
+      return
+    }
+
+    videoMediaBlob.value = null
+    videoSrcFallbackToSigned.value = false
+    signedUrlReleased.value = false
+
+    let cancelled = false
+    const ac = new AbortController()
+    fetchAbortRef.current = ac
+
+    ;(async () => {
+      try {
+        const res = await fetch(signed, { signal: ac.signal, mode: "cors" })
+        if (!res.ok) throw new Error(String(res.status))
+        const blob = await res.blob()
+        if (cancelled) return
+        videoMediaBlob.value = blob
+      } catch {
+        if (!cancelled) videoSrcFallbackToSigned.value = true
+        if (fetchAbortRef.current === ac) fetchAbortRef.current = null
+      }
+    })()
+
+    return () => {
+      cancelled = true
+      ac.abort()
+      if (fetchAbortRef.current === ac) {
+        fetchAbortRef.current = null
+      }
+    }
+  }, [short.video, isActive, signedUrlReleased, videoMediaBlob, videoSrcFallbackToSigned]);
+
+  /** Attach blob only after element exists; clear when inactive / blob changes (releases blob reference). */
+  useEffect(() => {
+    const el = videoRef.current
+    if (!el) return
+
+    if (videoSrcFallbackToSigned.value) {
+      el.srcObject = null
+      return
+    }
+
+    const blob = videoMediaBlob.value
+    if (!isActive || !blob) {
+      el.srcObject = null
+      return
+    }
+
+    el.srcObject = blob
+
+    return () => {
+      el.srcObject = null
+    }
+  }, [isActive, videoMediaBlob.value, videoSrcFallbackToSigned.value])
+
+  /**
+   * After `srcObject` is set: abort the signed-URL fetch session and mark released only once the element
+   * can play through (blob is in the media pipeline — not when `fetch`/`blob()` alone completes).
+   */
+  useEffect(() => {
+    const el = videoRef.current
+    if (!el || videoSrcFallbackToSigned.value || !videoMediaBlob.value) {
+      return
+    }
+
+    const releaseSignedSource = () => {
+      signedUrlReleased.value = true
+      fetchAbortRef.current?.abort()
+      fetchAbortRef.current = null
+    }
+
+    const onCanPlayThrough = () => {
+      el.removeEventListener("canplaythrough", onCanPlayThrough)
+      releaseSignedSource()
+    }
+
+    if (el.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+      releaseSignedSource()
+      return
+    }
+
+    el.addEventListener("canplaythrough", onCanPlayThrough)
+    return () => {
+      el.removeEventListener("canplaythrough", onCanPlayThrough)
+    }
+  }, [videoMediaBlob, videoSrcFallbackToSigned, signedUrlReleased])
 
   const handleSubscribe = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -75,14 +194,15 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
 
   // Auto-play/pause based on visibility
   useEffect(() => {
-    if (videoRef.current) {
-      if (isActive) {
-        videoRef.current.play()
-        isPlaying.value = true
-      } else {
-        videoRef.current.pause()
-        isPlaying.value = false
-      }
+    const el = videoRef.current
+    if (!el) return
+
+    if (isActive) {
+      safePlay(el)
+      isPlaying.value = true
+    } else {
+      el.pause()
+      isPlaying.value = false
     }
   }, [isActive, isPlaying])
 
@@ -140,7 +260,7 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
         videoRef.current.pause()
         isPlaying.value = false
       } else {
-        videoRef.current.play()
+        safePlay(videoRef.current)
         isPlaying.value = true
       }
     }
@@ -242,7 +362,8 @@ export function ShortVideo({ short, isActive, currentUser }: ShortVideoProps) {
         <div className="video-click-area w-full h-full" onClick={handleVideoClick}>
           <video
             ref={videoRef}
-            src={short.video}
+            src={videoSrcFallbackToSigned.value ? short.video : undefined}
+            data-signed-source-released={signedUrlReleased.value ? "true" : undefined}
             poster={short.thumbnail}
             className="w-full h-full object-cover cursor-pointer"
             loop
