@@ -28,6 +28,19 @@ const WIKI_INDICES: WikiIndex[] = [
 
 const WIKI_API = "https://en.wikipedia.org/w/api.php"
 
+function stripWikiMarkup(raw: string): string {
+  let s = raw
+  let prev = ""
+  while (s !== prev) {
+    prev = s
+    s = s
+      .replace(/\[\[([^|\]]*\|)?([^\]]*)\]\]/g, "$2")
+      .replace(/\{\{[^}]*\}\}/g, "")
+      .replace(/<[^>]*>/g, "")
+  }
+  return s.trim()
+}
+
 /**
  * Parses a Wikipedia wikitable containing index components and extracts
  * ticker/company pairs. Handles {{FWB link|...}} templates (DAX), `!!` and
@@ -62,7 +75,7 @@ function parseWikiTable(
 
   const headers = rawHeader
     .split(/!!|\|\||\n!/)
-    .map(h => h.replace(/^\|/, "").replace(/\[\[.*?\|?(.*?)\]\]/g, "$1").replace(/\{\{[^}]*\}\}/g, "").replace(/[{}<>]/g, "").replace(/<[^>]*>/g, "").trim().toLowerCase())
+    .map(h => stripWikiMarkup(h.replace(/^\|/, "")).toLowerCase())
 
   let tickerCol = headers.findIndex(h => h.includes("ticker") || h.includes("symbol"))
   const companyCol = headers.findIndex(h => h.includes("company") || h.includes("name"))
@@ -90,19 +103,10 @@ function parseWikiTable(
     if (fwbMatch) {
       ticker = fwbMatch[1].trim()
     } else {
-      ticker = tickerCell
-        .replace(/\[\[.*?\|?(.*?)\]\]/g, "$1")
-        .replace(/\{\{[^}]*\}\}/g, "")
-        .replace(/<[^>]*>/g, "")
-        .trim()
-        .split(/\s/)[0]
+      ticker = stripWikiMarkup(tickerCell).split(/\s/)[0]
     }
 
-    company = companyCell
-      .replace(/\[\[([^|\]]*\|)?([^\]]*)\]\]/g, "$2")
-      .replace(/\{\{[^}]*\}\}/g, "")
-      .replace(/<[^>]*>/g, "")
-      .trim()
+    company = stripWikiMarkup(companyCell)
 
     if (!company && !ticker) continue
 

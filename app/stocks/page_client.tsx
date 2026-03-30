@@ -64,6 +64,7 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
   const watchlist = useSignal<Set<string>>(new Set(watchlistTickers))
   const sortBy = useSignal<"ticker" | "score" | "change">("score")
   const visibleCount = useSignal(PAGE_SIZE)
+  const activeTab = useSignal(initialTab)
 
   const handleToggleWatchlist = useCallback(async (ticker: string) => {
     if (!user) {
@@ -185,13 +186,14 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
         )}
 
         <Tabs
-          defaultValue={initialTab}
+          value={activeTab.value ?? "all"}
           onValueChange={(value) => {
+            activeTab.value = value as string
             const params = new URLSearchParams(window.location.search)
             if (value === "all") {
               params.delete("tab")
             } else {
-              params.set("tab", value)
+              params.set("tab", value as string)
             }
             const qs = params.toString()
             router.replace(`/stocks${qs ? `?${qs}` : ""}`, { scroll: false })

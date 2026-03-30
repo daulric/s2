@@ -103,6 +103,32 @@ export async function fetchFinnhubQuote(
   return { price: data.c, changePct: data.dp }
 }
 
+export async function fetchYahooQuote(
+  ticker: string,
+): Promise<{ price: number; changePct: number } | null> {
+  const trimmed = ticker.trim().toUpperCase()
+  const yahooSymbol = isEuTicker(trimmed) ? trimmed : trimmed.replace(/\./g, "-")
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?range=5d&interval=1d`
+
+  try {
+    const res = await fetch(url, { cache: "no-store", headers: CHART_FETCH_HEADERS })
+    if (!res.ok) return null
+    const json = await res.json()
+    const meta = json?.chart?.result?.[0]?.meta
+    if (!meta?.regularMarketPrice) return null
+
+    const price = meta.regularMarketPrice as number
+    const prevClose = (meta.chartPreviousClose ?? meta.previousClose) as number | undefined
+    const changePct = prevClose && prevClose > 0
+      ? ((price - prevClose) / prevClose) * 100
+      : 0
+
+    return { price, changePct }
+  } catch {
+    return null
+  }
+}
+
 export async function fetchFinnhubProfile(
   ticker: string,
   apiKey: string,
