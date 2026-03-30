@@ -5,8 +5,11 @@ import {
   fetchAlphaVantageNewsSentiment,
   fetchFinnhubCompanyNews,
   fetchFinnhubQuote,
+  fetchYahooQuote,
   computePrediction,
 } from "@/lib/stocks/api"
+import { isEuTicker } from "@/lib/stocks/eu-listings"
+import { isEcseTicker } from "@/lib/stocks/ecse-scraper"
 import { persistFinnhubArticlesIfNew } from "@/lib/stocks/persist-stock-articles"
 import { backfillArticleSentimentsForTickers } from "@/lib/stocks/backfill-article-sentiments"
 
@@ -53,7 +56,10 @@ export async function GET(req: NextRequest) {
 
     for (const ticker of batch) {
       try {
-        const quote = await fetchFinnhubQuote(ticker, finnhubKey)
+        const nonUs = isEuTicker(ticker) || isEcseTicker(ticker)
+        const quote = nonUs
+          ? await fetchYahooQuote(ticker)
+          : await fetchFinnhubQuote(ticker, finnhubKey)
         if (quote) {
           await supabase.from("stocks").update({
             last_price: quote.price,

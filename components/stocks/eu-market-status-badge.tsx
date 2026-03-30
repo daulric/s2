@@ -3,11 +3,11 @@
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { useUsEquitiesMarketPhase } from "@/hooks/use-us-equities-market-open"
-import { usMarketPhaseLabel, type UsEquitiesMarketPhase } from "@/lib/stocks/us-market-hours"
+import { useEuMarketPhase } from "@/hooks/use-eu-market-open"
+import { euMarketPhaseLabel, type EuMarketPhase } from "@/lib/stocks/eu-market-hours"
 
 const phaseStyles: Record<
-  UsEquitiesMarketPhase,
+  EuMarketPhase,
   { border: string; bg: string; text: string; dot: string; pulse: boolean }
 > = {
   regular: {
@@ -18,17 +18,17 @@ const phaseStyles: Record<
     pulse: true,
   },
   pre_market: {
-    border: "border-sky-500/45",
-    bg: "bg-sky-500/10",
-    text: "text-sky-800 dark:text-sky-300",
-    dot: "bg-sky-500",
+    border: "border-yellow-500/40",
+    bg: "bg-yellow-500/10",
+    text: "text-yellow-700 dark:text-yellow-400",
+    dot: "bg-yellow-500",
     pulse: true,
   },
   after_hours: {
-    border: "border-violet-500/45",
-    bg: "bg-violet-500/10",
-    text: "text-violet-800 dark:text-violet-300",
-    dot: "bg-violet-500",
+    border: "border-blue-500/40",
+    bg: "bg-blue-500/10",
+    text: "text-blue-700 dark:text-blue-400",
+    dot: "bg-blue-500",
     pulse: true,
   },
   closed: {
@@ -40,10 +40,10 @@ const phaseStyles: Record<
   },
 }
 
-export function UsMarketStatusBadge({ className }: { className?: string }) {
-  const phase = useUsEquitiesMarketPhase()
+export function EuMarketStatusBadge({ className }: { className?: string }) {
+  const phase = useEuMarketPhase()
   const s = phaseStyles[phase]
-  const label = usMarketPhaseLabel(phase)
+  const label = euMarketPhaseLabel(phase)
 
   return (
     <Tooltip>
@@ -65,7 +65,7 @@ export function UsMarketStatusBadge({ className }: { className?: string }) {
           className={cn("size-1.5 shrink-0 rounded-full", s.dot, s.pulse && "animate-pulse")}
           aria-hidden
         />
-        US · {label}
+        EU · {label}
       </TooltipTrigger>
       <TooltipContent
         side="bottom"
@@ -73,25 +73,25 @@ export function UsMarketStatusBadge({ className }: { className?: string }) {
       >
         <div className="flex w-[min(20rem,calc(100vw-2rem))] flex-col gap-3">
           <div>
-            <p className="font-semibold">NYSE & Nasdaq</p>
-            <p className="mt-0.5 text-xs text-background/70">Eastern Time (ET)</p>
+            <p className="font-semibold">European Stock Exchanges</p>
+            <p className="mt-0.5 text-xs text-background/70">Central European Time (CET)</p>
           </div>
           <dl className="space-y-2.5 border-t border-background/15 pt-2.5">
             <div>
-              <dt className="text-xs font-medium text-background/65">Regular session</dt>
-              <dd className="mt-1 text-background/95">Mon–Fri, 9:30 AM – 4:00 PM</dd>
-            </div>
-            <div>
               <dt className="text-xs font-medium text-background/65">Pre-market</dt>
-              <dd className="mt-1 text-background/95">Mon–Fri, 4:00 AM – 9:30 AM</dd>
+              <dd className="mt-1 text-background/95">Mon-Fri, 8:00 AM - 9:00 AM</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-background/65">After-hours</dt>
-              <dd className="mt-1 text-background/95">Mon–Fri, 4:00 PM – 8:00 PM</dd>
+              <dt className="text-xs font-medium text-background/65">Regular session</dt>
+              <dd className="mt-1 text-background/95">Mon-Fri, 9:00 AM - 5:30 PM</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-background/65">After hours</dt>
+              <dd className="mt-1 text-background/95">Mon-Fri, 5:30 PM - 8:00 PM</dd>
             </div>
           </dl>
           <p className="border-t border-background/15 pt-2.5 text-xs leading-snug text-background/70">
-            Closed nights, weekends, and federal market holidays (NYSE-style observed dates).
+            Covers Euronext, Xetra, LSE, and Nordic exchanges. Closed nights, weekends, and major European holidays.
           </p>
         </div>
       </TooltipContent>

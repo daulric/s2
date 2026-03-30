@@ -3,7 +3,7 @@
 import { useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useSignals, useSignal } from "@preact/signals-react/runtime"
-import { StockCard, UsMarketStatusBadge } from "@/components/stocks"
+import { StockCard, UsMarketStatusBadge, EcseMarketStatusBadge, EuMarketStatusBadge } from "@/components/stocks"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ToggleWatchlist } from "@/serverActions/GetStockDetails"
-import type { StockWithPrediction } from "@/lib/stocks/types"
+import type { StockWithPrediction, StockExchange } from "@/lib/stocks/types"
 import { useAuth } from "@/context/AuthProvider"
 import { toast } from "sonner"
 
@@ -31,6 +31,14 @@ type StocksPageProps = {
   watchlistTickers: string[]
   initialTab?: string
 }
+
+const EXCHANGES: { label: string; value: "All" | StockExchange }[] = [
+  { label: "All Exchanges", value: "All" },
+  { label: "NYSE", value: "NYSE" },
+  { label: "Nasdaq", value: "Nasdaq" },
+  { label: "EU", value: "EU" },
+  { label: "ECSE", value: "ECSE" },
+]
 
 const SECTORS = [
   "All",
@@ -51,10 +59,12 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
 
   const PAGE_SIZE = 20
   const search = useSignal("")
+  const selectedExchange = useSignal<"All" | StockExchange>("All")
   const selectedSector = useSignal("All")
   const watchlist = useSignal<Set<string>>(new Set(watchlistTickers))
   const sortBy = useSignal<"ticker" | "score" | "change">("score")
   const visibleCount = useSignal(PAGE_SIZE)
+  const activeTab = useSignal(initialTab)
 
   const handleToggleWatchlist = useCallback(async (ticker: string) => {
     if (!user) {
@@ -78,6 +88,10 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
   }, [user, watchlist])
 
   const allFilteredStocks = stocks
+    .filter((s) => {
+      if (selectedExchange.value !== "All" && s.exchange !== selectedExchange.value) return false
+      return true
+    })
     .filter((s) => {
       if (search.value) {
         const q = search.value.toLowerCase()
@@ -103,9 +117,12 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
 
   const watchedStocks = stocks.filter((s) => watchlist.value.has(s.ticker))
 
-  const bullishCount = stocks.filter((s) => listDisplayDirection(s) === "bullish").length
-  const bearishCount = stocks.filter((s) => listDisplayDirection(s) === "bearish").length
-  const neutralCount = stocks.filter((s) => listDisplayDirection(s) === "neutral").length
+  const exchangeFilteredStocks = selectedExchange.value === "All"
+    ? stocks
+    : stocks.filter((s) => s.exchange === selectedExchange.value)
+  const bullishCount = exchangeFilteredStocks.filter((s) => listDisplayDirection(s) === "bullish").length
+  const bearishCount = exchangeFilteredStocks.filter((s) => listDisplayDirection(s) === "bearish").length
+  const neutralCount = exchangeFilteredStocks.filter((s) => listDisplayDirection(s) === "neutral").length
 
   return (
     <main className="min-h-screen pt-15 p-4 pb-8 bg-background">
@@ -113,9 +130,20 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
         <div className="mb-6">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <h1 className="text-3xl font-bold">stock predictions</h1>
-            <UsMarketStatusBadge />
+            {(selectedExchange.value === "All" || selectedExchange.value === "NYSE" || selectedExchange.value === "Nasdaq") && (
+              <UsMarketStatusBadge />
+            )}
+            {(selectedExchange.value === "All" || selectedExchange.value === "EU") && (
+              <EuMarketStatusBadge />
+            )}
+            {(selectedExchange.value === "All" || selectedExchange.value === "ECSE") && (
+              <EcseMarketStatusBadge />
+            )}
           </div>
-          <p className="text-muted-foreground mt-1">news-driven sentiment analysis across {stocks.length.toLocaleString()} stocks</p>
+          <p className="text-muted-foreground mt-1">
+            news-driven sentiment analysis across {exchangeFilteredStocks.length.toLocaleString()} stocks
+            {selectedExchange.value !== "All" && ` on ${selectedExchange.value}`}
+          </p>
         </div>
 
         <div className="mb-6 p-4 rounded-lg border bg-card">
@@ -158,13 +186,14 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
         )}
 
         <Tabs
-          defaultValue={initialTab}
+          value={activeTab.value ?? "all"}
           onValueChange={(value) => {
+            activeTab.value = value as string
             const params = new URLSearchParams(window.location.search)
             if (value === "all") {
               params.delete("tab")
             } else {
-              params.set("tab", value)
+              params.set("tab", value as string)
             }
             const qs = params.toString()
             router.replace(`/stocks${qs ? `?${qs}` : ""}`, { scroll: false })
@@ -219,6 +248,22 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
                   A–Z
                 </Button>
               </div>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {EXCHANGES.map((ex) => (
+                <Badge
+                  key={ex.value}
+                  variant={selectedExchange.value === ex.value ? "default" : "outline"}
+                  className={cn(
+                    "cursor-pointer transition-colors",
+                    selectedExchange.value === ex.value && "bg-primary text-primary-foreground",
+                  )}
+                  onClick={() => { selectedExchange.value = ex.value; visibleCount.value = PAGE_SIZE }}
+                >
+                  {ex.label}
+                </Badge>
+              ))}
             </div>
 
             <div className="flex flex-wrap gap-1.5 mb-4">

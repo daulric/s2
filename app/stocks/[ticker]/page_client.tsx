@@ -22,6 +22,8 @@ import { ToggleWatchlist } from "@/serverActions/GetStockDetails"
 import type { StockDetail, ArticleSentiment } from "@/lib/stocks/types"
 import {
   AnimatedStockPrice,
+  EcseMarketStatusBadge,
+  EuMarketStatusBadge,
   StockArticleSentimentSummary,
   StockChart,
   UsMarketStatusBadge,
@@ -187,7 +189,10 @@ export default function StockDetailPage({ detail, isWatched }: StockDetailPagePr
             <div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <h1 className="text-3xl font-bold">{detail.ticker}</h1>
-                <UsMarketStatusBadge />
+                {detail.exchange === "EU" ? <EuMarketStatusBadge /> : detail.exchange === "ECSE" ? <EcseMarketStatusBadge /> : <UsMarketStatusBadge />}
+                {detail.exchange && (
+                  <Badge variant="outline" className="text-xs">{detail.exchange}</Badge>
+                )}
                 {detail.sector && (
                   <Badge variant="secondary">{detail.sector}</Badge>
                 )}

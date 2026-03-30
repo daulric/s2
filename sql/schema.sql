@@ -6,6 +6,7 @@ set search_path to "meetup-app";
 create table if not exists stocks (
   ticker text primary key,
   name text not null,
+  exchange text,
   sector text,
   last_price numeric,
   price_change_pct numeric,
@@ -13,6 +14,8 @@ create table if not exists stocks (
   market_cap numeric,
   updated_at timestamptz default now()
 );
+
+create index if not exists idx_stocks_exchange on stocks(exchange);
 
 create table if not exists stock_articles (
   id uuid primary key default gen_random_uuid(),
@@ -74,19 +77,55 @@ alter table stock_predictions enable row level security;
 alter table user_watchlists enable row level security;
 
 -- Public read for stocks, articles, sentiments, predictions
-create policy "Public read stocks" on stocks for select using (true);
-create policy "Public read articles" on stock_articles for select using (true);
-create policy "Public read sentiments" on article_sentiments for select using (true);
-create policy "Public read predictions" on stock_predictions for select using (true);
+do $$ begin
+  create policy "Public read stocks" on stocks for select using (true);
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create policy "Public read articles" on stock_articles for select using (true);
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create policy "Public read sentiments" on article_sentiments for select using (true);
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create policy "Public read predictions" on stock_predictions for select using (true);
+exception when duplicate_object then null;
+end $$;
 
 -- Service role write (for ingestion cron)
-create policy "Service insert stocks" on stocks for insert with check (true);
-create policy "Service update stocks" on stocks for update using (true);
-create policy "Service insert articles" on stock_articles for insert with check (true);
-create policy "Service insert sentiments" on article_sentiments for insert with check (true);
-create policy "Service insert predictions" on stock_predictions for insert with check (true);
+do $$ begin
+  create policy "Service insert stocks" on stocks for insert with check (true);
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create policy "Service update stocks" on stocks for update using (true);
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create policy "Service insert articles" on stock_articles for insert with check (true);
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create policy "Service insert sentiments" on article_sentiments for insert with check (true);
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create policy "Service insert predictions" on stock_predictions for insert with check (true);
+exception when duplicate_object then null;
+end $$;
 
 -- Watchlists: users manage their own
-create policy "Users read own watchlist" on user_watchlists for select using (auth.uid() = user_id);
-create policy "Users insert own watchlist" on user_watchlists for insert with check (auth.uid() = user_id);
-create policy "Users delete own watchlist" on user_watchlists for delete using (auth.uid() = user_id);
+do $$ begin
+  create policy "Users read own watchlist" on user_watchlists for select using (auth.uid() = user_id);
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create policy "Users insert own watchlist" on user_watchlists for insert with check (auth.uid() = user_id);
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create policy "Users delete own watchlist" on user_watchlists for delete using (auth.uid() = user_id);
+exception when duplicate_object then null;
+end $$;
