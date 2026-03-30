@@ -1,4 +1,5 @@
 import type { StockArticle, PriceCandle, ListedStock } from "./types"
+import { fetchEuListings, isEuTicker } from "./eu-listings"
 
 const ALPHAVANTAGE_BASE = "https://www.alphavantage.co/query"
 const FINNHUB_BASE = "https://finnhub.io/api/v1"
@@ -348,7 +349,8 @@ function yahooChartQuery(range: CandleRange): { range: string; interval: string 
 
 /** No API key — used when AV + Finnhub return nothing (rate limits, free-tier no_data). */
 export async function fetchYahooFinanceCandles(ticker: string, range: CandleRange): Promise<PriceCandle[]> {
-  const yahooSymbol = ticker.trim().toUpperCase().replace(/\./g, "-")
+  const trimmed = ticker.trim().toUpperCase()
+  const yahooSymbol = isEuTicker(trimmed) ? trimmed : trimmed.replace(/\./g, "-")
   const { range: r, interval } = yahooChartQuery(range)
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?range=${r}&interval=${interval}`
 
@@ -397,8 +399,9 @@ export async function fetchYahooFinanceCandles(ticker: string, range: CandleRang
   }
 }
 
-/** Stooq CSV — last resort, US symbols as `ticker.us`. */
+/** Stooq CSV — last resort, US symbols only (`ticker.us`). */
 export async function fetchStooqDailyCandles(ticker: string, range: CandleRange): Promise<PriceCandle[]> {
+  if (isEuTicker(ticker)) return []
   const sym = `${ticker.trim().toLowerCase()}.us`
   const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d`
 
@@ -460,6 +463,25 @@ export async function fetchStooqDailyCandles(ticker: string, range: CandleRange)
   }
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ])
+}
+
+const candleCache = new Map<string, { data: PriceCandle[]; ts: number }>()
+const CANDLE_CACHE_TTL: Record<CandleRange, number> = {
+  "1D": 60_000,
+  "1W": 5 * 60_000,
+  "1M": 10 * 60_000,
+  "3M": 15 * 60_000,
+  "1Y": 30 * 60_000,
+  "5Y": 60 * 60_000,
+  "10Y": 60 * 60_000,
+  "ALL": 60 * 60_000,
+}
+
 export async function fetchStockCandlesWithFallback(
   ticker: string,
   range: CandleRange,
@@ -468,22 +490,29 @@ export async function fetchStockCandlesWithFallback(
   const sym = ticker.trim().toUpperCase()
   if (!sym) return []
 
-  if (options.alphaKey) {
-    const av = await fetchStockCandles(sym, options.alphaKey, range)
-    if (av.length > 0) return av
+  const cacheKey = `${sym}:${range}`
+  const cached = candleCache.get(cacheKey)
+  if (cached && Date.now() - cached.ts < CANDLE_CACHE_TTL[range]) {
+    return cached.data
   }
 
+  const providers: Promise<PriceCandle[]>[] = []
   if (options.finnhubKey) {
-    const fh = await fetchFinnhubStockCandles(sym, options.finnhubKey, range)
-    if (fh.length > 0) return fh
+    providers.push(withTimeout(fetchFinnhubStockCandles(sym, options.finnhubKey, range), 5000, []))
   }
+  if (options.alphaKey) {
+    providers.push(withTimeout(fetchStockCandles(sym, options.alphaKey, range), 5000, []))
+  }
+  providers.push(withTimeout(fetchYahooFinanceCandles(sym, range), 5000, []))
+  providers.push(withTimeout(fetchStooqDailyCandles(sym, range), 5000, []))
 
-  const yh = await fetchYahooFinanceCandles(sym, range)
-  if (yh.length > 0) return yh
-
-  const st = await fetchStooqDailyCandles(sym, range)
-  if (st.length > 0) return st
-
+  const results = await Promise.all(providers)
+  for (const r of results) {
+    if (r.length > 0) {
+      candleCache.set(cacheKey, { data: r, ts: Date.now() })
+      return r
+    }
+  }
   return []
 }
 
@@ -499,8 +528,25 @@ function parseAlphaVantageDate(raw: string): string {
 }
 
 const SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers_exchange.json"
-const VALID_EXCHANGES = new Set(["NYSE", "Nasdaq"])
+const VALID_US_EXCHANGES = new Set(["NYSE", "Nasdaq"])
 const LISTING_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+
+const ECSE_LISTINGS: ListedStock[] = [
+  { ticker: "BON",  name: "The Bank of Nevis Ltd",                                    exchange: "ECSE" },
+  { ticker: "BOSV", name: "Bank of St Vincent and the Grenadines",                     exchange: "ECSE" },
+  { ticker: "CWKN", name: "Cable & Wireless St. Kitts & Nevis",                        exchange: "ECSE" },
+  { ticker: "DES",  name: "Dominica Electricity Services Ltd",                         exchange: "ECSE" },
+  { ticker: "ECFH", name: "East Caribbean Financial Holding Co. Ltd",                  exchange: "ECSE" },
+  { ticker: "GCBL", name: "Grenada Co-operative Bank Limited",                         exchange: "ECSE" },
+  { ticker: "GESL", name: "Grenada Electricity Services Limited",                      exchange: "ECSE" },
+  { ticker: "GPCL", name: "Grenreal Property Corporation Limited",                     exchange: "ECSE" },
+  { ticker: "RBGL", name: "Republic Bank (Grenada) Limited",                           exchange: "ECSE" },
+  { ticker: "SKNB", name: "St. Kitts Nevis Anguilla National Bank Ltd",                exchange: "ECSE" },
+  { ticker: "SLES", name: "St. Lucia Electricity Services Ltd",                        exchange: "ECSE" },
+  { ticker: "SLH",  name: "S. L. Horsford and Company Ltd",                            exchange: "ECSE" },
+  { ticker: "TDC",  name: "St Kitts Nevis Anguilla Trading and Development Company Ltd", exchange: "ECSE" },
+  { ticker: "WIOC", name: "West Indies Oil Company Limited",                           exchange: "ECSE" },
+]
 
 let listingCache: { data: ListedStock[]; fetchedAt: number } | null = null
 
@@ -529,10 +575,19 @@ export async function fetchActiveListings(): Promise<ListedStock[]> {
   const stocks: ListedStock[] = []
 
   for (const [, name, ticker, exchange] of json.data) {
-    if (!VALID_EXCHANGES.has(exchange) || !ticker || !name) continue
+    if (!VALID_US_EXCHANGES.has(exchange) || !ticker || !name) continue
     if (ticker.includes(".") || ticker.includes("-") || ticker.includes("/")) continue
 
     stocks.push({ ticker, name, exchange })
+  }
+
+  stocks.push(...ECSE_LISTINGS)
+
+  try {
+    const euStocks = await fetchEuListings()
+    stocks.push(...euStocks)
+  } catch (e) {
+    console.error("Failed to fetch EU listings from Wikipedia:", e)
   }
 
   listingCache = { data: stocks, fetchedAt: Date.now() }

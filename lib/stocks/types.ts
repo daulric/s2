@@ -1,6 +1,9 @@
+export type StockExchange = "NYSE" | "Nasdaq" | "ECSE" | "EU"
+
 export type Stock = {
   ticker: string
   name: string
+  exchange: StockExchange | null
   sector: string | null
   last_price: number | null
   price_change_pct: number | null

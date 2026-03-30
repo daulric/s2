@@ -24,6 +24,7 @@ export async function GET() {
   const rows = listings.map((s) => ({
     ticker: s.ticker,
     name: s.name,
+    exchange: s.exchange,
     sector: null,
     updated_at: new Date().toISOString(),
   }))
@@ -32,7 +33,7 @@ export async function GET() {
     const chunk = rows.slice(i, i + UPSERT_CHUNK_SIZE)
     const { error } = await supabase
       .from("stocks")
-      .upsert(chunk, { onConflict: "ticker", ignoreDuplicates: true })
+      .upsert(chunk, { onConflict: "ticker" })
 
     if (error) {
       return NextResponse.json(

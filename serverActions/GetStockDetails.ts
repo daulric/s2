@@ -18,14 +18,13 @@ import {
   fetchStockCandlesWithFallback,
   type CandleRange,
 } from "@/lib/stocks/api"
+import { isEcseTicker, fetchEcseCandles } from "@/lib/stocks/ecse-scraper"
+import { isEuTicker } from "@/lib/stocks/eu-listings"
 import { parseStockRow } from "@/lib/stocks/coerce-stock-number"
 import { persistFinnhubArticlesIfNew } from "@/lib/stocks/persist-stock-articles"
 import { backfillArticleSentimentsForTickers } from "@/lib/stocks/backfill-article-sentiments"
 import { articlePluralityDirection } from "@/lib/stocks/article-sentiment-plurality"
 import { SupabaseClient } from "@supabase/supabase-js"
-
-/** PostgREST `.in("ticker", …)` breaks with very large lists (URL / query limits). */
-const TICKER_IN_CHUNK = 250
 
 const ARTICLE_ID_IN_CHUNK = 200
 
@@ -34,18 +33,24 @@ async function fetchSentimentsByArticleIds(
   articleIds: string[],
 ): Promise<ArticleSentiment[]> {
   if (articleIds.length === 0) return []
-  const merged: ArticleSentiment[] = []
+
+  const chunks: Promise<ArticleSentiment[]>[] = []
   for (let i = 0; i < articleIds.length; i += ARTICLE_ID_IN_CHUNK) {
     const chunk = articleIds.slice(i, i + ARTICLE_ID_IN_CHUNK)
-    const { data } = await supabase
-      .from("article_sentiments")
-      .select(
-        "id, article_id, ticker, sentiment_score, sentiment_label, confidence, model_used, created_at",
-      )
-      .in("article_id", chunk)
-      .order("created_at", { ascending: false })
-    if (data?.length) merged.push(...(data as ArticleSentiment[]))
+    chunks.push(
+      Promise.resolve(
+        supabase
+          .from("article_sentiments")
+          .select("id, article_id, ticker, sentiment_score, sentiment_label, confidence, model_used, created_at")
+          .in("article_id", chunk)
+          .order("created_at", { ascending: false })
+          .then(({ data }) => (data as ArticleSentiment[] | null) ?? []),
+      ),
+    )
   }
+  const results = await Promise.all(chunks)
+  const merged = results.flat()
+
   const sentimentByArticle = new Map<string, ArticleSentiment>()
   for (const s of merged) {
     if (!sentimentByArticle.has(s.article_id)) {
@@ -53,23 +58,6 @@ async function fetchSentimentsByArticleIds(
     }
   }
   return [...sentimentByArticle.values()]
-}
-
-async function supabaseInChunks<T>(
-  tickers: string[],
-  run: (chunk: string[]) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
-): Promise<T[]> {
-  const out: T[] = []
-  for (let i = 0; i < tickers.length; i += TICKER_IN_CHUNK) {
-    const chunk = tickers.slice(i, i + TICKER_IN_CHUNK)
-    const { data, error } = await run(chunk)
-    if (error) {
-      console.error("[GetAllStocks] batched query error:", error.message)
-      continue
-    }
-    if (data?.length) out.push(...data)
-  }
-  return out
 }
 
 function stockArticleDedupeKey(a: { url: string | null; headline: string }): string {
@@ -134,48 +122,44 @@ function mergeDbArticlesWithLiveNews(
   return merged.slice(0, 30)
 }
 
-export async function GetAllStocks(): Promise<StockWithPrediction[]> {
+const STOCK_LIST_COLS = "ticker, name, exchange, sector, last_price, price_change_pct, volume, market_cap, updated_at"
+
+async function fetchAllStocksFromDb(): Promise<StockWithPrediction[]> {
   const supabase = (await createClient()) as SupabaseClient
 
-  const allStocks: Stock[] = []
+  const stockPages: Promise<Stock[]>[] = []
   const PAGE = 1000
-  let from = 0
+  const { count } = await supabase.from("stocks").select("ticker", { count: "exact", head: true })
+  const total = count ?? 0
 
-  while (true) {
-    const { data, error } = await supabase
-      .from("stocks")
-      .select("*")
-      .order("ticker")
-      .range(from, from + PAGE - 1)
-
-    if (error || !data || data.length === 0) break
-    allStocks.push(...(data as Stock[]).map((row) => parseStockRow(row)))
-    if (data.length < PAGE) break
-    from += PAGE
+  for (let from = 0; from < total; from += PAGE) {
+    stockPages.push(
+      Promise.resolve(
+        supabase
+          .from("stocks")
+          .select(STOCK_LIST_COLS)
+          .order("ticker")
+          .range(from, from + PAGE - 1)
+          .then(({ data }) => (data as Stock[] | null)?.map(parseStockRow) ?? []),
+      ),
+    )
   }
 
+  const allStocks = (await Promise.all(stockPages)).flat()
   if (allStocks.length === 0) return []
 
-  const tickers = allStocks.map((s) => s.ticker)
-
-  const predictions = await supabaseInChunks<StockPrediction>(tickers, (chunk) =>
+  const [predictions, sentimentRows] = await Promise.all([
     supabase
       .from("stock_predictions")
       .select("*")
-      .in("ticker", chunk)
-      .order("created_at", { ascending: false }),
-  )
+      .order("created_at", { ascending: false })
+      .then(({ data }) => (data as StockPrediction[] | null) ?? []),
+    supabase
+      .from("article_sentiments")
+      .select("ticker, sentiment_score, sentiment_label")
+      .then(({ data }) => (data as { ticker: string; sentiment_score: number; sentiment_label: "bullish" | "bearish" | "neutral" }[] | null) ?? []),
+  ])
 
-  type SentimentRow = {
-    ticker: string
-    sentiment_score: number
-    sentiment_label: "bullish" | "bearish" | "neutral"
-  }
-  const sentimentRows = await supabaseInChunks<SentimentRow>(tickers, (chunk) =>
-    supabase.from("article_sentiments").select("ticker, sentiment_score, sentiment_label").in("ticker", chunk),
-  )
-
-  predictions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   const latestPredictions = new Map<string, StockPrediction>()
   for (const p of predictions) {
     if (!latestPredictions.has(p.ticker)) {
@@ -183,25 +167,12 @@ export async function GetAllStocks(): Promise<StockWithPrediction[]> {
     }
   }
 
-  type SentimentAgg = {
-    bullish: number
-    bearish: number
-    neutral: number
-    scoreSum: number
-    count: number
-  }
+  type SentimentAgg = { bullish: number; bearish: number; neutral: number; scoreSum: number; count: number }
   const sentimentMap = new Map<string, SentimentAgg>()
   for (const s of sentimentRows) {
-    const entry = sentimentMap.get(s.ticker) ?? {
-      bullish: 0,
-      bearish: 0,
-      neutral: 0,
-      scoreSum: 0,
-      count: 0,
-    }
-    const label = s.sentiment_label
-    if (label === "bullish") entry.bullish += 1
-    else if (label === "bearish") entry.bearish += 1
+    const entry = sentimentMap.get(s.ticker) ?? { bullish: 0, bearish: 0, neutral: 0, scoreSum: 0, count: 0 }
+    if (s.sentiment_label === "bullish") entry.bullish += 1
+    else if (s.sentiment_label === "bearish") entry.bearish += 1
     else entry.neutral += 1
     entry.scoreSum += Number(s.sentiment_score)
     entry.count += 1
@@ -218,14 +189,20 @@ export async function GetAllStocks(): Promise<StockWithPrediction[]> {
         ? articlePluralityDirection(agg.bullish, agg.bearish, agg.neutral, prediction?.direction)
         : null
 
-    return {
-      ...stock,
-      prediction,
-      article_count,
-      sentiment_avg,
-      article_majority_direction,
-    }
+    return { ...stock, prediction, article_count, sentiment_avg, article_majority_direction }
   })
+}
+
+let allStocksCache: { data: StockWithPrediction[]; ts: number } | null = null
+const ALL_STOCKS_TTL_MS = 60_000
+
+export async function GetAllStocks(): Promise<StockWithPrediction[]> {
+  if (allStocksCache && Date.now() - allStocksCache.ts < ALL_STOCKS_TTL_MS) {
+    return allStocksCache.data
+  }
+  const data = await fetchAllStocksFromDb()
+  allStocksCache = { data, ts: Date.now() }
+  return data
 }
 
 export async function GetStockDetail(ticker: string): Promise<StockDetail | null> {
@@ -234,7 +211,23 @@ export async function GetStockDetail(ticker: string): Promise<StockDetail | null
   const alphaKey = process.env.ALPHAVANTAGE_API_KEY
   const finnhubKey = process.env.FINNHUB_API_KEY
 
-  const [stockRes, articlesRes, predictionsRes] = await Promise.all([
+  const ecse = isEcseTicker(tickerUpper)
+  const eu = isEuTicker(tickerUpper)
+  const usStock = !ecse && !eu
+
+  const candlePromise = ecse
+    ? fetchEcseCandles(tickerUpper, "3M")
+    : eu
+      ? fetchStockCandlesWithFallback(tickerUpper, "3M", {})
+      : alphaKey || finnhubKey
+        ? fetchStockCandlesWithFallback(tickerUpper, "3M", { alphaKey, finnhubKey })
+        : Promise.resolve([] as PriceCandle[])
+
+  const newsPromise = usStock && finnhubKey
+    ? fetchFinnhubCompanyNews(tickerUpper, finnhubKey, 7).catch(() => [] as Omit<StockArticle, "id" | "created_at">[])
+    : Promise.resolve([] as Omit<StockArticle, "id" | "created_at">[])
+
+  const [stockRes, articlesRes, predictionsRes, candles, liveNews] = await Promise.all([
     supabase.from("stocks").select("*").eq("ticker", tickerUpper).single(),
     supabase
       .from("stock_articles")
@@ -248,6 +241,8 @@ export async function GetStockDetail(ticker: string): Promise<StockDetail | null
       .eq("ticker", tickerUpper)
       .order("created_at", { ascending: false })
       .limit(30),
+    candlePromise,
+    newsPromise,
   ])
 
   const { data: stock, error } = stockRes
@@ -257,48 +252,13 @@ export async function GetStockDetail(ticker: string): Promise<StockDetail | null
   const articles = (articlesRes.data ?? []) as StockArticle[]
   const predictions = (predictionsRes.data ?? []) as StockPrediction[]
 
-  const [candles, liveNews] = await Promise.all([
-    alphaKey || finnhubKey
-      ? fetchStockCandlesWithFallback(tickerUpper, "3M", { alphaKey, finnhubKey })
-      : Promise.resolve([] as PriceCandle[]),
-    finnhubKey
-      ? fetchFinnhubCompanyNews(tickerUpper, finnhubKey, 7).catch(() => [] as Omit<StockArticle, "id" | "created_at">[])
-      : Promise.resolve([] as Omit<StockArticle, "id" | "created_at">[]),
-  ])
-
-  let articlesForMerge = articles
-  if (liveNews.length > 0) {
-    const inserted = await persistFinnhubArticlesIfNew(supabase, tickerUpper, liveNews)
-    if (inserted > 0) {
-      const { data: refreshed } = await supabase
-        .from("stock_articles")
-        .select("*")
-        .eq("ticker", tickerUpper)
-        .order("published_at", { ascending: false })
-        .limit(60)
-      if (refreshed?.length) articlesForMerge = refreshed as StockArticle[]
-    }
-  }
-
-  const dbArticleIds = articlesForMerge
-    .map((a) => a.id)
-    .filter((id) => !id.startsWith("live-"))
-
+  const dbArticleIds = articles.map((a) => a.id)
   const sentimentRows = await fetchSentimentsByArticleIds(supabase, dbArticleIds)
   const sentimentByArticle = new Map<string, ArticleSentiment>(
     sentimentRows.map((s) => [s.article_id, s]),
   )
 
-  after(async () => {
-    try {
-      const sb = (await createClient()) as SupabaseClient
-      await backfillArticleSentimentsForTickers(sb, [tickerUpper], alphaKey)
-    } catch {
-      // Alpha rate limit / network — next visit or cron can fill scores
-    }
-  })
-
-  const dbArticlesWithSentiment: StockArticleWithSentiment[] = articlesForMerge.map((a) => ({
+  const dbArticlesWithSentiment: StockArticleWithSentiment[] = articles.map((a) => ({
     ...a,
     sentiment: sentimentByArticle.get(a.id) ?? null,
   }))
@@ -307,6 +267,18 @@ export async function GetStockDetail(ticker: string): Promise<StockDetail | null
     liveNews.length > 0
       ? mergeDbArticlesWithLiveNews(dbArticlesWithSentiment, liveNews, tickerUpper)
       : dbArticlesWithSentiment.slice(0, 30)
+
+  after(async () => {
+    try {
+      const sb = (await createClient()) as SupabaseClient
+      if (liveNews.length > 0) {
+        await persistFinnhubArticlesIfNew(sb, tickerUpper, liveNews)
+      }
+      await backfillArticleSentimentsForTickers(sb, [tickerUpper], alphaKey)
+    } catch {
+      // next visit or cron will pick up persistence
+    }
+  })
 
   const lastCandleClose = candles.length > 0 ? candles[candles.length - 1]!.close : null
   const last_price = stockBase.last_price ?? lastCandleClose
@@ -325,7 +297,14 @@ export async function GetStockCandles(
   ticker: string,
   range: CandleRange,
 ): Promise<PriceCandle[]> {
-  return fetchStockCandlesWithFallback(ticker.toUpperCase(), range, {
+  const sym = ticker.toUpperCase()
+  if (isEcseTicker(sym)) {
+    return fetchEcseCandles(sym, range)
+  }
+  if (isEuTicker(sym)) {
+    return fetchStockCandlesWithFallback(sym, range, {})
+  }
+  return fetchStockCandlesWithFallback(sym, range, {
     alphaKey: process.env.ALPHAVANTAGE_API_KEY,
     finnhubKey: process.env.FINNHUB_API_KEY,
   })

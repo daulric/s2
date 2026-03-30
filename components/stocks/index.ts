@@ -1,6 +1,8 @@
 "use client"
 
 export { AnimatedStockPrice } from "./animated-stock-price"
+export { EcseMarketStatusBadge } from "./ecse-market-status-badge"
+export { EuMarketStatusBadge } from "./eu-market-status-badge"
 export { StockArticleSentimentSummary } from "./stock-article-sentiment-summary"
 export { StockCard } from "./stock-card"
 export { StockChart } from "./stock-chart"

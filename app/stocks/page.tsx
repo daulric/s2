@@ -2,7 +2,7 @@ import { Metadata } from "next"
 import { Suspense } from "react"
 import { StocksPageSkeleton } from "@/components/layout/skeletons"
 import StocksPage from "./page_client"
-import { GetAllStocks, GetTopMovers, GetUserWatchlist } from "@/serverActions/GetStockDetails"
+import { GetAllStocks, GetUserWatchlist } from "@/serverActions/GetStockDetails"
 
 export const metadata: Metadata = {
   title: "s2 - Stock Predictions",
@@ -10,11 +10,19 @@ export const metadata: Metadata = {
 }
 
 async function StocksContent({ initialTab }: { initialTab: string }) {
-  const [stocks, topMovers, watchlist] = await Promise.all([
+  const [stocks, watchlist] = await Promise.all([
     GetAllStocks(),
-    GetTopMovers(10),
     GetUserWatchlist(),
   ])
+
+  const topMovers = stocks
+    .filter((s) => s.prediction !== null || s.article_count > 0)
+    .sort((a, b) => {
+      const scoreA = a.prediction?.score ?? a.sentiment_avg ?? 0
+      const scoreB = b.prediction?.score ?? b.sentiment_avg ?? 0
+      return Math.abs(scoreB) - Math.abs(scoreA)
+    })
+    .slice(0, 10)
 
   const watchlistTickers = watchlist.map((w) => w.ticker)
 

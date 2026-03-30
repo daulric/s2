@@ -159,11 +159,18 @@ export function StockCard({ stock, compact = false }: StockCardProps) {
               <Newspaper className="h-3 w-3" />
               <span>{stock.article_count} articles</span>
             </div>
-            {stock.sector && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                {stock.sector}
-              </Badge>
-            )}
+            <div className="flex items-center gap-1">
+              {stock.exchange && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                  {stock.exchange}
+                </Badge>
+              )}
+              {stock.sector && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  {stock.sector}
+                </Badge>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
