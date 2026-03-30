@@ -27,6 +27,7 @@ import {
   Star,
   FileVideo,
   Music2,
+  Zap,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
 import { useWebHaptics } from "web-haptics/react"
@@ -149,6 +150,19 @@ export function Header() {
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </NavDropdown>
+
+        <Link
+          href="/pricing"
+          onClick={() => trigger("light")}
+          className={cn(
+            "inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium",
+            "hover:bg-muted hover:text-foreground transition-colors",
+            "text-primary",
+          )}
+        >
+          <Zap className="h-4 w-4" />
+          <span className="hidden sm:inline">s2+</span>
+        </Link>
 
         {user && (
           <NavDropdown icon={Upload} label="Upload">
