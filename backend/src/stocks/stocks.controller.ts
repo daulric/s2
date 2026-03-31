@@ -50,12 +50,6 @@ export class StocksController {
     return this.stocks.migrateExchange();
   }
 
-  /**
-   * POST /stocks/update
-   * Requires s2+ subscription or admin role.
-   * Fetches fresh prices for the supplied tickers (or all stocks if none given),
-   * persists them, and pushes updates to connected WebSocket clients.
-   */
   @Post('update')
   @UseGuards(SupabaseAuthGuard, SubscriptionGuard)
   async update(@Body('tickers') tickers?: string[]) {

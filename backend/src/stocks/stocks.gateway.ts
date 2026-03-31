@@ -35,6 +35,8 @@ export class StocksGateway
 
   private readonly logger = new Logger(StocksGateway.name);
   private finnhubWs: WebSocket | null = null;
+  private finnhubConnecting = false;
+  private intentionalClose = false;
   private readonly finnhubKey: string;
   private readonly subscribedSymbols = new Set<string>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -131,25 +133,28 @@ export class StocksGateway
   }
 
   private connectFinnhub() {
-    if (this.finnhubWs) {
-      try {
-        this.finnhubWs.close();
-      } catch {
-        // already closed
-      }
-    }
+    if (this.finnhubConnecting) return;
+    if (this.finnhubWs?.readyState === WebSocket.OPEN) return;
+
+    // Tear down any existing socket without triggering reconnect
+    this.closeFinnhub();
+
+    this.finnhubConnecting = true;
+    this.intentionalClose = false;
 
     const url = `wss://ws.finnhub.io?token=${this.finnhubKey}`;
-    this.finnhubWs = new WebSocket(url);
+    const socket = new WebSocket(url);
+    this.finnhubWs = socket;
 
-    this.finnhubWs.on('open', () => {
+    socket.on('open', () => {
+      this.finnhubConnecting = false;
       this.logger.log('Finnhub WebSocket connected');
       for (const symbol of this.subscribedSymbols) {
-        this.finnhubWs?.send(JSON.stringify({ type: 'subscribe', symbol }));
+        socket.send(JSON.stringify({ type: 'subscribe', symbol }));
       }
     });
 
-    this.finnhubWs.on('message', (data) => {
+    socket.on('message', (data) => {
       try {
         const msg = JSON.parse(data.toString());
         if (msg.type === 'trade' && Array.isArray(msg.data)) {
@@ -160,18 +165,44 @@ export class StocksGateway
       }
     });
 
-    this.finnhubWs.on('close', () => {
+    socket.on('close', () => {
+      this.finnhubConnecting = false;
+      if (this.finnhubWs === socket) {
+        this.finnhubWs = null;
+      }
+      if (this.intentionalClose) {
+        this.intentionalClose = false;
+        return;
+      }
       this.logger.warn('Finnhub WebSocket closed, reconnecting in 5s...');
       this.scheduleReconnect();
     });
 
-    this.finnhubWs.on('error', (err) => {
+    socket.on('error', (err) => {
       this.logger.error(`Finnhub WebSocket error: ${err.message}`);
     });
   }
 
+  private closeFinnhub() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.finnhubWs) {
+      this.intentionalClose = true;
+      try {
+        this.finnhubWs.close();
+      } catch {
+        // already closed
+      }
+      this.finnhubWs = null;
+      this.finnhubConnecting = false;
+    }
+  }
+
   private scheduleReconnect() {
     if (this.reconnectTimer) return;
+    if (this.finnhubConnecting) return;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connectFinnhub();
@@ -240,7 +271,6 @@ export class StocksGateway
 
   onModuleDestroy() {
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    if (this.finnhubWs) this.finnhubWs.close();
+    this.closeFinnhub();
   }
 }
