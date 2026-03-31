@@ -28,6 +28,7 @@ export class PaypalController {
   @UseGuards(SupabaseAuthGuard)
   async createSubscription(
     @Req() req: { headers: Record<string, string> },
+    @Body('paymentMethod') paymentMethod?: 'paypal' | 'card',
   ) {
     const origin =
       req.headers['origin'] || req.headers['referer'] || 'http://localhost:3000';
@@ -36,6 +37,7 @@ export class PaypalController {
     const subscription = await this.paypal.createSubscription(
       `${baseUrl}/pricing?subscription=success`,
       `${baseUrl}/pricing?subscription=cancelled`,
+      paymentMethod,
     );
 
     const approveLink = subscription.links?.find((l) => l.rel === 'approve');

@@ -87,8 +87,30 @@ export class PaypalService {
     return json.access_token;
   }
 
-  async createSubscription(returnUrl: string, cancelUrl: string): Promise<PayPalSubscription> {
+  async createSubscription(
+    returnUrl: string,
+    cancelUrl: string,
+    paymentMethod?: 'paypal' | 'card',
+  ): Promise<PayPalSubscription> {
     const token = await this.getAccessToken();
+
+    const payload: Record<string, unknown> = {
+      plan_id: this.planId,
+      application_context: {
+        brand_name: 's2',
+        user_action: 'SUBSCRIBE_NOW',
+        return_url: returnUrl,
+        cancel_url: cancelUrl,
+        ...(paymentMethod === 'card'
+          ? { payment_method: { payer_selected: 'PAYPAL', payee_preferred: 'UNRESTRICTED' } }
+          : {}),
+      },
+    };
+
+    if (paymentMethod === 'card') {
+      payload.payment_source = { card: {} };
+    }
+
     const res = await fetch(`${this.base}/v1/billing/subscriptions`, {
       method: 'POST',
       headers: {
@@ -96,15 +118,7 @@ export class PaypalService {
         'Content-Type': 'application/json',
         Prefer: 'return=representation',
       },
-      body: JSON.stringify({
-        plan_id: this.planId,
-        application_context: {
-          brand_name: 's2',
-          user_action: 'SUBSCRIBE_NOW',
-          return_url: returnUrl,
-          cancel_url: cancelUrl,
-        },
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
