@@ -72,7 +72,7 @@ export function Header() {
   const { trigger } = useWebHaptics({ debug: process.env.NODE_ENV !== "production" })
 
   return (
-    <header className="sticky top-0 z-10 w-full flex items-center justify-between p-3 sm:p-4 bg-background/80 backdrop-blur-sm border-b h-14 sm:h-16">
+    <header className="sticky top-0 z-50 w-full flex items-center justify-between p-3 sm:p-4 bg-background/80 backdrop-blur-sm border-b h-14 sm:h-16">
       <div className="flex-shrink-0">
         <Link
           href="/"

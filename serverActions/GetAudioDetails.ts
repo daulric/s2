@@ -18,14 +18,18 @@ export async function GetAudioDetails(id: string, time_allowed: number = 60): Pr
     return await convertToAudio(supabase, data, time_allowed, true)
 }
 
-export async function GetPublicAudios(time_allowed = 60): Promise<AudioInfoProps[] | null> {
+export async function GetPublicAudios(time_allowed = 60, limit?: number): Promise<AudioInfoProps[] | null> {
     const supabase = (await createClient()) as SupabaseClient
 
-    const { data, error } = await supabase
+    let query = supabase
         .from("audios")
         .select("*")
         .eq("visibility", "public")
+        .order("created_at", { ascending: false })
 
+    if (limit) query = query.limit(limit)
+
+    const { data, error } = await query
     if (error) return null
 
     return await Promise.all(data.map((i) => convertToAudio(supabase, i, time_allowed)))

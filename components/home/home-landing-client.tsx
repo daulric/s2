@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
+import { ArrowRight, Compass } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
 
 export function HomeLandingClient() {
@@ -17,17 +17,21 @@ export function HomeLandingClient() {
   }, [loading, userState.user, router])
 
   return (
-    <div className="space-y-4">
-      <Button className="w-full" size="lg" onClick={() => router.push("/auth")}>
-        <Link href="/auth" prefetch>
-          get started
-        </Link>
-      </Button>
-      <Button variant="outline" className="w-full" size="lg" onClick={() => router.push("/home")}>
-        <Link href="/home" prefetch>
-          browse as guest
-        </Link>
-      </Button>
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+      <Link
+        href="/auth"
+        className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-foreground px-6 text-sm font-medium text-background transition-opacity hover:opacity-80 w-full sm:w-auto"
+      >
+        get started
+        <ArrowRight className="h-4 w-4" />
+      </Link>
+      <Link
+        href="/home"
+        className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border px-6 text-sm font-medium text-foreground transition-colors hover:bg-muted w-full sm:w-auto"
+      >
+        <Compass className="h-4 w-4" />
+        explore
+      </Link>
     </div>
   )
 }

@@ -362,3 +362,12 @@ export async function GetTopMovers(limit = 10): Promise<StockWithPrediction[]> {
     })
     .slice(0, limit)
 }
+
+export async function GetWatchlistStocks(): Promise<StockWithPrediction[]> {
+  const watchlist = await GetUserWatchlist()
+  if (watchlist.length === 0) return []
+
+  const tickers = new Set(watchlist.map((w) => w.ticker))
+  const all = await GetAllStocks()
+  return all.filter((s) => tickers.has(s.ticker))
+}
