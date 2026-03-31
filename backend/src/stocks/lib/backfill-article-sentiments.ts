@@ -55,6 +55,7 @@ function buildAlphaLookups(
 }
 
 async function tickerHasUnscoredArticles(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any, string>,
   tickerUpper: string,
 ): Promise<boolean> {

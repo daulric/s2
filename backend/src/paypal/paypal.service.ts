@@ -90,7 +90,7 @@ export class PaypalService {
   async createSubscription(
     returnUrl: string,
     cancelUrl: string,
-    paymentMethod?: 'paypal' | 'card',
+    _paymentMethod?: 'paypal' | 'card',
   ): Promise<PayPalSubscription> {
     const token = await this.getAccessToken();
 

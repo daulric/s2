@@ -18,7 +18,6 @@ import {
   Headphones,
   Upload,
   Loader2,
-  CreditCard,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { backendFetch } from "@/lib/backend-fetch"
@@ -87,69 +86,14 @@ const HIGHLIGHTS = [
   },
 ]
 
-type PaymentMethod = "paypal" | "card"
-
-function PaymentMethodOption({
-  method,
-  selected,
-  onSelect,
-}: {
-  method: PaymentMethod
-  selected: boolean
-  onSelect: (m: PaymentMethod) => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(method)}
-      className={cn(
-        "flex items-center gap-3 w-full rounded-lg border p-3 text-left text-sm transition-colors",
-        selected
-          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-          : "border-border hover:border-muted-foreground/30",
-      )}
-    >
-      <div className={cn(
-        "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
-        selected ? "border-primary bg-primary" : "border-muted-foreground/40",
-      )}>
-        {selected && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
-      </div>
-      {method === "paypal" ? (
-        <>
-          <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="currentColor">
-            <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 2.56A.768.768 0 0 1 5.7 1.906h6.317c2.1 0 3.57.54 4.36 1.605.37.5.61 1.06.72 1.67.12.66.05 1.45-.21 2.41l-.01.06v.52l.4.23c.34.18.61.39.82.64.35.41.57.92.66 1.52.09.62.03 1.34-.18 2.15-.24.93-.63 1.74-1.16 2.4-.48.61-1.07 1.1-1.74 1.45-.65.33-1.39.56-2.2.67-.78.11-1.64.16-2.55.16H10.4a.96.96 0 0 0-.95.81l-.03.17-.58 3.68-.02.12a.96.96 0 0 1-.95.81H7.076z"/>
-          </svg>
-          <div>
-            <p className="font-medium">PayPal</p>
-            <p className="text-xs text-muted-foreground">pay with your PayPal account</p>
-          </div>
-        </>
-      ) : (
-        <>
-          <CreditCard className="h-5 w-5 shrink-0 text-muted-foreground" />
-          <div>
-            <p className="font-medium">Debit or Credit Card</p>
-            <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex, Discover</p>
-          </div>
-        </>
-      )}
-    </button>
-  )
-}
-
 function SubscribeButton() {
   useSignals()
   const loading = useSignal(false)
-  const paymentMethod = useSignal<PaymentMethod>("paypal")
 
   const handleSubscribe = async () => {
     loading.value = true
     try {
-      const res = await backendFetch("/paypal/create-subscription", {
-        method: "POST",
-        body: JSON.stringify({ paymentMethod: paymentMethod.value }),
-      })
+      const res = await backendFetch("/paypal/create-subscription", { method: "POST" })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? "Failed to create subscription")
       if (json.approveUrl) {
@@ -163,33 +107,14 @@ function SubscribeButton() {
   }
 
   return (
-    <div className="mb-6 space-y-3">
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">payment method</p>
-        <PaymentMethodOption
-          method="paypal"
-          selected={paymentMethod.value === "paypal"}
-          onSelect={(m) => { paymentMethod.value = m }}
-        />
-        <PaymentMethodOption
-          method="card"
-          selected={paymentMethod.value === "card"}
-          onSelect={(m) => { paymentMethod.value = m }}
-        />
-      </div>
-      <Button className="w-full" onClick={handleSubscribe} disabled={loading.value}>
-        {loading.value ? (
-          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-        ) : (
-          <Zap className="h-4 w-4 mr-2" />
-        )}
-        {loading.value
-          ? "redirecting..."
-          : paymentMethod.value === "card"
-            ? "continue with card"
-            : "continue with PayPal"}
-      </Button>
-    </div>
+    <Button className="w-full mb-6" onClick={handleSubscribe} disabled={loading.value}>
+      {loading.value ? (
+        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+      ) : (
+        <Zap className="h-4 w-4 mr-2" />
+      )}
+      {loading.value ? "redirecting to paypal..." : "upgrade to s2+"}
+    </Button>
   )
 }
 

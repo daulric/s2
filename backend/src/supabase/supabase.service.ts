@@ -4,6 +4,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class SupabaseService {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly client: SupabaseClient<any, string>;
 
   constructor(private config: ConfigService) {
@@ -15,6 +16,7 @@ export class SupabaseService {
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getClient(): SupabaseClient<any, string> {
     return this.client;
   }
