@@ -101,15 +101,12 @@ export class PaypalService {
         user_action: 'SUBSCRIBE_NOW',
         return_url: returnUrl,
         cancel_url: cancelUrl,
-        ...(paymentMethod === 'card'
-          ? { payment_method: { payer_selected: 'PAYPAL', payee_preferred: 'UNRESTRICTED' } }
-          : {}),
+        payment_method: {
+          payer_selected: 'PAYPAL',
+          payee_preferred: 'UNRESTRICTED',
+        },
       },
     };
-
-    if (paymentMethod === 'card') {
-      payload.payment_source = { card: {} };
-    }
 
     const res = await fetch(`${this.base}/v1/billing/subscriptions`, {
       method: 'POST',
