@@ -121,7 +121,7 @@ Direction thresholds:
 
 ## Real-Time Stock Feed
 
-**File:** `hooks/use-stock-feed.ts`
+**File:** `frontend/hooks/use-stock-feed.ts`
 
 A shared Finnhub WebSocket connection provides live trade updates on the client. The system uses reference counting — the WebSocket connects when the first ticker is subscribed and disconnects when the last one unsubscribes.
 
@@ -152,7 +152,7 @@ Exponential backoff with max 30-second delay. Reconnection only happens while at
 
 ## Server Actions
 
-**File:** `serverActions/GetStockDetails.ts`
+**File:** `frontend/serverActions/GetStockDetails.ts`
 
 | Action | Description |
 |--------|-------------|
@@ -167,11 +167,11 @@ Exponential backoff with max 30-second delay. Reconnection only happens while at
 
 | Hook | File | Purpose |
 |------|------|---------|
-| `useUSEquitiesMarketOpen` | `hooks/use-us-equities-market-open.ts` | Polls US market phase (pre-market, open, after-hours, closed) |
-| `useEuMarketOpen` | `hooks/use-eu-market-open.ts` | EU market hours status |
-| `useEcseMarketOpen` | `hooks/use-ecse-market-open.ts` | ECSE market hours status |
+| `useUSEquitiesMarketOpen` | `frontend/hooks/use-us-equities-market-open.ts` | Polls US market phase (pre-market, open, after-hours, closed) |
+| `useEuMarketOpen` | `frontend/hooks/use-eu-market-open.ts` | EU market hours status |
+| `useEcseMarketOpen` | `frontend/hooks/use-ecse-market-open.ts` | ECSE market hours status |
 
-Market hour logic lives in `lib/stocks/us-market-hours.ts`, `lib/stocks/eu-market-hours.ts`, and `lib/stocks/ecse-market-hours.ts`.
+Market hour logic lives in `frontend/lib/stocks/us-market-hours.ts`, `frontend/lib/stocks/eu-market-hours.ts`, and `frontend/lib/stocks/ecse-market-hours.ts`.
 
 ## Key Types
 
@@ -200,24 +200,24 @@ type PriceCandle = {
 }
 ```
 
-All types are defined in `lib/stocks/types.ts`.
+All types are defined in `frontend/lib/stocks/types.ts`.
 
 ## Related Files
 
 | File | Purpose |
 |------|---------|
-| `lib/stocks/api.ts` | All external API calls (Finnhub, Alpha Vantage, Yahoo, Stooq, SEC) |
-| `lib/stocks/types.ts` | TypeScript type definitions |
-| `lib/stocks/ecse-scraper.ts` | ECSE website scraper |
-| `lib/stocks/eu-listings.ts` | EU stock listing fetcher |
-| `lib/stocks/persist-stock-articles.ts` | Deduplicated article insertion |
-| `lib/stocks/backfill-article-sentiments.ts` | Fills missing sentiment scores |
-| `lib/stocks/article-sentiment-plurality.ts` | Majority sentiment direction |
-| `lib/stocks/format-stock-price.ts` | Price formatting utilities |
-| `lib/stocks/coerce-stock-number.ts` | Type coercion for DB rows |
-| `lib/stocks/sparkline-candle-queue.ts` | Sparkline candle management |
-| `lib/stocks/*-market-hours.ts` | Market open/close schedule logic |
-| `hooks/use-stock-feed.ts` | Finnhub WebSocket hook |
-| `serverActions/GetStockDetails.ts` | Server actions for stock data |
-| `app/api/stocks/ingest/route.ts` | Daily cron ingestion |
-| `app/api/stocks/seed/route.ts` | Initial stock seeding |
+| `frontend/lib/stocks/api.ts` | All external API calls (Finnhub, Alpha Vantage, Yahoo, Stooq, SEC) |
+| `frontend/lib/stocks/types.ts` | TypeScript type definitions |
+| `frontend/lib/stocks/ecse-scraper.ts` | ECSE website scraper |
+| `frontend/lib/stocks/eu-listings.ts` | EU stock listing fetcher |
+| `frontend/lib/stocks/persist-stock-articles.ts` | Deduplicated article insertion |
+| `frontend/lib/stocks/backfill-article-sentiments.ts` | Fills missing sentiment scores |
+| `frontend/lib/stocks/article-sentiment-plurality.ts` | Majority sentiment direction |
+| `frontend/lib/stocks/format-stock-price.ts` | Price formatting utilities |
+| `frontend/lib/stocks/coerce-stock-number.ts` | Type coercion for DB rows |
+| `frontend/lib/stocks/sparkline-candle-queue.ts` | Sparkline candle management |
+| `frontend/lib/stocks/*-market-hours.ts` | Market open/close schedule logic |
+| `frontend/hooks/use-stock-feed.ts` | Finnhub WebSocket hook |
+| `frontend/serverActions/GetStockDetails.ts` | Server actions for stock data |
+| `frontend/app/api/stocks/ingest/route.ts` | Daily cron ingestion |
+| `frontend/app/api/stocks/seed/route.ts` | Initial stock seeding |

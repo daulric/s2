@@ -46,7 +46,7 @@ Available via the `signIn` and `signUp` methods but not currently exposed in the
 
 ## AuthProvider
 
-**File:** `context/AuthProvider.tsx`
+**File:** `frontend/context/AuthProvider.tsx`
 
 The `AuthProvider` wraps the entire app and provides authentication state through React Context.
 
@@ -123,13 +123,13 @@ type UserProfile = {
 
 ## Supabase Client Setup
 
-### Browser Client (`lib/supabase/client.ts`)
+### Browser Client (`frontend/lib/supabase/client.ts`)
 
 Uses `@supabase/ssr` with `createBrowserClient`. Configured with:
 - Custom schema from `NEXT_PUBLIC_SCHEMA`
 - `autoRefreshToken: false` and `persistSession: false` (session managed via cookies)
 
-### Server Client (`lib/supabase/server.ts`)
+### Server Client (`frontend/lib/supabase/server.ts`)
 
 Uses `@supabase/ssr` with `createServerClient`. Configured with:
 - Prefers `SUPABASE_SERVICE_ROLE_KEY` over anon key for elevated permissions
@@ -150,9 +150,9 @@ The `NavigationProvider` excludes auth-related pages from the history stack, so 
 
 | File | Purpose |
 |------|---------|
-| `context/AuthProvider.tsx` | Auth context provider and `useAuth` hook |
-| `app/auth/AuthPage.tsx` | Login/signup UI component |
-| `app/auth/page.tsx` | Auth route page |
-| `lib/supabase/client.ts` | Browser Supabase client |
-| `lib/supabase/server.ts` | Server Supabase client |
-| `context/NavigationProvider.tsx` | Route history for post-auth redirect |
+| `frontend/context/AuthProvider.tsx` | Auth context provider and `useAuth` hook |
+| `frontend/app/auth/AuthPage.tsx` | Login/signup UI component |
+| `frontend/app/auth/page.tsx` | Auth route page |
+| `frontend/lib/supabase/client.ts` | Browser Supabase client |
+| `frontend/lib/supabase/server.ts` | Server Supabase client |
+| `frontend/context/NavigationProvider.tsx` | Route history for post-auth redirect |

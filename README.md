@@ -1,198 +1,162 @@
 # s2
 
-s2 is a modern, full-stack web application designed to let users upload, share, and view videos online. Inspired by popular video hosting services, s2 provides a streamlined experience for both content creators and viewers. The platform features user authentication, video uploads, public video listings, and individual video pages with view tracking and user interactions.
+A full-stack web platform for videos, music, stocks, and social — built with Next.js and NestJS.
 
-Built with Next.js and leveraging Supabase for backend services, s2 offers a responsive and accessible user interface, including dark mode support. The application is designed for flexible deployment to a variety of hosting providers, including serverless platforms like Cloudflare Workers (via Wrangler), Vercel, and Netlify, making it scalable and cost-effective.
+## What is s2?
 
-Key highlights:
-- **User Authentication:** Secure sign up and sign in, with user context management.
-- **Video Upload & Sharing:** Users can upload videos, which are then available for public viewing.
-- **Video Viewing:** Each video has a dedicated page with metadata, view count, and related videos.
-- **Video Interactions:** Users can interact with videos through features such as view tracking, and (optionally) comments, likes, or sharing, depending on implementation.
-- **Public Video Listing:** Browse and discover videos uploaded by other users.
-- **Responsive UI:** Clean, modern design with support for light and dark themes.
-- **Flexible Hosting:** Easily deploy to Cloudflare Workers, Vercel, Netlify, or other modern hosting providers.
+s2 combines video/shorts sharing, music hosting, a stock market intelligence dashboard with AI-powered sentiment analysis, and social features (follows, profiles, likes) into a single platform. Premium features are gated behind **s2+**, a $5/month subscription via PayPal.
 
-s2 is ideal for developers looking to learn about building scalable video platforms, or for anyone wanting to launch a simple, customizable video sharing site.
+## Tech Stack
 
----
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4 |
+| Backend | NestJS (API + WebSocket relay) |
+| Runtime | Bun |
+| Database | Supabase (PostgreSQL + Auth + Storage + RLS) |
+| Payments | PayPal Subscriptions API |
+| Stock Data | Finnhub, Alpha Vantage, Yahoo Finance, SEC EDGAR |
+| Hosting | Vercel (frontend) + Render (backend) |
 
-## Table of Contents
-
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
-- [Scripts](#scripts)
-- [Core Features](#core-features)
-- [Key Components](#key-components)
-- [Styling](#styling)
-- [Authentication](#authentication)
-- [Video Pages](#video-pages)
-- [Cloudflare & Wrangler Support](#cloudflare--wrangler-support)
-- [Configuration Files](#configuration-files)
-- [License](#license)
-
----
-
-## Project Structure
+## Monorepo Structure
 
 ```
-.env
-.gitignore
-bun.lock
-components.json
-next-env.d.ts
-next.config.ts
-open-next.config.ts
-package.json
-postcss.config.mjs
-README.md
-tsconfig.json
-wrangler.json
-.next/
-.open-next/
-.vscode/
-.wrangler/
-public/
-src/
+s2/
+├── frontend/           Next.js application
+│   ├── app/            App Router pages and API routes
+│   ├── components/     UI components
+│   ├── context/        React Context providers
+│   ├── hooks/          Custom hooks
+│   ├── lib/            Utility libraries
+│   ├── serverActions/  Next.js Server Actions
+│   ├── sql/            Database schema
+│   └── public/         Static assets
+├── backend/            NestJS API service
+│   └── src/
+├── docs/               Documentation
+├── .github/workflows/  CI/CD pipelines
+└── package.json        Bun workspaces root
 ```
-
-- **.env**: Environment variables.
-- **.next/**: Next.js build output.
-- **public/**: Static assets.
-- **src/**: Application source code.
-
----
 
 ## Getting Started
 
-1. **Install dependencies:**
-   ```sh
-   npm install
-   ```
-2. **Run the development server:**
-   ```sh
-   npm run dev
-   ```
-3. **Build for production:**
-   ```sh
-   npm run build
-   ```
+### Prerequisites
 
----
+- [Bun](https://bun.sh) (latest)
+- A [Supabase](https://supabase.com) project
+- A [PayPal Developer](https://developer.paypal.com) account (for s2+)
+- API keys for [Finnhub](https://finnhub.io) and [Alpha Vantage](https://www.alphavantage.co) (for stocks)
+
+### Setup
+
+```bash
+# Clone the repo
+git clone https://github.com/daulric/s2.git
+cd s2
+
+# Install all dependencies (workspaces)
+bun install
+
+# Set up environment variables
+cp frontend/.env.development frontend/.env.local
+# Edit frontend/.env.local with your keys
+
+# Run the database migration
+# Paste frontend/sql/schema.sql into the Supabase SQL Editor
+
+# Start development
+bun dev
+```
+
+This starts both the frontend (Next.js on port 3000) and backend (NestJS on port 3001) concurrently.
+
+### Run individually
+
+```bash
+bun run dev:frontend    # Next.js only
+bun run dev:backend     # NestJS only
+```
 
 ## Environment Variables
 
-Create a `.env` file in the root directory with the following variables:
+### Frontend (`frontend/.env.local`)
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=<supabase_url>
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase_anon_key>
-NEXT_PUBLIC_SCHEMA=<schema_name>
-NEXT_PUBLIC_PROFILE=<url_api>
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SCHEMA=
+NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
-Fill in the values according to your environment and service providers.
+The frontend only needs Supabase credentials (for auth and server actions) and the backend API URL. All PayPal, stock data, and webhook secrets live on the backend.
 
----
+### Backend (`backend/.env`)
 
-## Scripts
+```env
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+FINNHUB_API_KEY=
+ALPHAVANTAGE_API_KEY=
+PAYPAL_CLIENT_ID=
+PAYPAL_SECRET=
+PAYPAL_MODE=sandbox
+PAYPAL_PLAN_ID=
+PAYPAL_WEBHOOK_ID=
+CRON_SECRET=
+PORT=3001
+```
 
-- `npm run dev`: Start the development server.
-- `npm run build`: Build the application for production.
-- `npm run start`: Start the production server.
+## Features
 
----
+### Videos & Shorts
+Upload, watch, and share videos. Vertical shorts with a full-screen swipeable feed. View tracking, likes, and creator profiles.
 
-## Core Features
+### Music
+Upload and stream audio tracks. Waveform visualization with haptic feedback. Community-driven music library.
 
-- User authentication (sign up, sign in)
-- Video upload and sharing
-- Video viewing with view count tracking
-- Public video listing
-- Responsive UI with dark mode support
+### Stocks
+Real-time prices across NYSE, Nasdaq, EU, and ECSE exchanges via Finnhub WebSockets. AI-powered sentiment analysis from news articles. Directional predictions, OHLCV charts, and personal watchlists.
 
----
+### Social
+Follow creators, subscribe to channels, like content, and build your profile. Personalized home feed based on your subscriptions.
 
-## Key Components
+### s2+
+$5/month premium tier via PayPal. Unlocks EU & ECSE markets, priority access to new features, and enhanced analytics.
 
-### Authentication
+## Deployment
 
-- `SignupPage`: Handles user registration using form inputs and authentication context.
-- Uses `useAuth` for authentication logic.
+| Service | Platform | Root Directory |
+|---------|----------|---------------|
+| Frontend | Vercel | `frontend/` |
+| Backend | Render | `backend/` |
 
-### Video Pages
+The frontend uses Vercel cron jobs for daily stock data ingestion. The backend runs as an always-on service for WebSocket relay and API endpoints.
 
-- `/video/[videoId]/page.jsx`: 
-  - Fetches video data and metadata.
-  - Increments view count on each visit.
-  - Renders video details and related public videos.
-  - Handles not-found and error states.
+## Documentation
 
-### UI Components
+Detailed docs are in the [`docs/`](./docs/) folder:
 
-- Located in `src/components/ui/`
-  - `Button`, `Input`, `Label`, `Card`, `Separator`, etc.
-- `ModeToggle`: Switches between light and dark mode.
+- [Architecture](./docs/architecture/README.md) — monorepo structure, providers, state management
+- [Database](./docs/database/README.md) — schema, tables, RLS policies
+- [Authentication](./docs/authentication/README.md) — auth flows, Supabase integration
+- [API](./docs/api/README.md) — REST endpoints, server actions
+- [Media](./docs/media/README.md) — video, shorts, music systems
+- [Stocks](./docs/stocks/README.md) — market data pipeline, real-time feeds
+- [Pricing](./docs/pricing/README.md) — s2+ subscription system
 
----
+## CI/CD
 
-## Styling
+GitHub Actions workflows:
 
-- Global styles in `src/app/globals.css`
-  - Uses CSS custom properties for theme colors.
-  - Integrates Tailwind CSS and custom animation utilities.
-- Theme variables for sidebar, charts, and backgrounds.
-
----
-
-## Authentication
-
-- Context-based authentication via `useAuth`.
-- Signup and login pages under `src/app/auth/`.
-
----
-
-## Video Pages
-
-- Dynamic routing for videos: `/video/[videoId]`
-- Metadata generation for SEO.
-- View count updates using Supabase.
-
----
-
-## Cloudflare & Wrangler Support
-
-This project supports deployment to [Cloudflare Workers](https://developers.cloudflare.com/workers/) using [Wrangler](https://developers.cloudflare.com/wrangler/).
-
-- **wrangler.json**: Contains configuration for deploying to Cloudflare Workers.
-- **open-next.config.ts**: Supports OpenNext deployment for serverless environments.
-- To deploy:
-  1. Install Wrangler CLI:  
-     ```sh
-     npm install -g wrangler
-     ```
-  2. Authenticate with Cloudflare:  
-     ```sh
-     wrangler login
-     ```
-  3. Build and deploy:  
-     ```sh
-     npm run cf:build
-     wrangler publish
-     ```
-
----
-
-## Configuration Files
-
-- **next.config.ts**: Next.js configuration.
-- **open-next.config.ts**: Open Next.js deployment configuration.
-- **tsconfig.json**: TypeScript configuration.
-- **postcss.config.mjs**: PostCSS configuration.
-- **wrangler.json**: Cloudflare Workers configuration.
-
----
+| Workflow | Trigger | Description |
+|----------|---------|-------------|
+| App Build | Push / PR | Lint + build the frontend |
+| Codecov | Push | Run tests and upload coverage |
+| CodeQL | Push to main / schedule | Security analysis |
+| OSV-Scanner | Push to main / PR / schedule | Dependency vulnerability scanning |
+| Lines of Code | Push / PR | Code stats via cloc |
+| Discord Notifications | PR merge / workflow success | Team notifications |
 
 ## Authors
 

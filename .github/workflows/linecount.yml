@@ -27,28 +27,42 @@ jobs:
           echo "Lines of Code Report"
           echo "========================"
           cloc . --vcs=git --exclude-dir=node_modules,dist,.expo,.next --exclude-ext=lock | tee cloc-output.txt
-          
-          # Also write to summary
+
           echo "## Lines of Code Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat cloc-output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Breakdown by directory
+      - name: Frontend breakdown
         run: |
           echo ""
-          echo "By Directory"
+          echo "Frontend Breakdown"
           echo "==============="
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### By Directory" >> $GITHUB_STEP_SUMMARY
+          echo "### Frontend" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
-          for dir in app components lib contexts hooks supabase; do
+
+          for dir in frontend/app frontend/components frontend/lib frontend/context frontend/hooks frontend/serverActions; do
             if [ -d "$dir" ]; then
               echo "--- $dir/ ---"
               cloc "$dir" --vcs=git --quiet
             fi
           done
 
+      - name: Backend breakdown
+        run: |
+          echo ""
+          echo "Backend Breakdown"
+          echo "==============="
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Backend" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -d "backend/src" ]; then
+            cloc backend/src --vcs=git --quiet
+          else
+            echo "No backend/src directory yet"
+          fi

@@ -17,7 +17,7 @@ All media files are stored in **Supabase Storage** and metadata is persisted in 
 ### Upload Flow
 
 1. User navigates to `/upload`
-2. The upload form (`components/media/`) handles file selection and metadata input
+2. The upload form (`frontend/components/media/`) handles file selection and metadata input
 3. Video file is uploaded to Supabase Storage
 4. A row is inserted into the `videos` table with the storage path, title, visibility, etc.
 5. The `MediaManager` provides management of uploaded media
@@ -28,7 +28,7 @@ Videos are stored in the `videos` table with fields for `video_path`, `thumbnail
 
 ### Server Actions
 
-**File:** `serverActions/GetVideoDetails.ts`
+**File:** `frontend/serverActions/GetVideoDetails.ts`
 
 | Action | Description |
 |--------|-------------|
@@ -40,7 +40,7 @@ The `time_allowed` parameter controls signed URL expiry for Supabase Storage.
 
 ### Video Formatting
 
-The `converttoVideo` function (`lib/videos/data-to-video-format.ts`) transforms raw database rows into `VideoInfoProps` objects with:
+The `converttoVideo` function (`frontend/lib/videos/data-to-video-format.ts`) transforms raw database rows into `VideoInfoProps` objects with:
 - Signed storage URLs for video and thumbnail
 - Creator profile data (username, avatar)
 - Formatted timestamps
@@ -51,7 +51,7 @@ Shorts are regular videos with `is_short = true`. They use a dedicated vertical 
 
 ### Server Action
 
-**File:** `serverActions/GetShortsData.ts`
+**File:** `frontend/serverActions/GetShortsData.ts`
 
 `GetShortsData()` returns `ShortVideoData[]` with extra social data:
 - `likes` — total like count
@@ -63,7 +63,7 @@ This is done by joining `video_likes` and `subscribers` data in a single server 
 
 ### Client Hook
 
-**File:** `hooks/use-shorts.ts`
+**File:** `frontend/hooks/use-shorts.ts`
 
 `useShorts(initialData?)` provides client-side shorts loading:
 - Accepts optional server-rendered initial data to avoid loading flash
@@ -73,7 +73,7 @@ This is done by joining `video_likes` and `subscribers` data in a single server 
 
 ### Shorts Components
 
-The shorts feed lives in `components/video/` and includes:
+The shorts feed lives in `frontend/components/video/` and includes:
 - Scrolling vertical feed with snap behavior
 - Playback controls and overlay
 - Like, subscribe, and share actions
@@ -86,7 +86,7 @@ Audio is uploaded similarly to videos via `/upload/music`. Files go to Supabase 
 
 ### Server Actions
 
-**File:** `serverActions/GetAudioDetails.ts`
+**File:** `frontend/serverActions/GetAudioDetails.ts`
 
 | Action | Description |
 |--------|-------------|
@@ -96,11 +96,11 @@ Audio is uploaded similarly to videos via `/upload/music`. Files go to Supabase 
 
 ### Audio Formatting
 
-The `convertToAudio` function (`lib/audios/data-to-audio-format.ts`) transforms raw rows into `AudioInfoProps` with signed URLs and creator data.
+The `convertToAudio` function (`frontend/lib/audios/data-to-audio-format.ts`) transforms raw rows into `AudioInfoProps` with signed URLs and creator data.
 
 ### Music Components
 
-Music UI lives in `components/music/` with:
+Music UI lives in `frontend/components/music/` with:
 - Music tiles for browsing
 - Edit dialog for updating metadata
 
@@ -118,7 +118,7 @@ RLS policies enforce these rules at the database level.
 
 ## Media Route Teardown
 
-The `MediaRouteTeardown` component (`components/media/`) runs in the root layout's `<Suspense>` boundary. It cleans up media-related state (e.g., active uploads, playback state) when the user navigates away from upload routes.
+The `MediaRouteTeardown` component (`frontend/components/media/`) runs in the root layout's `<Suspense>` boundary. It cleans up media-related state (e.g., active uploads, playback state) when the user navigates away from upload routes.
 
 ## Supabase Storage
 
@@ -132,16 +132,16 @@ The `next.config.ts` includes `remotePatterns` for Supabase Storage domains to e
 
 | File | Purpose |
 |------|---------|
-| `serverActions/GetVideoDetails.ts` | Video server actions |
-| `serverActions/GetShortsData.ts` | Shorts server action |
-| `serverActions/GetAudioDetails.ts` | Audio server actions |
-| `hooks/use-shorts.ts` | Client-side shorts loading hook |
-| `lib/videos/data-to-video-format.ts` | Video row → VideoInfoProps formatter |
-| `lib/audios/data-to-audio-format.ts` | Audio row → AudioInfoProps formatter |
-| `components/video/` | Video cards, shorts feed, playback controls |
-| `components/music/` | Music tiles and edit dialog |
-| `components/media/` | Upload forms, media manager, route teardown |
-| `app/upload/` | Upload page and music upload subpage |
-| `app/video/[videoId]/` | Video watch page |
-| `app/shorts/` | Shorts feed page |
-| `app/music/` | Music browse page |
+| `frontend/serverActions/GetVideoDetails.ts` | Video server actions |
+| `frontend/serverActions/GetShortsData.ts` | Shorts server action |
+| `frontend/serverActions/GetAudioDetails.ts` | Audio server actions |
+| `frontend/hooks/use-shorts.ts` | Client-side shorts loading hook |
+| `frontend/lib/videos/data-to-video-format.ts` | Video row -> VideoInfoProps formatter |
+| `frontend/lib/audios/data-to-audio-format.ts` | Audio row -> AudioInfoProps formatter |
+| `frontend/components/video/` | Video cards, shorts feed, playback controls |
+| `frontend/components/music/` | Music tiles and edit dialog |
+| `frontend/components/media/` | Upload forms, media manager, route teardown |
+| `frontend/app/upload/` | Upload page and music upload subpage |
+| `frontend/app/video/[videoId]/` | Video watch page |
+| `frontend/app/shorts/` | Shorts feed page |
+| `frontend/app/music/` | Music browse page |

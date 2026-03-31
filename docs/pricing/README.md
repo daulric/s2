@@ -112,7 +112,7 @@ create table if not exists subscriptions (
 - Users can **read** their own subscription (`auth.uid() = user_id`)
 - Service role can **insert** and **update** any row (used by API routes and webhooks)
 
-Run the full schema in `sql/schema.sql` via the Supabase SQL Editor.
+Run the full schema in `frontend/sql/schema.sql` via the Supabase SQL Editor.
 
 ---
 
@@ -185,7 +185,7 @@ echo "Plan ID: $PLAN_ID"
 
 ### 4. Run the Database Migration
 
-Open the Supabase SQL Editor and run the contents of `sql/schema.sql`.
+Open the Supabase SQL Editor and run the contents of `frontend/sql/schema.sql`.
 
 ### 5. For Local Development
 
@@ -348,7 +348,7 @@ These headers are sent by PayPal with every webhook delivery. The handler sends 
 
 ### `useSubscription` Hook
 
-The `useSubscription` hook (`hooks/use-subscription.ts`) provides subscription state to any client component.
+The `useSubscription` hook (`frontend/hooks/use-subscription.ts`) provides subscription state to any client component.
 
 ```tsx
 import { useSubscription } from "@/hooks/use-subscription"
@@ -465,7 +465,7 @@ The code automatically switches based on `PAYPAL_MODE`. No code changes are need
 
 ### Database errors
 
-- Run the migration in `sql/schema.sql` to create the `subscriptions` table
+- Run the migration in `frontend/sql/schema.sql` to create the `subscriptions` table
 - Check that the service role key is set in your Supabase connection
 - Verify RLS policies are in place
 
@@ -475,11 +475,11 @@ The code automatically switches based on `PAYPAL_MODE`. No code changes are need
 
 | File | Purpose |
 |------|---------|
-| `lib/paypal.ts` | Server-side PayPal helpers (auth, subscription API, webhook verification) |
-| `hooks/use-subscription.ts` | Client-side React hook for subscription state |
-| `app/api/paypal/subscribe/route.ts` | Activates a subscription after PayPal approval |
-| `app/api/paypal/status/route.ts` | Returns current user's subscription status |
-| `app/api/paypal/cancel/route.ts` | Cancels an active subscription |
-| `app/api/paypal/webhook/route.ts` | Processes PayPal webhook events |
-| `app/pricing/page_client.tsx` | Pricing page UI with PayPal buttons |
-| `sql/schema.sql` | Database schema including subscriptions table |
+| `frontend/lib/paypal.ts` | Server-side PayPal helpers (auth, subscription API, webhook verification) |
+| `frontend/hooks/use-subscription.ts` | Client-side React hook for subscription state |
+| `frontend/app/api/paypal/subscribe/route.ts` | Activates a subscription after PayPal approval |
+| `frontend/app/api/paypal/status/route.ts` | Returns current user's subscription status |
+| `frontend/app/api/paypal/cancel/route.ts` | Cancels an active subscription |
+| `frontend/app/api/paypal/webhook/route.ts` | Processes PayPal webhook events |
+| `frontend/app/pricing/page_client.tsx` | Pricing page UI with PayPal buttons |
+| `frontend/sql/schema.sql` | Database schema including subscriptions table |
