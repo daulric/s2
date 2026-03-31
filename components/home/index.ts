@@ -1,3 +1,6 @@
-"use client"
-
 export { HomeLandingClient } from "./home-landing-client"
+export { LandingHero } from "./landing-hero"
+export { LandingFeatures } from "./landing-features"
+export { LandingStocks } from "./landing-stocks"
+export { LandingS2Plus } from "./landing-s2plus"
+export { LandingFooterCTA } from "./landing-footer-cta"

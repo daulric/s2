@@ -22,18 +22,62 @@ export async function GetVideoDetails(id: string, time_allowed: number = 30): Pr
     return return_data;
 }
 
-export async function GetPublicVideos(time_allowed = 30) {
+export async function GetPublicVideos(time_allowed = 30, limit?: number) {
+    const supabase = (await createClient()) as SupabaseClient;
+
+    let query = supabase
+        .from("videos")
+        .select("*")
+        .eq("visibility", "public")
+        .order("created_at", { ascending: false });
+
+    if (limit) query = query.limit(limit);
+
+    const { data, error } = await query;
+    if (error) return null;
+
+    const public_videos = await Promise.all(data.map((i) => ( converttoVideo(supabase, i, time_allowed) )));
+    return public_videos;
+}
+
+export async function GetUserVideos(userId: string, limit = 5, time_allowed = 30): Promise<VideoInfoProps[]> {
     const supabase = (await createClient()) as SupabaseClient;
 
     const { data, error } = await supabase
         .from("videos")
         .select("*")
-        .eq("visibility", "public");
+        .eq("userid", userId)
+        .eq("visibility", "public")
+        .order("created_at", { ascending: false })
+        .limit(limit);
 
-    if (error) return null;
+    if (error || !data) return [];
+    return await Promise.all(data.map((i) => converttoVideo(supabase, i, time_allowed)));
+}
 
-    const public_videos = await Promise.all(data.map((i) => ( converttoVideo(supabase, i, time_allowed) )));
-    return public_videos;
+export async function GetSubscriptionVideos(userId: string, limit = 5, time_allowed = 30): Promise<VideoInfoProps[]> {
+    const supabase = (await createClient()) as SupabaseClient;
+
+    const { data: subs, error: subError } = await supabase
+        .from("subscribers")
+        .select("vendor")
+        .eq("subscriber", userId)
+        .eq("is_subscribed", true);
+
+    if (subError || !subs || subs.length === 0) return [];
+
+    const vendorIds = subs.map((s) => s.vendor);
+
+    const { data, error } = await supabase
+        .from("videos")
+        .select("*")
+        .eq("visibility", "public")
+        .in("userid", vendorIds)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+    if (error || !data) return [];
+    return await Promise.all(data.map((i) => converttoVideo(supabase, i, time_allowed)));
 }
 
 /** Limited queries + conversion — avoids loading every public video on the watch page. */
