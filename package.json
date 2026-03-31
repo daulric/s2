@@ -1,0 +1,17 @@
+{
+  "name": "s2",
+  "private": true,
+  "workspaces": ["frontend", "backend"],
+  "scripts": {
+    "dev": "concurrently -n fe,be -c blue,green \"bun run dev:frontend\" \"bun run dev:backend\"",
+    "dev:frontend": "bun --cwd frontend dev",
+    "dev:backend": "bun --cwd backend run start:dev",
+    "build:frontend": "bun --cwd frontend run build",
+    "build:backend": "bun --cwd backend run build",
+    "lint": "bun --cwd frontend run lint",
+    "install:all": "bun install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

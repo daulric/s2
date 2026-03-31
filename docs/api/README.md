@@ -210,7 +210,7 @@ Migration utility that populates the `exchange` column on the `stocks` table usi
 
 In addition to API routes, s2 uses Next.js Server Actions for data fetching. These are called directly from client components, not via HTTP.
 
-### Stock Actions (`serverActions/GetStockDetails.ts`)
+### Stock Actions (`frontend/serverActions/GetStockDetails.ts`)
 
 | Action | Returns |
 |--------|---------|
@@ -220,25 +220,28 @@ In addition to API routes, s2 uses Next.js Server Actions for data fetching. The
 | `GetUserWatchlist()` | Current user's watchlist entries |
 | `ToggleWatchlist(ticker)` | Add/remove from watchlist, returns `{ added: boolean }` |
 | `GetTopMovers(limit?)` | Stocks with highest absolute prediction scores |
+| `GetWatchlistStocks()` | Stocks matching user's watchlist tickers with predictions |
 
-### Video Actions (`serverActions/GetVideoDetails.ts`)
+### Video Actions (`frontend/serverActions/GetVideoDetails.ts`)
 
 | Action | Returns |
 |--------|---------|
 | `GetVideoDetails(id)` | Single video with signed URLs and creator data |
-| `GetPublicVideos()` | All public videos |
+| `GetPublicVideos(time_allowed?, limit?)` | Public videos, newest first |
+| `GetUserVideos(userId, limit?)` | User's own public videos |
+| `GetSubscriptionVideos(userId, limit?)` | Videos from subscribed creators |
 | `GetVideoSidebarVideos(excludeId)` | Trending + newest videos for sidebar |
 
-### Shorts Actions (`serverActions/GetShortsData.ts`)
+### Shorts Actions (`frontend/serverActions/GetShortsData.ts`)
 
 | Action | Returns |
 |--------|---------|
 | `GetShortsData()` | All shorts with likes, subscription status, creator data |
 
-### Audio Actions (`serverActions/GetAudioDetails.ts`)
+### Audio Actions (`frontend/serverActions/GetAudioDetails.ts`)
 
 | Action | Returns |
 |--------|---------|
 | `GetAudioDetails(id)` | Single audio track with signed URLs |
-| `GetPublicAudios()` | All public audio tracks |
+| `GetPublicAudios(time_allowed?, limit?)` | Public audio tracks, newest first |
 | `updateAudioDetails(id, payload)` | Update audio metadata (owner only) |
