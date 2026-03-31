@@ -148,7 +148,7 @@ function ActiveSubscriptionCard({
       <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 mb-3">
         <Check className="h-3 w-3 mr-1" /> active
       </Badge>
-      <h3 className="text-lg font-semibold mb-1">you're on s2+</h3>
+      <h3 className="text-lg font-semibold mb-1">you&apos;re on s2+</h3>
       {currentPeriodEnd && (
         <p className="text-sm text-muted-foreground mb-4">
           next billing: {new Date(currentPeriodEnd).toLocaleDateString()}
@@ -337,7 +337,7 @@ export default function PricingPage() {
               <div>
                 <h3 className="font-medium text-sm mb-1">can I cancel anytime?</h3>
                 <p className="text-sm text-muted-foreground">
-                  yes. cancel your subscription at any time and you'll keep access through the end of your billing period.
+                  yes. cancel your subscription at any time and you&apos;ll keep access through the end of your billing period.
                 </p>
               </div>
               <Separator />
@@ -358,7 +358,7 @@ export default function PricingPage() {
               <div>
                 <h3 className="font-medium text-sm mb-1">what payment methods do you accept?</h3>
                 <p className="text-sm text-muted-foreground">
-                  we accept PayPal and all major credit/debit cards through PayPal's secure checkout.
+                  we accept PayPal and all major credit/debit cards through PayPal&apos;s secure checkout.
                 </p>
               </div>
               <Separator />

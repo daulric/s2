@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useEffect, useCallback } from "react"
+import { useSignal, useSignals } from "@preact/signals-react/runtime"
 import { useAuth } from "@/context/AuthProvider"
 
 export type SubscriptionState = {
@@ -13,41 +14,52 @@ export type SubscriptionState = {
 }
 
 export function useSubscription(): SubscriptionState & { refresh: () => void } {
+  useSignals()
   const { user: { user } } = useAuth()
-  const [state, setState] = useState<SubscriptionState>({
-    loading: true,
-    subscribed: false,
-    status: null,
-    planId: null,
-    currentPeriodEnd: null,
-    paypalSubscriptionId: null,
-  })
+
+  const loading = useSignal(true)
+  const subscribed = useSignal(false)
+  const status = useSignal<string | null>(null)
+  const planId = useSignal<string | null>(null)
+  const currentPeriodEnd = useSignal<string | null>(null)
+  const paypalSubscriptionId = useSignal<string | null>(null)
 
   const refresh = useCallback(() => {
     if (!user) {
-      setState({ loading: false, subscribed: false, status: null, planId: null, currentPeriodEnd: null, paypalSubscriptionId: null })
+      loading.value = false
+      subscribed.value = false
+      status.value = null
+      planId.value = null
+      currentPeriodEnd.value = null
+      paypalSubscriptionId.value = null
       return
     }
 
-    setState(prev => ({ ...prev, loading: true }))
+    loading.value = true
     fetch("/api/paypal/status")
       .then(r => r.json())
       .then(data => {
-        setState({
-          loading: false,
-          subscribed: data.subscribed ?? false,
-          status: data.status ?? null,
-          planId: data.planId ?? null,
-          currentPeriodEnd: data.currentPeriodEnd ?? null,
-          paypalSubscriptionId: data.paypalSubscriptionId ?? null,
-        })
+        loading.value = false
+        subscribed.value = data.subscribed ?? false
+        status.value = data.status ?? null
+        planId.value = data.planId ?? null
+        currentPeriodEnd.value = data.currentPeriodEnd ?? null
+        paypalSubscriptionId.value = data.paypalSubscriptionId ?? null
       })
       .catch(() => {
-        setState(prev => ({ ...prev, loading: false }))
+        loading.value = false
       })
-  }, [user])
+  }, [user, loading, subscribed, status, planId, currentPeriodEnd, paypalSubscriptionId])
 
   useEffect(() => { refresh() }, [refresh])
 
-  return { ...state, refresh }
+  return {
+    loading: loading.value,
+    subscribed: subscribed.value,
+    status: status.value,
+    planId: planId.value,
+    currentPeriodEnd: currentPeriodEnd.value,
+    paypalSubscriptionId: paypalSubscriptionId.value,
+    refresh,
+  }
 }
