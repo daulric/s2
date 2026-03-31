@@ -136,36 +136,30 @@ The `/home` page shows a personalized feed based on user role:
 
 ### Frontend (`frontend/.env.*`)
 
+The frontend only needs Supabase credentials (for auth and server actions) and the backend API URL. All secrets for PayPal, stock data, and webhooks live on the backend.
+
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Yes |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key | Yes |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server only) | Yes |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server actions) | Yes |
 | `NEXT_PUBLIC_SCHEMA` | Database schema name | Yes |
-| `FINNHUB_API_KEY` | Finnhub API key (server only) | Yes |
-| `NEXT_PUBLIC_FINNHUB_API_KEY` | Finnhub key for WebSocket (client) | Yes |
-| `ALPHAVANTAGE_API_KEY` | Alpha Vantage API key | Yes |
-| `PAYPAL_CLIENT_ID` | PayPal client ID (server) | Yes |
-| `PAYPAL_SECRET` | PayPal secret (server) | Yes |
-| `PAYPAL_MODE` | `sandbox` or `live` | Yes |
-| `PAYPAL_PLAN_ID` | PayPal billing plan ID | Yes |
-| `PAYPAL_WEBHOOK_ID` | PayPal webhook ID | Production |
-| `NEXT_PUBLIC_PAYPAL_CLIENT_ID` | PayPal client ID (browser) | Yes |
-| `NEXT_PUBLIC_PAYPAL_PLAN_ID` | PayPal plan ID (browser) | Yes |
-| `CRON_SECRET` | Secret for cron authentication | Production |
+| `NEXT_PUBLIC_API_URL` | Backend API URL (e.g. `https://s2-api.onrender.com`) | Yes |
 
 ### Backend (`backend/.env`)
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `FINNHUB_API_KEY` | Finnhub API key | Yes |
 | `SUPABASE_URL` | Supabase project URL | Yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | Yes |
+| `FINNHUB_API_KEY` | Finnhub API key | Yes |
+| `ALPHAVANTAGE_API_KEY` | Alpha Vantage API key | Yes |
 | `PAYPAL_CLIENT_ID` | PayPal client ID | Yes |
 | `PAYPAL_SECRET` | PayPal secret | Yes |
 | `PAYPAL_MODE` | `sandbox` or `live` | Yes |
 | `PAYPAL_PLAN_ID` | PayPal billing plan ID | Yes |
 | `PAYPAL_WEBHOOK_ID` | PayPal webhook ID | Production |
+| `CRON_SECRET` | Secret for cron authentication | Production |
 | `PORT` | Server port | No (default 3001) |
 
 ## Deployment
