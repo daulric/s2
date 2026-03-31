@@ -53,9 +53,18 @@ export type PayPalSubscription = {
   update_time: string
 }
 
+function validateSubscriptionId(id: string): string {
+  const sanitized = id.trim()
+  if (!/^I-[A-Za-z0-9]{10,20}$/.test(sanitized)) {
+    throw new Error("Invalid PayPal subscription ID format")
+  }
+  return sanitized
+}
+
 export async function getSubscription(subscriptionId: string): Promise<PayPalSubscription> {
+  const safeId = validateSubscriptionId(subscriptionId)
   const token = await getAccessToken()
-  const res = await fetch(`${PAYPAL_BASE}/v1/billing/subscriptions/${subscriptionId}`, {
+  const res = await fetch(`${PAYPAL_BASE}/v1/billing/subscriptions/${safeId}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   })
@@ -67,8 +76,9 @@ export async function getSubscription(subscriptionId: string): Promise<PayPalSub
 }
 
 export async function cancelSubscription(subscriptionId: string, reason: string): Promise<void> {
+  const safeId = validateSubscriptionId(subscriptionId)
   const token = await getAccessToken()
-  const res = await fetch(`${PAYPAL_BASE}/v1/billing/subscriptions/${subscriptionId}/cancel`, {
+  const res = await fetch(`${PAYPAL_BASE}/v1/billing/subscriptions/${safeId}/cancel`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
