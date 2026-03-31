@@ -25,10 +25,11 @@ This document covers the complete s2+ subscription implementation — architectu
 │                  │     │   Buttons)         │     │   Live)     │
 └────────┬─────────┘     └───────────────────┘     └──────┬──────┘
          │                                                 │
-         │ POST /api/paypal/subscribe                      │ Webhook POST
+         │ backendFetch("/paypal/subscribe")                │ Webhook POST
          ▼                                                 ▼
 ┌─────────────────┐                              ┌─────────────────┐
-│  Subscribe API   │                              │  Webhook API     │
+│  NestJS Backend  │                              │  NestJS Backend  │
+│  PaypalController│                              │  /paypal/webhook │
 │  (verify + save) │                              │  (verify + sync) │
 └────────┬─────────┘                              └────────┬─────────┘
          │                                                 │
@@ -37,8 +38,8 @@ This document covers the complete s2+ subscription implementation — architectu
 │                     Supabase (subscriptions table)               │
 └──────────────────────────────────────────────────────────────────┘
          ▲
-         │  GET /api/paypal/status
-         │  POST /api/paypal/cancel
+         │  backendFetch("/paypal/status")
+         │  backendFetch("/paypal/cancel")
 ┌────────┴─────────┐
 │  useSubscription  │  (React hook)
 │  hook             │
@@ -49,26 +50,26 @@ This document covers the complete s2+ subscription implementation — architectu
 
 1. User visits `/pricing` and clicks the PayPal subscribe button
 2. PayPal JS SDK opens a popup for the user to approve the subscription
-3. On approval, the client calls `POST /api/paypal/subscribe` with the subscription ID
-4. The server verifies the subscription with PayPal and writes it to Supabase
-5. PayPal sends webhook events for ongoing lifecycle changes (renewal, cancellation, failure)
-6. The `useSubscription` hook fetches status from `GET /api/paypal/status` for client-side feature gating
+3. On approval, the client calls the backend `POST /paypal/subscribe` with the subscription ID via `backendFetch()`
+4. The backend verifies the subscription with PayPal and writes it to Supabase
+5. PayPal sends webhook events to the backend's `POST /paypal/webhook` for ongoing lifecycle changes
+6. The `useSubscription` hook fetches status from the backend `GET /paypal/status` for client-side feature gating
 
 ---
 
 ## Environment Variables
 
+All PayPal credentials live exclusively on the **backend**:
+
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `PAYPAL_CLIENT_ID` | PayPal app client ID (server-side) | Yes |
-| `PAYPAL_SECRET` | PayPal app secret (server-side) | Yes |
+| `PAYPAL_CLIENT_ID` | PayPal app client ID | Yes |
+| `PAYPAL_SECRET` | PayPal app secret | Yes |
 | `PAYPAL_MODE` | `sandbox` or `live` | Yes |
 | `PAYPAL_PLAN_ID` | PayPal billing plan ID | Yes |
 | `PAYPAL_WEBHOOK_ID` | PayPal webhook ID for signature verification | Yes (production) |
-| `NEXT_PUBLIC_PAYPAL_CLIENT_ID` | Same as `PAYPAL_CLIENT_ID`, exposed to browser | Yes |
-| `NEXT_PUBLIC_PAYPAL_PLAN_ID` | Same as `PAYPAL_PLAN_ID`, exposed to browser | Yes |
 
-**.env example:**
+**backend/.env example:**
 
 ```env
 PAYPAL_CLIENT_ID=AVAx...lzVC
@@ -76,11 +77,11 @@ PAYPAL_SECRET=EE7S...t6fI
 PAYPAL_MODE=sandbox
 PAYPAL_PLAN_ID=P-62G...QWJI
 PAYPAL_WEBHOOK_ID=
-NEXT_PUBLIC_PAYPAL_CLIENT_ID=AVAx...lzVC
-NEXT_PUBLIC_PAYPAL_PLAN_ID=P-62G...QWJI
 ```
 
 > `PAYPAL_WEBHOOK_ID` can be empty during local development. Webhook signature verification is skipped when the ID is not set.
+
+The frontend does **not** need any PayPal environment variables. It uses `backendFetch()` from `frontend/lib/backend-fetch.ts` to communicate with the backend.
 
 ---
 
@@ -110,7 +111,7 @@ create table if not exists subscriptions (
 
 **RLS policies:**
 - Users can **read** their own subscription (`auth.uid() = user_id`)
-- Service role can **insert** and **update** any row (used by API routes and webhooks)
+- Service role can **insert** and **update** any row (used by the backend)
 
 Run the full schema in `frontend/sql/schema.sql` via the Supabase SQL Editor.
 
@@ -173,7 +174,7 @@ echo "Plan ID: $PLAN_ID"
 
 1. Go to **PayPal Dashboard → Webhooks**
 2. Click **Add Webhook**
-3. Set the URL to `https://your-domain.com/api/paypal/webhook`
+3. Set the URL to `https://your-backend.onrender.com/paypal/webhook`
 4. Subscribe to these events:
    - `BILLING.SUBSCRIPTION.ACTIVATED`
    - `BILLING.SUBSCRIPTION.SUSPENDED`
@@ -189,23 +190,25 @@ Open the Supabase SQL Editor and run the contents of `frontend/sql/schema.sql`.
 
 ### 5. For Local Development
 
-Use [ngrok](https://ngrok.com/) to expose your local server for webhook testing:
+Use [ngrok](https://ngrok.com/) to expose your local backend for webhook testing:
 
 ```bash
-ngrok http 3000
+ngrok http 3001
 ```
 
-Then update the webhook URL in the PayPal dashboard to your ngrok URL.
+Then update the webhook URL in the PayPal dashboard to your ngrok URL (e.g. `https://xxxx.ngrok-free.app/paypal/webhook`).
 
 ---
 
 ## API Reference
 
-### `POST /api/paypal/subscribe`
+All endpoints are on the NestJS backend.
+
+### `POST /paypal/subscribe`
 
 Activates a subscription after PayPal approval.
 
-**Auth:** Requires authenticated user session.
+**Auth:** Requires `SupabaseAuthGuard` (Bearer token).
 
 **Request body:**
 
@@ -235,7 +238,7 @@ Activates a subscription after PayPal approval.
 
 ---
 
-### `GET /api/paypal/status`
+### `GET /paypal/status`
 
 Returns the current user's subscription status.
 
@@ -264,11 +267,11 @@ If not subscribed:
 
 ---
 
-### `POST /api/paypal/cancel`
+### `POST /paypal/cancel`
 
 Cancels the current user's active subscription.
 
-**Auth:** Requires authenticated user session.
+**Auth:** Requires `SupabaseAuthGuard` (Bearer token).
 
 **Success response (200):**
 
@@ -288,7 +291,7 @@ Cancels the current user's active subscription.
 
 ---
 
-### `POST /api/paypal/webhook`
+### `POST /paypal/webhook`
 
 Receives and processes PayPal webhook events. Not called directly by the client.
 
@@ -336,15 +339,26 @@ These headers are sent by PayPal with every webhook delivery. The handler sends 
 ### Testing Webhooks Locally
 
 1. Install ngrok: `brew install ngrok` (macOS) or download from https://ngrok.com
-2. Start your dev server: `bun dev`
-3. Expose it: `ngrok http 3000`
+2. Start your dev servers: `bun dev`
+3. Expose the backend: `ngrok http 3001`
 4. Copy the ngrok HTTPS URL
-5. Update the webhook URL in PayPal Dashboard to: `https://xxxx.ngrok-free.app/api/paypal/webhook`
+5. Update the webhook URL in PayPal Dashboard to: `https://xxxx.ngrok-free.app/paypal/webhook`
 6. Use the PayPal Sandbox to trigger test events
 
 ---
 
 ## Client Integration
+
+### `backendFetch` Utility
+
+The frontend uses `backendFetch()` from `frontend/lib/backend-fetch.ts` to call the backend. It automatically reads the Supabase session and attaches the access token as a Bearer header.
+
+```typescript
+import { backendFetch } from "@/lib/backend-fetch";
+
+const res = await backendFetch("/paypal/status");
+const data = await res.json();
+```
 
 ### `useSubscription` Hook
 
@@ -405,8 +419,8 @@ function StockPrice({ ticker }: { ticker: string }) {
 
 1. **Create a live PayPal app** at https://developer.paypal.com/dashboard/applications/live
 2. **Create a live product and plan** using the same curl commands but with `https://api-m.paypal.com` instead of `https://api-m.sandbox.paypal.com`
-3. **Create a live webhook** pointing to your production domain
-4. **Update environment variables:**
+3. **Create a live webhook** pointing to your backend production URL (e.g. `https://s2-api.onrender.com/paypal/webhook`)
+4. **Update backend environment variables:**
 
 ```env
 PAYPAL_CLIENT_ID=<live client id>
@@ -414,8 +428,6 @@ PAYPAL_SECRET=<live secret>
 PAYPAL_MODE=live
 PAYPAL_PLAN_ID=<live plan id>
 PAYPAL_WEBHOOK_ID=<live webhook id>
-NEXT_PUBLIC_PAYPAL_CLIENT_ID=<live client id>
-NEXT_PUBLIC_PAYPAL_PLAN_ID=<live plan id>
 ```
 
 5. **Deploy** and verify:
@@ -431,7 +443,7 @@ NEXT_PUBLIC_PAYPAL_PLAN_ID=<live plan id>
 | PayPal accounts | Test accounts | Real accounts |
 | Payments | Simulated | Real charges |
 | Webhook verification | Optional | Required |
-| Webhook URL | ngrok or test domain | Production domain |
+| Webhook URL | ngrok or test domain | Production backend URL |
 
 The code automatically switches based on `PAYPAL_MODE`. No code changes are needed.
 
@@ -441,19 +453,18 @@ The code automatically switches based on `PAYPAL_MODE`. No code changes are need
 
 ### PayPal buttons not rendering
 
-- Verify `NEXT_PUBLIC_PAYPAL_CLIENT_ID` is set and not empty
 - Check browser console for PayPal SDK errors
-- Ensure `NEXT_PUBLIC_PAYPAL_PLAN_ID` matches an active plan
+- Ensure the PayPal plan ID is active
 
 ### Subscription created but status stuck on PENDING
 
-- Check that `POST /api/paypal/subscribe` was called after approval
-- Look for errors in the server logs
+- Check that `POST /paypal/subscribe` was called after approval
+- Look for errors in the backend logs
 - Verify the PayPal subscription status via the dashboard or API
 
 ### Webhook events not arriving
 
-- Verify the webhook URL is publicly accessible (use ngrok for local dev)
+- Verify the webhook URL points to your backend (not the frontend)
 - Check the PayPal Dashboard → Webhooks → Recent Events for delivery failures
 - Ensure `PAYPAL_WEBHOOK_ID` matches the webhook in the dashboard
 
@@ -466,7 +477,7 @@ The code automatically switches based on `PAYPAL_MODE`. No code changes are need
 ### Database errors
 
 - Run the migration in `frontend/sql/schema.sql` to create the `subscriptions` table
-- Check that the service role key is set in your Supabase connection
+- Check that the service role key is set in the backend's env
 - Verify RLS policies are in place
 
 ---
@@ -475,11 +486,12 @@ The code automatically switches based on `PAYPAL_MODE`. No code changes are need
 
 | File | Purpose |
 |------|---------|
-| `frontend/lib/paypal.ts` | Server-side PayPal helpers (auth, subscription API, webhook verification) |
+| `backend/src/paypal/paypal.service.ts` | Server-side PayPal helpers (auth, subscription API, webhook verification) |
+| `backend/src/paypal/paypal.controller.ts` | REST endpoints for subscribe, status, cancel, webhook |
+| `backend/src/paypal/paypal.module.ts` | NestJS module wiring |
+| `backend/src/auth/access-control.service.ts` | Centralized subscription/role checks |
+| `frontend/lib/backend-fetch.ts` | Authenticated fetch utility for backend calls |
 | `frontend/hooks/use-subscription.ts` | Client-side React hook for subscription state |
-| `frontend/app/api/paypal/subscribe/route.ts` | Activates a subscription after PayPal approval |
-| `frontend/app/api/paypal/status/route.ts` | Returns current user's subscription status |
-| `frontend/app/api/paypal/cancel/route.ts` | Cancels an active subscription |
-| `frontend/app/api/paypal/webhook/route.ts` | Processes PayPal webhook events |
+| `frontend/context/SubscriptionProvider.tsx` | Context provider for subscription state |
 | `frontend/app/pricing/page_client.tsx` | Pricing page UI with PayPal buttons |
 | `frontend/sql/schema.sql` | Database schema including subscriptions table |

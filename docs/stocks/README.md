@@ -4,32 +4,38 @@ This document covers the stock market intelligence system — data sources, inge
 
 ## Overview
 
-s2 maintains a database of stocks across four exchanges (NYSE, Nasdaq, ECSE, EU) with automated news ingestion, sentiment analysis, and price predictions. Data is refreshed daily via a Vercel cron job and augmented with live Finnhub WebSocket data on the client.
+s2 maintains a database of stocks across four exchanges (NYSE, Nasdaq, ECSE, EU) with automated news ingestion, sentiment analysis, and price predictions. Data is refreshed daily via a Vercel cron job that proxies to the NestJS backend. Real-time prices are streamed through the backend's WebSocket gateway.
 
 ```
-┌──────────────┐     ┌────────────┐     ┌──────────────┐
-│  SEC EDGAR   │────▶│  /api/     │────▶│   stocks     │
-│  (listings)  │     │  stocks/   │     │   table      │
-└──────────────┘     │  seed      │     └──────────────┘
-                     └────────────┘
-                                        ┌──────────────┐
-┌──────────────┐     ┌────────────┐     │ stock_       │
-│  Finnhub     │────▶│  /api/     │────▶│ articles     │
-│  Alpha Vant. │     │  stocks/   │     ├──────────────┤
-│  Yahoo       │     │  ingest    │     │ article_     │
-└──────────────┘     │  (cron)    │────▶│ sentiments   │
-                     └────────────┘     ├──────────────┤
-                                        │ stock_       │
-                                   ────▶│ predictions  │
-                                        └──────────────┘
+┌──────────────┐     ┌─────────────┐     ┌──────────────┐
+│  SEC EDGAR   │────▶│  Backend    │────▶│   stocks     │
+│  ECSE / EU   │     │  /stocks/   │     │   table      │
+│  (listings)  │     │  seed       │     └──────────────┘
+└──────────────┘     └─────────────┘
+                                          ┌──────────────┐
+┌──────────────┐     ┌─────────────┐     │ stock_       │
+│  Finnhub     │────▶│  Backend    │────▶│ articles     │
+│  Alpha Vant. │     │  /stocks/   │     ├──────────────┤
+│  Yahoo       │     │  ingest     │     │ article_     │
+└──────────────┘     │  (cron)     │────▶│ sentiments   │
+                     └─────────────┘     ├──────────────┤
+                                         │ stock_       │
+                                    ────▶│ predictions  │
+                                         └──────────────┘
+
+┌──────────────┐     ┌─────────────┐     ┌──────────────┐
+│  Finnhub WS  │────▶│  Backend    │────▶│  Frontend    │
+│  (trades)    │     │  Gateway    │     │  Clients     │
+└──────────────┘     │  /ws/stocks │     │  (via WS)    │
+                     └─────────────┘     └──────────────┘
 ```
 
 ## Data Sources
 
 | Source | Usage | API Key Required |
 |--------|-------|------------------|
-| **Finnhub** | Real-time quotes, company profiles, company news, OHLCV candles, WebSocket live prices | `FINNHUB_API_KEY` / `NEXT_PUBLIC_FINNHUB_API_KEY` |
-| **Alpha Vantage** | News sentiment analysis, historical candles (daily/weekly/intraday) | `ALPHAVANTAGE_API_KEY` |
+| **Finnhub** | Real-time quotes, company profiles, company news, OHLCV candles, WebSocket live prices | `FINNHUB_API_KEY` (backend) |
+| **Alpha Vantage** | News sentiment analysis, historical candles (daily/weekly/intraday) | `ALPHAVANTAGE_API_KEY` (backend) |
 | **Yahoo Finance** | Fallback quotes and candles (no key needed) | No |
 | **Stooq** | Last-resort daily candles for US stocks (CSV) | No |
 | **SEC EDGAR** | Active stock listings for NYSE/Nasdaq | No |
@@ -45,15 +51,15 @@ s2 maintains a database of stocks across four exchanges (NYSE, Nasdaq, ECSE, EU)
 | ECSE | `BON`, `SKNB` | ECSE scraper |
 | EU | `ADS.DE`, `MC.PA` | Yahoo Finance |
 
-## API Routes
+## Backend Endpoints
 
-### `GET /api/stocks/seed`
+### `GET /stocks/seed`
 
 Seeds the `stocks` table from SEC EDGAR listings + ECSE/EU listings. Fetches initial quotes for each ticker.
 
-### `GET /api/stocks/ingest` (Cron)
+### `GET /stocks/ingest` (Cron)
 
-Daily automated ingestion running at `0 6 * * *` (UTC). Protected by `CRON_SECRET`.
+Daily automated ingestion. The frontend's Vercel cron job (`0 6 * * *` UTC) proxies to this endpoint via `GET /api/stocks/ingest`. Protected by `CRON_SECRET`.
 
 For each stock in batches of 5 (with 15s delay between batches):
 
@@ -63,13 +69,30 @@ For each stock in batches of 5 (with 15s delay between batches):
 4. **Sentiment backfill** — Fills missing sentiment scores for articles
 5. **Prediction generation** — Computes weighted-average sentiment → bullish/bearish/neutral prediction
 
-### `GET /api/stocks/ecse-snapshot`
+### `POST /stocks/update`
+
+Fetches fresh prices for all stocks, persists them to the database, and broadcasts `price_update` events to all connected WebSocket clients. Requires s2+ or admin access.
+
+### `GET /stocks/ecse-snapshot`
 
 Scrapes the ECSE website for latest prices and updates the `stocks` table.
 
-### `GET /api/stocks/migrate-exchange`
+### `GET /stocks/migrate-exchange`
 
 Migration utility for populating the `exchange` column from listing data.
+
+## WebSocket Gateway (`/ws/stocks`)
+
+The backend maintains a single Finnhub WebSocket connection and relays trade data to authorized clients.
+
+**Connection flow:**
+1. Client connects with `?token=<supabase_access_token>`
+2. Gateway validates token via Supabase and checks subscription/role via `AccessControlService`
+3. Unauthorized connections are closed with `4001` (bad token) or `4003` (no subscription)
+4. Client sends `subscribe`/`unsubscribe` messages for individual tickers
+5. Backend forwards matching trades as `trade` events and batch price updates as `price_update` events
+
+Connection management ensures only one Finnhub WebSocket is open at a time, with flags to prevent duplicate connections during reconnects.
 
 ## Candle Data (OHLCV)
 
@@ -119,11 +142,11 @@ Direction thresholds:
 - **Score < -0.1** → `bearish`
 - **Otherwise** → `neutral`
 
-## Real-Time Stock Feed
+## Real-Time Stock Feed (Frontend)
 
 **File:** `frontend/hooks/use-stock-feed.ts`
 
-A shared Finnhub WebSocket connection provides live trade updates on the client. The system uses reference counting — the WebSocket connects when the first ticker is subscribed and disconnects when the last one unsubscribes.
+Connects to the backend's `/ws/stocks` WebSocket gateway using the user's Supabase access token. The system uses reference counting — the connection opens when the first ticker is subscribed and closes when the last one unsubscribes.
 
 ### `useStockFeed(ticker, onUpdate?)`
 
@@ -148,16 +171,16 @@ Closes the WebSocket, clears all subscriptions, and stops reconnection. Called b
 
 ### Reconnection
 
-Exponential backoff with max 30-second delay. Reconnection only happens while at least one ticker is subscribed.
+Exponential backoff with max 30-second delay. Reconnection only happens while at least one ticker is subscribed. Auth rejections (4001/4003) prevent reconnect loops.
 
-## Server Actions
+## Server Actions (Frontend)
 
 **File:** `frontend/serverActions/GetStockDetails.ts`
 
 | Action | Description |
 |--------|-------------|
 | `GetAllStocks()` | Returns all stocks with latest prediction, article count, and sentiment average. Cached for 60s. |
-| `GetStockDetail(ticker)` | Full stock detail with articles (merged DB + live Finnhub), sentiments, prediction history, and candles. Triggers background article persistence. |
+| `GetStockDetail(ticker)` | Full stock detail with articles (merged DB + live Finnhub), sentiments, prediction history, and candles. |
 | `GetStockCandles(ticker, range)` | OHLCV candles for a ticker with multi-provider fallback. |
 | `GetUserWatchlist()` | Returns the authenticated user's watchlist entries. |
 | `ToggleWatchlist(ticker)` | Adds or removes a ticker from the user's watchlist. Returns `{ added: boolean }`. |
@@ -204,20 +227,30 @@ All types are defined in `frontend/lib/stocks/types.ts`.
 
 ## Related Files
 
+### Backend
+
 | File | Purpose |
 |------|---------|
-| `frontend/lib/stocks/api.ts` | All external API calls (Finnhub, Alpha Vantage, Yahoo, Stooq, SEC) |
+| `backend/src/stocks/stocks.service.ts` | Seed, ingest, update, ecse-snapshot logic |
+| `backend/src/stocks/stocks.controller.ts` | REST endpoints |
+| `backend/src/stocks/stocks.gateway.ts` | WebSocket gateway (Finnhub relay) |
+| `backend/src/stocks/lib/api.ts` | External API calls (Finnhub, Alpha Vantage, Yahoo, SEC) |
+| `backend/src/stocks/lib/types.ts` | TypeScript types for stock lib |
+| `backend/src/stocks/lib/ecse-scraper.ts` | ECSE website scraper |
+| `backend/src/stocks/lib/eu-listings.ts` | EU stock listing fetcher |
+| `backend/src/stocks/lib/persist-stock-articles.ts` | Deduplicated article insertion |
+| `backend/src/stocks/lib/backfill-article-sentiments.ts` | Fills missing sentiment scores |
+| `backend/src/auth/access-control.service.ts` | Subscription/role checks for WS auth |
+
+### Frontend
+
+| File | Purpose |
+|------|---------|
 | `frontend/lib/stocks/types.ts` | TypeScript type definitions |
-| `frontend/lib/stocks/ecse-scraper.ts` | ECSE website scraper |
-| `frontend/lib/stocks/eu-listings.ts` | EU stock listing fetcher |
-| `frontend/lib/stocks/persist-stock-articles.ts` | Deduplicated article insertion |
-| `frontend/lib/stocks/backfill-article-sentiments.ts` | Fills missing sentiment scores |
-| `frontend/lib/stocks/article-sentiment-plurality.ts` | Majority sentiment direction |
 | `frontend/lib/stocks/format-stock-price.ts` | Price formatting utilities |
 | `frontend/lib/stocks/coerce-stock-number.ts` | Type coercion for DB rows |
 | `frontend/lib/stocks/sparkline-candle-queue.ts` | Sparkline candle management |
 | `frontend/lib/stocks/*-market-hours.ts` | Market open/close schedule logic |
-| `frontend/hooks/use-stock-feed.ts` | Finnhub WebSocket hook |
+| `frontend/hooks/use-stock-feed.ts` | Backend WebSocket hook |
 | `frontend/serverActions/GetStockDetails.ts` | Server actions for stock data |
-| `frontend/app/api/stocks/ingest/route.ts` | Daily cron ingestion |
-| `frontend/app/api/stocks/seed/route.ts` | Initial stock seeding |
+| `frontend/app/api/stocks/ingest/route.ts` | Vercel cron proxy to backend |

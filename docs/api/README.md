@@ -1,16 +1,20 @@
 # API Reference
 
-This document covers all API routes in the application — PayPal subscription endpoints and stock data endpoints.
+This document covers all API endpoints — backend REST routes (NestJS) and frontend Server Actions.
 
-## PayPal Subscription Endpoints
+All backend endpoints are served from the NestJS backend (`NEXT_PUBLIC_BACKEND_URL`). The frontend communicates with them via `backendFetch()` which attaches the Supabase access token as a Bearer header.
 
-All PayPal endpoints live under `/api/paypal/`. See [Pricing Documentation](../pricing/README.md) for the full subscription flow.
+---
 
-### `POST /api/paypal/create-subscription`
+## PayPal Endpoints (Backend)
+
+All PayPal endpoints live on the backend under `/paypal/`.
+
+### `POST /paypal/create-subscription`
 
 Creates a new PayPal billing subscription and returns an approval URL.
 
-**Auth:** Requires authenticated user session.
+**Auth:** Requires `SupabaseAuthGuard`.
 
 **Response (200):**
 
@@ -30,11 +34,11 @@ Creates a new PayPal billing subscription and returns an approval URL.
 
 ---
 
-### `POST /api/paypal/subscribe`
+### `POST /paypal/subscribe`
 
 Activates a subscription after PayPal approval. Verifies the subscription status with PayPal and upserts the `subscriptions` table.
 
-**Auth:** Requires authenticated user session.
+**Auth:** Requires `SupabaseAuthGuard`.
 
 **Request body:**
 
@@ -64,7 +68,7 @@ Activates a subscription after PayPal approval. Verifies the subscription status
 
 ---
 
-### `GET /api/paypal/status`
+### `GET /paypal/status`
 
 Returns the current user's subscription status. Works for both authenticated and unauthenticated users.
 
@@ -91,11 +95,11 @@ Returns the current user's subscription status. Works for both authenticated and
 
 ---
 
-### `POST /api/paypal/cancel`
+### `POST /paypal/cancel`
 
 Cancels the current user's active subscription via PayPal API and sets the database status to `CANCELLED`.
 
-**Auth:** Requires authenticated user session.
+**Auth:** Requires `SupabaseAuthGuard`.
 
 **Response (200):**
 
@@ -115,7 +119,7 @@ Cancels the current user's active subscription via PayPal API and sets the datab
 
 ---
 
-### `POST /api/paypal/webhook`
+### `POST /paypal/webhook`
 
 Receives PayPal webhook events. Not called by client code.
 
@@ -142,13 +146,13 @@ Receives PayPal webhook events. Not called by client code.
 
 ---
 
-## Stock Data Endpoints
+## Stock Endpoints (Backend)
 
-All stock endpoints live under `/api/stocks/`. These are operational/cron endpoints, not intended for direct client use.
+All stock endpoints live on the backend under `/stocks/`.
 
-### `GET /api/stocks/ingest`
+### `GET /stocks/ingest` (Cron)
 
-Daily automated stock data ingestion. Configured as a Vercel cron job (`0 6 * * *` UTC).
+Daily automated stock data ingestion. The frontend's Vercel cron job (`0 6 * * *` UTC) proxies to this endpoint.
 
 **Auth:** Protected by `CRON_SECRET` via `Authorization: Bearer <secret>` header.
 
@@ -182,7 +186,23 @@ Daily automated stock data ingestion. Configured as a Vercel cron job (`0 6 * * 
 
 ---
 
-### `GET /api/stocks/seed`
+### `POST /stocks/update`
+
+Fetches fresh prices for all stocks, persists them, and broadcasts updates to connected WebSocket clients.
+
+**Auth:** Requires `SupabaseAuthGuard` + `SubscriptionGuard` (s2+ or admin).
+
+**Response (200):**
+
+```json
+{
+  "updated": 150
+}
+```
+
+---
+
+### `GET /stocks/seed`
 
 Seeds the `stocks` table from SEC EDGAR active listings plus ECSE and EU listings. Run once to populate the initial stock universe.
 
@@ -190,7 +210,7 @@ Seeds the `stocks` table from SEC EDGAR active listings plus ECSE and EU listing
 
 ---
 
-### `GET /api/stocks/ecse-snapshot`
+### `GET /stocks/ecse-snapshot`
 
 Scrapes the Eastern Caribbean Securities Exchange website for latest prices and updates the `stocks` table for ECSE tickers.
 
@@ -198,7 +218,7 @@ Scrapes the Eastern Caribbean Securities Exchange website for latest prices and 
 
 ---
 
-### `GET /api/stocks/migrate-exchange`
+### `GET /stocks/migrate-exchange`
 
 Migration utility that populates the `exchange` column on the `stocks` table using listing data from SEC EDGAR, ECSE, and EU sources.
 
@@ -206,9 +226,45 @@ Migration utility that populates the `exchange` column on the `stocks` table usi
 
 ---
 
-## Server Actions
+## WebSocket Gateway (Backend)
 
-In addition to API routes, s2 uses Next.js Server Actions for data fetching. These are called directly from client components, not via HTTP.
+### `/ws/stocks`
+
+Real-time stock price feed via WebSocket (Socket.IO transport).
+
+**Connection:** `ws(s)://<backend>/ws/stocks?token=<supabase_access_token>`
+
+**Auth:** On connect, the gateway validates the Supabase token and checks s2+ subscription or admin role via `AccessControlService`. Unauthorized connections are closed with code `4001` (invalid token) or `4003` (subscription required).
+
+**Client → Server messages:**
+
+| Type | Payload | Description |
+|------|---------|-------------|
+| `subscribe` | `{ "symbol": "AAPL" }` | Subscribe to live trades for a ticker |
+| `unsubscribe` | `{ "symbol": "AAPL" }` | Unsubscribe from a ticker |
+
+**Server → Client messages:**
+
+| Type | Payload | Description |
+|------|---------|-------------|
+| `trade` | `{ "s": "AAPL", "p": 185.50, "t": 1711900800000, "v": 100 }` | Live trade from Finnhub |
+| `price_update` | `{ "ticker": "AAPL", "price": 185.50 }` | Broadcast after `POST /stocks/update` |
+
+The backend maintains a single Finnhub WebSocket connection and fans out trade data to all connected clients.
+
+---
+
+## Vercel Cron Proxy (Frontend)
+
+### `GET /api/stocks/ingest`
+
+A thin proxy in the frontend that forwards Vercel's cron `Authorization` header to the backend's `/stocks/ingest` endpoint. Configured in `vercel.json`.
+
+---
+
+## Server Actions (Frontend)
+
+Server Actions are called directly from client components, not via HTTP.
 
 ### Stock Actions (`frontend/serverActions/GetStockDetails.ts`)
 
