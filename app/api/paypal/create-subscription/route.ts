@@ -1,26 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { SupabaseClient } from "@supabase/supabase-js"
-
-const PAYPAL_BASE = process.env.PAYPAL_MODE === "live"
-  ? "https://api-m.paypal.com"
-  : "https://api-m.sandbox.paypal.com"
-
-console.log("PAYPAL_BASE", PAYPAL_BASE)
-
-async function getAccessToken(): Promise<string> {
-  const res = await fetch(`${PAYPAL_BASE}/v1/oauth2/token`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_SECRET}`).toString("base64")}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-    cache: "no-store",
-  })
-  const json = await res.json()
-  return json.access_token
-}
+import { getAccessToken, getPayPalBase, getPlanId } from "@/lib/paypal"
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,7 +15,7 @@ export async function POST(req: NextRequest) {
     const origin = req.headers.get("origin") || "http://localhost:3000"
     const token = await getAccessToken()
 
-    const subRes = await fetch(`${PAYPAL_BASE}/v1/billing/subscriptions`, {
+    const subRes = await fetch(`${getPayPalBase()}/v1/billing/subscriptions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -42,7 +23,7 @@ export async function POST(req: NextRequest) {
         Prefer: "return=representation",
       },
       body: JSON.stringify({
-        plan_id: process.env.PAYPAL_PLAN_ID,
+        plan_id: getPlanId(),
         application_context: {
           brand_name: "s2",
           user_action: "SUBSCRIBE_NOW",

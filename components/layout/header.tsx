@@ -28,6 +28,7 @@ import {
   FileVideo,
   Music2,
   Zap,
+  Menu,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
 import { useSubscription } from "@/context/SubscriptionProvider"
@@ -92,104 +93,207 @@ export function Header() {
           <SearchInput mobile />
         </div>
 
-        <NavDropdown icon={Shell} label="Explore">
-          <DropdownMenuLabel>Explore</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem>
-              <Link href="/shorts" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
-                <Compass className="h-4 w-4" />
-                <span>Shorts</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Link href="/home" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
-                <Video className="h-4 w-4" />
-                <span>Videos</span>
-              </Link>
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </NavDropdown>
-
-        <NavDropdown icon={Music} label="Music">
-          <DropdownMenuLabel>Music</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem>
-              <Link href="/music" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
-                <Headphones className="h-4 w-4" />
-                <span>Listen</span>
-              </Link>
-            </DropdownMenuItem>
-            {user && (
+        {/* Mobile: single hamburger menu */}
+        <div className="md:hidden">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Navigation menu"
+              onClick={() => trigger("light")}
+              className={cn(
+                "inline-flex h-8 w-8 items-center justify-center rounded-md outline-none",
+                "hover:bg-muted hover:text-foreground transition-colors",
+                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              )}
+            >
+              <Menu className="h-5 w-5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-52 rounded-xl p-1.5" align="end">
               <DropdownMenuItem>
-                <Link href="/upload/music" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
-                  <Mic className="h-4 w-4" />
-                  <span>Upload Music</span>
+                <Link
+                  href="/pricing"
+                  className="flex w-full items-center gap-2 text-sm"
+                  onClick={() => trigger("light")}
+                >
+                  <Zap className={cn("h-4 w-4", subscribed && "fill-primary")} />
+                  <span>s2+</span>
+                  {subscribed && (
+                    <span className="ml-auto inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  )}
                 </Link>
               </DropdownMenuItem>
-            )}
-          </DropdownMenuGroup>
-        </NavDropdown>
 
-        <NavDropdown icon={BarChart3} label="Stocks">
-          <DropdownMenuLabel>Stocks</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-          {user && (
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Explore</DropdownMenuLabel>
               <DropdownMenuItem>
-                <Link href="/stocks?tab=watchlist" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
-                  <Star className="h-4 w-4" />
-                  <span>Watchlist</span>
+                <Link href="/shorts" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                  <Compass className="h-4 w-4" />
+                  <span>Shorts</span>
                 </Link>
               </DropdownMenuItem>
-            )}
-            <DropdownMenuItem>
-              <Link href="/stocks" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
-                <TrendingUp className="h-4 w-4" />
-                <span>All Stocks</span>
-              </Link>
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </NavDropdown>
+              <DropdownMenuItem>
+                <Link href="/home" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                  <Video className="h-4 w-4" />
+                  <span>Videos</span>
+                </Link>
+              </DropdownMenuItem>
 
-        <Link
-          href="/pricing"
-          onClick={() => trigger("light")}
-          className={cn(
-            "inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors",
-            subscribed
-              ? "bg-primary/10 text-primary hover:bg-primary/15"
-              : "hover:bg-muted hover:text-foreground text-primary",
-          )}
-        >
-          <Zap className={cn("h-4 w-4", subscribed && "fill-primary")} />
-          <span className="hidden sm:inline">s2+</span>
-          {subscribed && (
-            <span className="hidden sm:inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          )}
-        </Link>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Music</DropdownMenuLabel>
+              <DropdownMenuItem>
+                <Link href="/music" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                  <Headphones className="h-4 w-4" />
+                  <span>Listen</span>
+                </Link>
+              </DropdownMenuItem>
+              {user && (
+                <DropdownMenuItem>
+                  <Link href="/upload/music" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                    <Mic className="h-4 w-4" />
+                    <span>Upload Music</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
 
-        {user && (
-          <NavDropdown icon={Upload} label="Upload">
-            <DropdownMenuLabel>Upload</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Stocks</DropdownMenuLabel>
+              <DropdownMenuItem>
+                <Link href="/stocks" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                  <TrendingUp className="h-4 w-4" />
+                  <span>All Stocks</span>
+                </Link>
+              </DropdownMenuItem>
+              {user && (
+                <DropdownMenuItem>
+                  <Link href="/stocks?tab=watchlist" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                    <Star className="h-4 w-4" />
+                    <span>Watchlist</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
+
+              {user && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Upload</DropdownMenuLabel>
+                  <DropdownMenuItem>
+                    <Link href="/upload" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                      <FileVideo className="h-4 w-4" />
+                      <span>Upload Video</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Link href="/upload/music" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                      <Music2 className="h-4 w-4" />
+                      <span>Upload Music</span>
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Desktop: individual dropdown triggers */}
+        <div className="hidden md:flex items-center gap-4">
+          <NavDropdown icon={Shell} label="Explore">
+            <DropdownMenuLabel>Explore</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <Link href="/upload" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
-                  <FileVideo className="h-4 w-4" />
-                  <span>Upload Video</span>
+                <Link href="/shorts" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                  <Compass className="h-4 w-4" />
+                  <span>Shorts</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <Link href="/upload/music" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
-                  <Music2 className="h-4 w-4" />
-                  <span>Upload Music</span>
+                <Link href="/home" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                  <Video className="h-4 w-4" />
+                  <span>Videos</span>
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </NavDropdown>
-        )}
+
+          <NavDropdown icon={Music} label="Music">
+            <DropdownMenuLabel>Music</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem>
+                <Link href="/music" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                  <Headphones className="h-4 w-4" />
+                  <span>Listen</span>
+                </Link>
+              </DropdownMenuItem>
+              {user && (
+                <DropdownMenuItem>
+                  <Link href="/upload/music" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                    <Mic className="h-4 w-4" />
+                    <span>Upload Music</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuGroup>
+          </NavDropdown>
+
+          <NavDropdown icon={BarChart3} label="Stocks">
+            <DropdownMenuLabel>Stocks</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              {user && (
+                <DropdownMenuItem>
+                  <Link href="/stocks?tab=watchlist" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                    <Star className="h-4 w-4" />
+                    <span>Watchlist</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem>
+                <Link href="/stocks" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                  <TrendingUp className="h-4 w-4" />
+                  <span>All Stocks</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </NavDropdown>
+
+          <Link
+            href="/pricing"
+            onClick={() => trigger("light")}
+            className={cn(
+              "inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors",
+              subscribed
+                ? "bg-primary/10 text-primary hover:bg-primary/15"
+                : "hover:bg-muted hover:text-foreground text-primary",
+            )}
+          >
+            <Zap className={cn("h-4 w-4", subscribed && "fill-primary")} />
+            <span>s2+</span>
+            {subscribed && (
+              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            )}
+          </Link>
+
+          {user && (
+            <NavDropdown icon={Upload} label="Upload">
+              <DropdownMenuLabel>Upload</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem>
+                  <Link href="/upload" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                    <FileVideo className="h-4 w-4" />
+                    <span>Upload Video</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link href="/upload/music" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                    <Music2 className="h-4 w-4" />
+                    <span>Upload Music</span>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </NavDropdown>
+          )}
+        </div>
 
         <ModeToggle />
         <ProfileIcon />

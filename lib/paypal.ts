@@ -2,7 +2,7 @@ const PAYPAL_BASE = process.env.PAYPAL_MODE === "live"
   ? "https://api-m.paypal.com"
   : "https://api-m.sandbox.paypal.com"
 
-async function getAccessToken(): Promise<string> {
+export async function getAccessToken(): Promise<string> {
   const clientId = process.env.PAYPAL_CLIENT_ID
   const secret = process.env.PAYPAL_SECRET
   if (!clientId || !secret) throw new Error("Missing PayPal credentials")
