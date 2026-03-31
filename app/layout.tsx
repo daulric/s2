@@ -5,6 +5,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/context/theme-provider"
 import { AuthProvider } from "@/context/AuthProvider"
+import { SubscriptionProvider } from "@/context/SubscriptionProvider"
 import { NavigationProvider } from "@/context/NavigationProvider"
 import { Header, ThemeTopLoader } from "@/components/layout"
 import {Toaster} from "@/components/ui/sonner"
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
             <NavigationProvider>
               <AuthProvider>
+                <SubscriptionProvider>
                   <Header />
                   <ThemeTopLoader />
                   <Suspense fallback={null}>
@@ -50,6 +52,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                   <Toaster position="top-right" />
                   <Analytics />
                   <SpeedInsights />
+                </SubscriptionProvider>
               </AuthProvider>
             </NavigationProvider>
           </ThemeProvider>

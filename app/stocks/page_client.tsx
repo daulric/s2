@@ -19,7 +19,10 @@ import { cn } from "@/lib/utils"
 import { ToggleWatchlist } from "@/serverActions/GetStockDetails"
 import type { StockWithPrediction, StockExchange } from "@/lib/stocks/types"
 import { useAuth } from "@/context/AuthProvider"
+import { useSubscription } from "@/context/SubscriptionProvider"
 import { toast } from "sonner"
+import Link from "next/link"
+import { Zap, Lock } from "lucide-react"
 
 function listDisplayDirection(s: StockWithPrediction): "bullish" | "bearish" | "neutral" {
   return s.prediction?.direction ?? s.article_majority_direction ?? "neutral"
@@ -55,7 +58,10 @@ const SECTORS = [
 export default function StocksPage({ stocks, topMovers, watchlistTickers, initialTab = "all" }: StocksPageProps) {
   useSignals()
   const router = useRouter()
-  const { user: { user } } = useAuth()
+  const { user: { user, profile } } = useAuth()
+  const { subscribed } = useSubscription()
+  const isAdmin = profile?.role === "admin"
+  const hasAccess = subscribed || isAdmin
 
   const PAGE_SIZE = 20
   const search = useSignal("")
@@ -123,6 +129,30 @@ export default function StocksPage({ stocks, topMovers, watchlistTickers, initia
   const bullishCount = exchangeFilteredStocks.filter((s) => listDisplayDirection(s) === "bullish").length
   const bearishCount = exchangeFilteredStocks.filter((s) => listDisplayDirection(s) === "bearish").length
   const neutralCount = exchangeFilteredStocks.filter((s) => listDisplayDirection(s) === "neutral").length
+
+  if (!hasAccess) {
+    return (
+      <main className="min-h-screen pt-15 p-4 pb-8 bg-background">
+        <div className="max-w-lg mx-auto text-center py-20">
+          <div className="flex justify-center mb-6">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+              <Lock className="h-8 w-8 text-primary" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold mb-2">stock predictions require s2+</h1>
+          <p className="text-muted-foreground mb-6">
+            get live stock data, AI-powered predictions, and sentiment analysis across all global exchanges with s2+.
+          </p>
+          <Link href="/pricing">
+            <Button size="lg">
+              <Zap className="h-4 w-4 mr-2" />
+              upgrade to s2+
+            </Button>
+          </Link>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen pt-15 p-4 pb-8 bg-background">

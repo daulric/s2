@@ -11,13 +11,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { LogOut, Settings, UserIcon, Mail, Github } from "lucide-react"
+import { LogOut, Settings, UserIcon, Mail, Github, Zap } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
+import { useSubscription } from "@/context/SubscriptionProvider"
 import { useWebHaptics } from "web-haptics/react"
 import { cn } from "@/lib/utils"
 
 export function ProfileIcon() {
   const {user: {user, profile}, signOut} = useAuth();
+  const { subscribed } = useSubscription();
   const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
   const handleLogout = () => {
     signOut();
@@ -84,7 +86,8 @@ export function ProfileIcon() {
         className={cn(
           "relative inline-flex h-8 w-8 items-center justify-center rounded-full",
           "hover:bg-muted hover:text-foreground transition-colors outline-none",
-          "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          subscribed && "ring-2 ring-primary/50 ring-offset-1 ring-offset-background",
         )}
         aria-label="Open profile menu"
       >
@@ -99,7 +102,15 @@ export function ProfileIcon() {
       <DropdownMenuContent className="w-60 rounded-xl p-1.5" align="end" >
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{profile?.username || "G"}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium leading-none">{profile?.username || "G"}</p>
+              {subscribed && (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                  <Zap className="h-2.5 w-2.5 fill-primary" />
+                  s2+
+                </span>
+              )}
+            </div>
             <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
           </div>
         </DropdownMenuLabel>

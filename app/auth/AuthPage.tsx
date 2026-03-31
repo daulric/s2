@@ -6,22 +6,15 @@ import { FcGoogle } from "react-icons/fc"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ModeToggle } from "@/components/layout"
 
 import { useAuth } from "@/context/AuthProvider"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
-import Script from "next/script"
 import { useSignal, useSignals } from "@preact/signals-react/runtime"
 import { Provider } from "@supabase/supabase-js"
-import {
-  Turnstile,
-  DEFAULT_ONLOAD_NAME,
-  DEFAULT_SCRIPT_ID,
-  SCRIPT_URL,
-} from "@marsidev/react-turnstile"
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
 import { useWebHaptics } from "web-haptics/react"
 
@@ -32,7 +25,6 @@ export default function AuthPage() {
   const otp = useSignal<string>("")
   const otpSent = useSignal<boolean>(false)
   const isLoading = useSignal(false)
-  const turnstileToken = useSignal<string | null>(null)
   const router = useRouter()
   const { trigger } = useWebHaptics({debug: process.env.NODE_ENV !== "production"});
   const {
@@ -42,9 +34,6 @@ export default function AuthPage() {
     oauth,
   } = useAuth()
 
-  const turnstileSiteKey = process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY ?? ""
-  const turnstileScriptSrc = `${SCRIPT_URL}?onload=${DEFAULT_ONLOAD_NAME}&render=explicit`
-
   useEffect(() => {
     if (user) {
       router.push("/home")
@@ -53,12 +42,6 @@ export default function AuthPage() {
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-
-    if (!turnstileToken.value) {
-      toast.error("Please complete the captcha verification.")
-      return
-    }
-
     isLoading.value = true
 
     try {
@@ -99,11 +82,6 @@ export default function AuthPage() {
   }
 
   const handleOAuthLogin = async (provider: Provider, redirectTo: string) => {
-    if (!turnstileToken.value) {
-      toast.error("Please complete the captcha verification.")
-      return
-    }
-
     try {
       oauth(provider, redirectTo)
       trigger("success");
@@ -155,25 +133,7 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* Cloudflare Turnstile — script via next/script (React 19 warns on <script> inside components) */}
-            {!otpSent.value && turnstileSiteKey ? (
-              <>
-                <Script
-                  id={DEFAULT_SCRIPT_ID}
-                  src={turnstileScriptSrc}
-                  strategy="afterInteractive"
-                />
-                <Turnstile
-                  injectScript={false}
-                  siteKey={turnstileSiteKey}
-                  onSuccess={(token) => {
-                    turnstileToken.value = token
-                  }}
-                />
-              </>
-            ) : null}
-
-            <Button type="submit" className="w-full" disabled={isLoading.value || (!otpSent && !turnstileToken.value)}>
+            <Button type="submit" className="w-full" disabled={isLoading.value}>
               {isLoading.value ? "Loading..." : (otpSent.value ? "Verify" : "Send Code")}
             </Button>
             
@@ -201,7 +161,7 @@ export default function AuthPage() {
               variant="outline"
               className="flex-1 flex items-center justify-center gap-2 bg-transparent"
               onClick={() => handleOAuthLogin("github", "home")}
-              disabled={isLoading.value || (!otpSent.value && !turnstileToken.value)}
+              disabled={isLoading.value}
             >
               <Github className="h-4 w-4" />
               GitHub
@@ -211,7 +171,7 @@ export default function AuthPage() {
               variant="outline"
               className="flex-1 flex items-center justify-center gap-2 bg-transparent"
               onClick={() => handleOAuthLogin("google", "home")}
-              disabled={isLoading.value || (!otpSent.value && !turnstileToken.value)}
+              disabled={isLoading.value}
             >
               <FcGoogle className="h-4 w-4" />
               Google

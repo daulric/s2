@@ -11,6 +11,7 @@ type UserProfile = {
   id: string;
   username: string;
   avatar_url?: string;
+  role?: string;
 };
 
 type UserState = {
