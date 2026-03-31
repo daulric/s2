@@ -4,11 +4,11 @@
   "workspaces": ["frontend", "backend"],
   "scripts": {
     "dev": "concurrently -n fe,be -c blue,green \"bun run dev:frontend\" \"bun run dev:backend\"",
-    "dev:frontend": "bun --cwd frontend dev",
-    "dev:backend": "bun --cwd backend run start:dev",
-    "build:frontend": "bun --cwd frontend run build",
-    "build:backend": "bun --cwd backend run build",
-    "lint": "bun --cwd frontend run lint",
+    "dev:frontend": "cd frontend && bun run dev",
+    "dev:backend": "cd backend && bun run start:dev",
+    "build:frontend": "cd frontend && bun run build",
+    "build:backend": "cd backend && bun run build",
+    "lint": "cd frontend && bun run lint",
     "install:all": "bun install"
   },
   "devDependencies": {
