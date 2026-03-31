@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
-import { Calendar, Video, Eye, ThumbsUp, Users, UserPlus, UserMinus } from "lucide-react"
+import { Calendar, Video, Eye, ThumbsUp, Users, UserPlus, UserMinus, Zap } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
 import { VideoCard } from "@/components/video"
 import { useSignals } from "@preact/signals-react/runtime"
@@ -44,6 +44,7 @@ export default function UserProfilePage() {
   const isSubscribed = useSignal(false);
   const isLoading = useSignal(true);
   const isSubscribing = useSignal(false);
+  const profileHasS2Plus = useSignal(false);
 
   const loadUserProfile = useCallback(async () => {
     try {
@@ -119,7 +120,6 @@ export default function UserProfilePage() {
     if (!userProfile.value?.id) return;
 
     try {
-
       const { data, error } = await supabase.from("subscribers")
         .select("*")
         .eq("subscriber", user.id)
@@ -132,6 +132,19 @@ export default function UserProfilePage() {
     } catch {};
   }, [user, userId, userProfile, supabase, isSubscribed])
 
+  const checkProfileS2Plus = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const { data } = await supabase.from("subscriptions")
+        .select("status")
+        .eq("user_id", userId)
+        .single();
+      profileHasS2Plus.value = data?.status === "ACTIVE";
+    } catch {
+      profileHasS2Plus.value = false;
+    }
+  }, [userId, supabase, profileHasS2Plus])
+
   // For the various user status
   useEffect(() => {
     if (!userId) return;
@@ -143,17 +156,15 @@ export default function UserProfilePage() {
       if (cancelled) return;
 
       try {
-
         await loadUserProfile();
 
         if (!cancelled && userProfile.value?.id) {
-          await loadUserVideos();
+          await Promise.all([
+            loadUserVideos(),
+            checkProfileS2Plus(),
+            user?.id ? checkSubscriptionStatus() : Promise.resolve(),
+          ]);
         }
-
-        if (!cancelled && user?.id && userProfile.value?.id) {
-          await checkSubscriptionStatus();
-        }
-
       } finally {
         if (!cancelled) isLoading.value = false;
       }
@@ -164,7 +175,7 @@ export default function UserProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [userId, supabase, user, loadUserProfile, loadUserVideos, checkSubscriptionStatus, isLoading, userProfile]);
+  }, [userId, supabase, user, loadUserProfile, loadUserVideos, checkSubscriptionStatus, checkProfileS2Plus, isLoading, userProfile]);
 
   const handleSubscribe = async () => {
     if (!user) {
@@ -260,17 +271,21 @@ export default function UserProfilePage() {
               <div className="flex-1">
                 <h1 className="text-3xl font-bold flex items-center gap-2">
                   {userProfile.value?.username}
-                  {
-                    userProfile.value?.is_verified && (
-                      <Badge
-                        variant="secondary"
-                        className="bg-blue-500 text-white dark:bg-blue-600 flex items-center gap-1"
-                      >
-                        <BadgeCheckIcon className="w-4 h-4" />
-                        Verified
-                      </Badge>
-                    )
-                  }
+                  {userProfile.value?.is_verified && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-blue-500 text-white dark:bg-blue-600 flex items-center gap-1"
+                    >
+                      <BadgeCheckIcon className="w-4 h-4" />
+                      Verified
+                    </Badge>
+                  )}
+                  {profileHasS2Plus.value && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                      <Zap className="h-3 w-3 fill-primary" />
+                      s2+
+                    </span>
+                  )}
                 </h1>
                 <p className="text-muted-foreground mt-2">{ userProfile.value?.description}</p>
                 <div className="flex items-center gap-4 mt-4 text-sm text-muted-foreground">

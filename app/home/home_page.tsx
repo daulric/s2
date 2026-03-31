@@ -2,20 +2,31 @@
 
 //import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card" //future use
 import { useAuth } from "@/context/AuthProvider"
+import { useSubscription } from "@/context/SubscriptionProvider"
 import { VideoCard } from "@/components/video"
-import { VideoInfoProps } from "@/lib/videos/data-to-video-format";
+import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
+import { Zap } from "lucide-react"
 
 export default function HomePage({videos}: { videos: VideoInfoProps[] }) {
   const auth = useAuth();
   const profile = auth?.user?.profile;
   const supabase = auth?.supabase;
+  const { subscribed } = useSubscription();
 
   return (
     <>
       <div className="max-w-6xl mx-auto">
         <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold">hello {(profile?.username)?.toLowerCase() || "guest"}</h1>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              hello {(profile?.username)?.toLowerCase() || "guest"}
+              {subscribed && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                  <Zap className="h-3 w-3 fill-primary" />
+                  s2+
+                </span>
+              )}
+            </h1>
           </div>
         </div>
 
