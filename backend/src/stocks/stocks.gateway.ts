@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { Server } from 'ws';
 import WebSocket from 'ws';
 import { SupabaseService } from '../supabase/supabase.service';
+import { AccessControlService } from '../auth/access-control.service';
 
 interface AuthenticatedSocket extends WebSocket {
   userId?: string;
@@ -42,6 +43,7 @@ export class StocksGateway
   constructor(
     private config: ConfigService,
     private supabase: SupabaseService,
+    private access: AccessControlService,
   ) {
     this.finnhubKey = this.config.get('FINNHUB_API_KEY') ?? '';
   }
@@ -84,20 +86,16 @@ export class StocksGateway
     }
 
     const user = await this.supabase.getUserFromToken(token);
+
     if (!user) {
       client.send(JSON.stringify({ error: 'Invalid token' }));
       client.close(4001, 'Invalid token');
       return;
     }
 
-    const sb = this.supabase.getClient();
-    const { data: profile } = await sb
-      .from('profiles')
-      .select('role, is_subscribed')
-      .eq('id', user.id)
-      .single();
+    const { allowed } = await this.access.resolve(user.id);
 
-    if (!profile || (profile.role !== 'admin' && !profile.is_subscribed)) {
+    if (!allowed) {
       client.send(JSON.stringify({ error: 's2+ subscription required' }));
       client.close(4003, 's2+ required');
       return;
@@ -215,6 +213,27 @@ export class StocksGateway
             }),
           );
         }
+      }
+    });
+  }
+
+  broadcastPriceUpdate(symbol: string, price: number, changePct: number) {
+    const upper = symbol.toUpperCase();
+    const payload = JSON.stringify({
+      type: 'price_update',
+      symbol: upper,
+      price,
+      changePct,
+      timestamp: Date.now(),
+    });
+
+    this.server?.clients?.forEach((ws) => {
+      const client = ws as AuthenticatedSocket;
+      if (
+        client.readyState === WebSocket.OPEN &&
+        client.subscribedTickers?.has(upper)
+      ) {
+        client.send(payload);
       }
     });
   }

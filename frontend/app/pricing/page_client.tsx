@@ -20,6 +20,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { backendFetch } from "@/lib/backend-fetch"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSignal, useSignals } from "@preact/signals-react/runtime"
@@ -92,7 +93,7 @@ function SubscribeButton() {
   const handleSubscribe = async () => {
     loading.value = true
     try {
-      const res = await fetch("/api/paypal/create-subscription", { method: "POST" })
+      const res = await backendFetch("/paypal/create-subscription", { method: "POST" })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? "Failed to create subscription")
       if (json.approveUrl) {
@@ -131,7 +132,7 @@ function ActiveSubscriptionCard({
     if (!confirm("Are you sure you want to cancel your s2+ subscription?")) return
     cancelling.value = true
     try {
-      const res = await fetch("/api/paypal/cancel", { method: "POST" })
+      const res = await backendFetch("/paypal/cancel", { method: "POST" })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? "Failed to cancel")
       toast.success("Subscription cancelled")
@@ -180,9 +181,8 @@ export default function PricingPage() {
 
     if (subStatus === "success" && subId) {
       sessionStorage.removeItem("pending_subscription_id")
-      fetch("/api/paypal/subscribe", {
+      backendFetch("/paypal/subscribe", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subscriptionId: subId }),
       })
         .then(r => r.json())

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react"
 import { signal, type Signal } from "@preact/signals-react"
+import { createClient } from "@/lib/supabase/client"
 
 type TradeUpdate = {
   price: number
@@ -11,10 +12,17 @@ type TradeUpdate = {
 
 type Subscriber = (update: TradeUpdate) => void
 
-const FINNHUB_WS_URL = "wss://ws.finnhub.io"
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001"
+
+function getWsUrl(): string {
+  const base = BACKEND_URL.replace(/^http/, "ws")
+  return `${base}/ws/stocks`
+}
 
 let ws: WebSocket | null = null
 let wsReady = false
+let connecting = false
+let authRejected = false
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let reconnectAttempts = 0
 const MAX_RECONNECT_DELAY = 30_000
@@ -22,10 +30,7 @@ const MAX_RECONNECT_DELAY = 30_000
 const subscribedTickers = new Set<string>()
 const subscribers = new Map<string, Set<Subscriber>>()
 const latestPrices = new Map<string, Signal<TradeUpdate | null>>()
-
-function getApiKey(): string {
-  return process.env.NEXT_PUBLIC_FINNHUB_API_KEY ?? ""
-}
+const pendingTickers: string[] = []
 
 function clearReconnectTimer() {
   if (reconnectTimer) {
@@ -34,23 +39,47 @@ function clearReconnectTimer() {
   }
 }
 
-function connect() {
-  const apiKey = getApiKey()
-  if (!apiKey) return
-  /** Avoid opening a socket after the user left (reconnect timer fired with 0 tickers). */
-  if (subscribedTickers.size === 0) return
+async function getToken(): Promise<string | null> {
+  const supabase = createClient()
+  const { data } = await supabase.auth.getSession()
+  return data.session?.access_token ?? null
+}
 
+async function connect() {
+  if (subscribedTickers.size === 0) return
+  if (connecting) return
+  if (authRejected) return
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
     return
   }
 
-  ws = new WebSocket(`${FINNHUB_WS_URL}?token=${apiKey}`)
+  connecting = true
+  const token = await getToken()
+  if (!token || subscribedTickers.size === 0) {
+    connecting = false
+    return
+  }
+
+  if (ws) {
+    try { ws.close() } catch { /* ignore */ }
+    ws = null
+  }
+
+  const wsUrl = `${getWsUrl()}?token=${encodeURIComponent(token)}`
+  ws = new WebSocket(wsUrl)
 
   ws.onopen = () => {
+    connecting = false
     wsReady = true
     reconnectAttempts = 0
 
     for (const ticker of subscribedTickers) {
+      ws?.send(JSON.stringify({ type: "subscribe", symbol: ticker }))
+    }
+
+    for (const ticker of pendingTickers.splice(0)) {
+      if (subscribedTickers.has(ticker)) continue
+      subscribedTickers.add(ticker)
       ws?.send(JSON.stringify({ type: "subscribe", symbol: ticker }))
     }
   }
@@ -58,47 +87,67 @@ function connect() {
   ws.onmessage = (event) => {
     try {
       const msg = JSON.parse(event.data)
-      if (msg.type !== "trade" || !msg.data) return
 
-      const tradesBySymbol = new Map<string, TradeUpdate>()
-
-      for (const trade of msg.data as { s: string; p: number; v: number; t: number }[]) {
-        tradesBySymbol.set(trade.s, {
-          price: trade.p,
-          volume: trade.v,
-          timestamp: trade.t,
-        })
+      if (msg.error) {
+        if (msg.error.includes("subscription required") || msg.error.includes("token")) {
+          authRejected = true
+        }
+        return
       }
 
-      for (const [symbol, update] of tradesBySymbol) {
-        if (!subscribedTickers.has(symbol)) continue
-
-        const subs = subscribers.get(symbol)
-        if (!subs?.size) continue
-
-        const priceSignal = latestPrices.get(symbol)
-        if (priceSignal) priceSignal.value = update
-
-        for (const cb of subs) cb(update)
+      if (msg.type === "trade") {
+        dispatch(msg.symbol, {
+          price: msg.price,
+          volume: msg.volume ?? 0,
+          timestamp: msg.timestamp,
+        })
+      } else if (msg.type === "price_update") {
+        dispatch(msg.symbol, {
+          price: msg.price,
+          volume: 0,
+          timestamp: msg.timestamp,
+        })
       }
     } catch {
       // malformed message
     }
   }
 
-  ws.onclose = () => {
+  ws.onclose = (ev) => {
+    connecting = false
     wsReady = false
+    ws = null
+
+    // 4001 = bad token, 4003 = s2+ required — don't reconnect
+    if (ev.code === 4001 || ev.code === 4003) {
+      authRejected = true
+      return
+    }
+
     scheduleReconnect()
   }
 
   ws.onerror = () => {
-    ws?.close()
+    // onclose will fire after this
   }
+}
+
+function dispatch(symbol: string, update: TradeUpdate) {
+  if (!subscribedTickers.has(symbol)) return
+
+  const subs = subscribers.get(symbol)
+  if (!subs?.size) return
+
+  const priceSignal = latestPrices.get(symbol)
+  if (priceSignal) priceSignal.value = update
+
+  for (const cb of subs) cb(update)
 }
 
 function scheduleReconnect() {
   if (reconnectTimer) return
   if (subscribedTickers.size === 0) return
+  if (authRejected) return
 
   const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY)
   reconnectAttempts++
@@ -118,6 +167,8 @@ function subscribeTicker(ticker: string) {
 
   if (wsReady && ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "subscribe", symbol: ticker }))
+  } else if (connecting) {
+    pendingTickers.push(ticker)
   } else {
     connect()
   }
@@ -161,12 +212,14 @@ function removeSubscriber(ticker: string, cb: Subscriber) {
   }
 }
 
-/** Call when leaving `/stocks/*` — closes WS, clears subs, stops reconnects. */
 export function shutdownAllStockFeeds(): void {
   clearReconnectTimer()
   reconnectAttempts = 0
+  connecting = false
+  authRejected = false
   subscribers.clear()
   subscribedTickers.clear()
+  pendingTickers.length = 0
 
   const socket = ws
   ws = null

@@ -3,6 +3,7 @@
 import { useEffect, useCallback } from "react"
 import { useSignal, useSignals } from "@preact/signals-react/runtime"
 import { useAuth } from "@/context/AuthProvider"
+import { backendFetch } from "@/lib/backend-fetch"
 
 export type SubscriptionState = {
   loading: boolean
@@ -36,7 +37,7 @@ export function useSubscription(): SubscriptionState & { refresh: () => void } {
     }
 
     loading.value = true
-    fetch("/api/paypal/status")
+    backendFetch("/paypal/status")
       .then(r => r.json())
       .then(data => {
         loading.value = false

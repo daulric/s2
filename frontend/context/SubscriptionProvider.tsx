@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useCallback } from "react"
 import { useSignal, useSignals } from "@preact/signals-react/runtime"
 import { useAuth } from "./AuthProvider"
+import { backendFetch } from "@/lib/backend-fetch"
 
 type SubscriptionState = {
   loading: boolean
@@ -54,7 +55,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
 
     loading.value = true
-    fetch("/api/paypal/status")
+    backendFetch("/paypal/status")
       .then(r => r.json())
       .then(data => {
         loading.value = false

@@ -1,10 +1,14 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   Headers,
+  HttpCode,
+  NotFoundException,
   Post,
   Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { PaypalService } from './paypal.service';
@@ -20,13 +24,13 @@ export class PaypalController {
     private readonly supabase: SupabaseService,
   ) {}
 
-  /** POST /paypal/create-subscription — create a PayPal subscription and return approve URL */
   @Post('create-subscription')
   @UseGuards(SupabaseAuthGuard)
   async createSubscription(
     @Req() req: { headers: Record<string, string> },
   ) {
-    const origin = req.headers['origin'] || req.headers['referer'] || 'http://localhost:3000';
+    const origin =
+      req.headers['origin'] || req.headers['referer'] || 'http://localhost:3000';
     const baseUrl = origin.replace(/\/$/, '');
 
     const subscription = await this.paypal.createSubscription(
@@ -42,7 +46,6 @@ export class PaypalController {
     };
   }
 
-  /** POST /paypal/subscribe — confirm subscription after PayPal approval */
   @Post('subscribe')
   @UseGuards(SupabaseAuthGuard)
   async subscribe(
@@ -50,12 +53,14 @@ export class PaypalController {
     @Body('subscriptionId') subscriptionId: string,
   ) {
     if (!subscriptionId || typeof subscriptionId !== 'string') {
-      return { error: 'Missing subscriptionId' };
+      throw new BadRequestException('Missing subscriptionId');
     }
 
     const paypalSub = await this.paypal.getSubscription(subscriptionId);
     if (paypalSub.status !== 'ACTIVE' && paypalSub.status !== 'APPROVED') {
-      return { error: `Subscription not active (status: ${paypalSub.status})` };
+      throw new BadRequestException(
+        `Subscription not active (status: ${paypalSub.status})`,
+      );
     }
 
     const client = this.supabase.getClient();
@@ -73,13 +78,12 @@ export class PaypalController {
     );
 
     if (error) {
-      return { error: error.message };
+      throw new BadRequestException(error.message);
     }
 
     return { status: 'ACTIVE', subscriptionId };
   }
 
-  /** GET /paypal/status — get current user subscription status */
   @Get('status')
   @UseGuards(SupabaseAuthGuard)
   async status(@CurrentUser() user: User) {
@@ -103,7 +107,6 @@ export class PaypalController {
     };
   }
 
-  /** POST /paypal/cancel — cancel current user subscription */
   @Post('cancel')
   @UseGuards(SupabaseAuthGuard)
   async cancel(@CurrentUser() user: User) {
@@ -115,7 +118,7 @@ export class PaypalController {
       .single();
 
     if (!sub || sub.status !== 'ACTIVE') {
-      return { error: 'No active subscription found' };
+      throw new NotFoundException('No active subscription found');
     }
 
     await this.paypal.cancelSubscription(
@@ -134,8 +137,8 @@ export class PaypalController {
     return { status: 'CANCELLED' };
   }
 
-  /** POST /paypal/webhook — handle inbound PayPal webhook events */
   @Post('webhook')
+  @HttpCode(200)
   async webhook(
     @Headers() headers: Record<string, string>,
     @Req() req: { rawBody?: Buffer },
@@ -145,7 +148,7 @@ export class PaypalController {
     if (this.paypal.getWebhookId()) {
       const valid = await this.paypal.verifyWebhookSignature(headers, body);
       if (!valid) {
-        return { error: 'Invalid signature' };
+        throw new UnauthorizedException('Invalid signature');
       }
     }
 
@@ -170,7 +173,8 @@ export class PaypalController {
       };
 
       if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
-        update.current_period_end = resource.billing_info?.next_billing_time ?? null;
+        update.current_period_end =
+          resource.billing_info?.next_billing_time ?? null;
       }
 
       await client
@@ -179,7 +183,10 @@ export class PaypalController {
         .eq('paypal_subscription_id', subId);
     }
 
-    if (eventType === 'PAYMENT.SALE.COMPLETED' && resource.billing_agreement_id) {
+    if (
+      eventType === 'PAYMENT.SALE.COMPLETED' &&
+      resource.billing_agreement_id
+    ) {
       await client
         .from('subscriptions')
         .update({

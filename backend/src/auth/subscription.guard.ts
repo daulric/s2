@@ -4,15 +4,11 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import { SupabaseService } from '../supabase/supabase.service';
+import { AccessControlService } from './access-control.service';
 
-/**
- * Requires authenticated user (SupabaseAuthGuard must run first)
- * AND either s2+ subscription or admin role.
- */
 @Injectable()
 export class SubscriptionGuard implements CanActivate {
-  constructor(private supabase: SupabaseService) {}
+  constructor(private access: AccessControlService) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest();
@@ -22,22 +18,13 @@ export class SubscriptionGuard implements CanActivate {
       throw new ForbiddenException('Authentication required');
     }
 
-    const client = this.supabase.getClient();
-    const { data: profile } = await client
-      .from('profiles')
-      .select('role, is_subscribed')
-      .eq('id', user.id)
-      .single();
+    const result = await this.access.resolve(user.id);
+    req.access = result;
 
-    if (!profile) {
-      throw new ForbiddenException('Profile not found');
+    if (!result.allowed) {
+      throw new ForbiddenException('s2+ subscription required');
     }
 
-    if (profile.role === 'admin' || profile.is_subscribed) {
-      req.profile = profile;
-      return true;
-    }
-
-    throw new ForbiddenException('s2+ subscription required');
+    return true;
   }
 }
