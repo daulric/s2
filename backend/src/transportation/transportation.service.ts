@@ -110,20 +110,54 @@ const ROUTE_CACHE_TTL_MS = 30 * 60 * 1000;
 const HEXDB_BATCH_SIZE = 20;
 
 const STALE_VESSEL_MS = 60 * 60 * 1000;
-const STALE_AIRPLANE_MS = 2 * 60 * 1000;
+const STALE_AIRPLANE_MS = 5 * 60 * 1000;
 const AISSTREAM_WS_URL = 'wss://stream.aisstream.io/v0/stream';
+const ADSB_POLL_MS = 30_000;
+const ADSB_BATCH_SIZE = 50;
+const ADSB_BATCH_GAP_MS = 500;
+const ADSB_API = 'https://api.adsb.lol/v2';
 
-const OPENSKY_API = 'https://opensky-network.org/api';
-const OPENSKY_TOKEN_URL = 'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
-const OPENSKY_POLL_MS_AUTH = 15_000;
-const OPENSKY_POLL_MS_ANON = 60_000;
-const OPENSKY_TOKEN_REFRESH_MARGIN = 60;
-
-const OPENSKY_CATEGORIES: Record<number, string> = {
-  2: 'Light', 3: 'Small', 4: 'Large', 5: 'High Vortex Large',
-  6: 'Heavy', 7: 'High Performance', 8: 'Rotorcraft', 9: 'Glider',
-  10: 'Lighter-than-air', 12: 'Ultralight', 14: 'UAV',
+const ICAO_TYPE_NAMES: Record<string, string> = {
+  A19N: 'Airbus A319neo', A20N: 'Airbus A320neo', A21N: 'Airbus A321neo',
+  A318: 'Airbus A318', A319: 'Airbus A319', A320: 'Airbus A320', A321: 'Airbus A321',
+  A332: 'Airbus A330-200', A333: 'Airbus A330-300', A338: 'Airbus A330-800neo',
+  A339: 'Airbus A330-900neo', A342: 'Airbus A340-200', A343: 'Airbus A340-300',
+  A345: 'Airbus A340-500', A346: 'Airbus A340-600', A359: 'Airbus A350-900',
+  A35K: 'Airbus A350-1000', A388: 'Airbus A380-800',
+  AT72: 'ATR 72', AT76: 'ATR 72-600',
+  B37M: 'Boeing 737 MAX 7', B38M: 'Boeing 737 MAX 8', B39M: 'Boeing 737 MAX 9',
+  B3XM: 'Boeing 737 MAX 10', B712: 'Boeing 717',
+  B733: 'Boeing 737-300', B734: 'Boeing 737-400', B735: 'Boeing 737-500',
+  B736: 'Boeing 737-600', B737: 'Boeing 737-700', B738: 'Boeing 737-800', B739: 'Boeing 737-900',
+  B744: 'Boeing 747-400', B748: 'Boeing 747-8',
+  B752: 'Boeing 757-200', B753: 'Boeing 757-300',
+  B762: 'Boeing 767-200', B763: 'Boeing 767-300', B764: 'Boeing 767-400',
+  B772: 'Boeing 777-200', B77L: 'Boeing 777-200LR', B77W: 'Boeing 777-300ER',
+  B778: 'Boeing 777-8', B779: 'Boeing 777-9',
+  B788: 'Boeing 787-8', B789: 'Boeing 787-9', B78X: 'Boeing 787-10',
+  BCS1: 'Airbus A220-100', BCS3: 'Airbus A220-300',
+  C172: 'Cessna 172', C208: 'Cessna 208 Caravan', C560: 'Cessna Citation V',
+  C680: 'Cessna Citation Sovereign', C700: 'Cessna Citation Longitude',
+  CRJ2: 'Bombardier CRJ-200', CRJ7: 'Bombardier CRJ-700', CRJ9: 'Bombardier CRJ-900',
+  DH8D: 'Dash 8-400', E170: 'Embraer E170', E175: 'Embraer E175',
+  E190: 'Embraer E190', E195: 'Embraer E195', E290: 'Embraer E190-E2', E295: 'Embraer E195-E2',
+  F900: 'Dassault Falcon 900', FA7X: 'Dassault Falcon 7X', FA8X: 'Dassault Falcon 8X',
+  G550: 'Gulfstream G550', G650: 'Gulfstream G650', GLEX: 'Bombardier Global Express',
+  GL7T: 'Bombardier Global 7500', MD11: 'McDonnell Douglas MD-11',
+  PC12: 'Pilatus PC-12', PC24: 'Pilatus PC-24', SR22: 'Cirrus SR22',
 };
+
+const ADSB_REGIONS: [number, number, number][] = (() => {
+  const regions: [number, number, number][] = [];
+  const step = 7;
+  for (let lat = -50; lat <= 65; lat += step) {
+    for (let lon = -180; lon < 180; lon += step) {
+      regions.push([lat, lon, 250]);
+    }
+  }
+  return regions;
+})();
+
 
 type CachedRoute = {
   origin: string;
@@ -157,18 +191,11 @@ export class TransportationService implements OnModuleInit, OnModuleDestroy {
   private aisIntentionalClose = false;
   private aisReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  private openskyPollTimer: ReturnType<typeof setInterval> | null = null;
+  private adsbPollTimer: ReturnType<typeof setInterval> | null = null;
   private pruneTimer: ReturnType<typeof setInterval> | null = null;
-
-  private readonly openskyClientId: string;
-  private readonly openskyClientSecret: string;
-  private openskyToken: string | null = null;
-  private openskyTokenExpiresAt = 0;
 
   constructor(private config: ConfigService) {
     this.aisStreamKey = this.config.get('AISSTREAM_API_KEY') ?? '';
-    this.openskyClientId = this.config.get('OPENSKY_CLIENT_ID') ?? '';
-    this.openskyClientSecret = this.config.get('OPENSKY_CLIENT_SECRET') ?? '';
   }
 
   onModuleInit() {
@@ -178,7 +205,7 @@ export class TransportationService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn('AISSTREAM_API_KEY not set — vessel tracking disabled');
     }
 
-    this.startOpenskyPolling();
+    this.startAdsbPolling();
 
     this.pruneTimer = setInterval(() => this.pruneStale(), 30_000);
     this.logger.log('TransportationService initialized');
@@ -186,7 +213,7 @@ export class TransportationService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     this.closeAisStream();
-    if (this.openskyPollTimer) clearInterval(this.openskyPollTimer);
+    if (this.adsbPollTimer) clearInterval(this.adsbPollTimer);
     if (this.pruneTimer) clearInterval(this.pruneTimer);
   }
 
@@ -397,123 +424,98 @@ export class TransportationService implements OnModuleInit, OnModuleDestroy {
     }, 5_000);
   }
 
-  // --------------- OpenSky Network (airplanes) ---------------
 
-  private startOpenskyPolling() {
-    const hasAuth = this.openskyClientId && this.openskyClientSecret;
-    const interval = hasAuth ? OPENSKY_POLL_MS_AUTH : OPENSKY_POLL_MS_ANON;
-
-    this.logger.log(
-      `OpenSky polling every ${interval / 1000}s (${hasAuth ? 'authenticated' : 'anonymous'})`,
-    );
-
-    this.pollOpensky();
-    this.openskyPollTimer = setInterval(() => this.pollOpensky(), interval);
+  private startAdsbPolling() {
+    this.pollAllAdsbRegions();
+    this.adsbPollTimer = setInterval(() => this.pollAllAdsbRegions(), ADSB_POLL_MS);
+    this.logger.log(`adsb.lol polling every ${ADSB_POLL_MS / 1000}s across ${ADSB_REGIONS.length} regions`);
   }
 
-  private async getOpenskyHeaders(): Promise<Record<string, string>> {
-    if (!this.openskyClientId || !this.openskyClientSecret) return {};
+  private async pollAllAdsbRegions() {
+    const seen = new Set<string>();
+    const now = Date.now();
 
-    if (this.openskyToken && Date.now() / 1000 < this.openskyTokenExpiresAt) {
-      return { Authorization: `Bearer ${this.openskyToken}` };
-    }
+    for (let i = 0; i < ADSB_REGIONS.length; i += ADSB_BATCH_SIZE) {
+      const batch = ADSB_REGIONS.slice(i, i + ADSB_BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map(([lat, lon, dist]) => this.fetchAdsbRegion(lat, lon, dist)),
+      );
 
-    try {
-      const res = await fetch(OPENSKY_TOKEN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'client_credentials',
-          client_id: this.openskyClientId,
-          client_secret: this.openskyClientSecret,
-        }),
-      });
-
-      if (!res.ok) {
-        this.logger.warn(`OpenSky token request failed: ${res.status}`);
-        return {};
+      for (const result of results) {
+        if (result.status !== 'fulfilled' || !result.value) continue;
+        this.processAdsbAircraft(result.value, seen, now);
       }
 
-      const data = (await res.json()) as { access_token: string; expires_in: number };
-      this.openskyToken = data.access_token;
-      this.openskyTokenExpiresAt =
-        Date.now() / 1000 + data.expires_in - OPENSKY_TOKEN_REFRESH_MARGIN;
-      return { Authorization: `Bearer ${this.openskyToken}` };
-    } catch (err) {
-      this.logger.error(`OpenSky token error: ${(err as Error).message}`);
-      return {};
+      if (i + ADSB_BATCH_SIZE < ADSB_REGIONS.length) {
+        await new Promise((r) => setTimeout(r, ADSB_BATCH_GAP_MS));
+      }
     }
+
+    this.logger.log(`adsb.lol: ${seen.size} airborne aircraft`);
+    this.fetchMissingAirplaneRoutes();
   }
 
-  private async pollOpensky() {
-    try {
-      const headers = await this.getOpenskyHeaders();
-      const url = `${OPENSKY_API}/states/all?extended=1`;
-      const res = await fetch(url, { headers });
+  private processAdsbAircraft(aircraft: AdsbAircraft[], seen: Set<string>, now: number) {
+    for (const ac of aircraft) {
+        const hex = ac.hex;
+        if (!hex || seen.has(hex)) continue;
 
-      if (!res.ok) {
-        this.logger.warn(`OpenSky ${res.status}: ${res.statusText}`);
-        return;
-      }
+        const lat = Number(ac.lat ?? 0);
+        const lon = Number(ac.lon ?? 0);
+        if (lat === 0 && lon === 0) continue;
+        if (ac.alt_baro === 'ground') continue;
 
-      const data = (await res.json()) as { time: number; states: unknown[][] | null };
-      if (!data.states) return;
-
-      const now = Date.now();
-      const seen = new Set<string>();
-
-      for (const sv of data.states) {
-        const icao24 = String(sv[0] ?? '').trim();
-        if (!icao24 || seen.has(icao24)) continue;
-
-        const lat = sv[6] as number | null;
-        const lon = sv[5] as number | null;
-        if (lat == null || lon == null) continue;
-
-        const onGround = sv[8] as boolean;
-        if (onGround) continue;
-
-        seen.add(icao24);
-
-        const callsign = String(sv[1] ?? '').trim() || icao24;
-        const country = String(sv[2] ?? '');
-        const baroAlt = sv[7] as number | null;
-        const velocity = sv[9] as number | null;
-        const heading = sv[10] as number | null;
-        const category = (sv[17] as number) ?? 0;
-
-        const aid = `a-${icao24}`;
+        seen.add(hex);
+        const callsign = String(ac.flight ?? ac.r ?? hex).trim();
+        const aid = `a-${hex}`;
         const trail = this.appendTrail(aid, lon, lat);
 
         const cached = this.airplaneRouteCache.get(callsign);
         const routeValid = cached && (now - cached.fetchedAt) < ROUTE_CACHE_TTL_MS;
 
-        const speedKnots = velocity != null ? velocity * 1.94384 : 0;
-        const altFeet = baroAlt != null ? Math.round(baroAlt * 3.28084) : undefined;
+        const registration = String(ac.r ?? '').trim() || undefined;
+        const rawType = String(ac.t ?? '').trim();
+        const acType = (ICAO_TYPE_NAMES[rawType] ?? rawType) || undefined;
+        const ownOp = String(ac.ownOp ?? ac.operator ?? '').trim() || undefined;
+        const altBaro = typeof ac.alt_baro === 'number'
+          ? Math.round(ac.alt_baro)
+          : undefined;
+        const flightCs = String(ac.flight ?? '').trim() || undefined;
 
-        this.airplanes.set(icao24, {
+        this.airplanes.set(hex, {
           id: aid,
           kind: 'airplane',
           name: callsign,
           lat,
           lng: lon,
-          heading: heading ?? 0,
-          speed: speedKnots,
+          heading: Number(ac.track ?? ac.mag_heading ?? ac.true_heading ?? 0),
+          speed: Number(ac.gs ?? 0),
           updatedAt: now,
           trail,
           origin: routeValid ? cached.origin : undefined,
           destination: routeValid ? cached.destination : undefined,
-          callsign: callsign !== icao24 ? callsign : undefined,
-          flag: country || undefined,
-          type: OPENSKY_CATEGORIES[category] || undefined,
-          altitude: altFeet,
+          registration,
+          type: acType,
+          operator: ownOp,
+          callsign: flightCs,
+          altitude: altBaro,
         });
       }
+  }
 
-      this.logger.log(`OpenSky: ${seen.size} airborne aircraft`);
-      this.fetchMissingAirplaneRoutes();
-    } catch (err) {
-      this.logger.error(`OpenSky poll error: ${(err as Error).message}`);
+  private async fetchAdsbRegion(
+    lat: number,
+    lon: number,
+    dist: number,
+  ): Promise<AdsbAircraft[]> {
+    try {
+      const url = `${ADSB_API}/lat/${lat}/lon/${lon}/dist/${dist}`;
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const data = (await res.json()) as { ac?: AdsbAircraft[] };
+      return data.ac ?? [];
+    } catch {
+      return [];
     }
   }
 
@@ -599,3 +601,20 @@ export class TransportationService implements OnModuleInit, OnModuleDestroy {
     }
   }
 }
+
+type AdsbAircraft = {
+  hex: string;
+  flight?: string;
+  r?: string;
+  t?: string;
+  lat?: number;
+  lon?: number;
+  alt_baro?: number | string;
+  gs?: number;
+  track?: number;
+  mag_heading?: number;
+  true_heading?: number;
+  ownOp?: string;
+  operator?: string;
+  [key: string]: unknown;
+};
