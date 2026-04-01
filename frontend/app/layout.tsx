@@ -13,6 +13,7 @@ import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { StocksRouteTeardown } from "@/components/stocks"
+import { TransportationRouteTeardown } from "@/components/transportation"
 import { MediaRouteTeardown } from "@/components/media"
 
 const inter = Inter({ subsets: ["latin"], display: "swap" })
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                   <ThemeTopLoader />
                   <Suspense fallback={null}>
                     <StocksRouteTeardown />
+                    <TransportationRouteTeardown />
                     <MediaRouteTeardown />
                   </Suspense>
                   {children}

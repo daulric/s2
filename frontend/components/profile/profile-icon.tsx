@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { LogOut, Settings, UserIcon, Mail, Github, Zap } from "lucide-react"
+import { LogOut, Settings, UserIcon, Mail, Zap } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
 import { useSubscription } from "@/context/SubscriptionProvider"
 import { useWebHaptics } from "web-haptics/react"

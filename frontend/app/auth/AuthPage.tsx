@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useRef, useEffect } from "react"
-import { Github } from "lucide-react"
+import { GitBranchIcon as Github } from "lucide-react"
 import { FcGoogle } from "react-icons/fc"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
