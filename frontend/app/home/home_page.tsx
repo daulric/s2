@@ -8,6 +8,7 @@ import { StockCard } from "@/components/stocks"
 import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { AudioInfoProps } from "@/lib/audios/data-to-audio-format"
 import type { StockWithPrediction } from "@/lib/stocks/types"
+import { TransportationHomeWidget } from "@/components/transportation"
 import {
   Zap,
   ChevronRight,
@@ -190,6 +191,8 @@ export default function HomePage({
           )}
         </FeedSection>
       )}
+
+      {isPremium && <TransportationHomeWidget />}
 
       <FeedSection title="your videos" icon={Video} href={profile ? `/user/${profile.id}` : undefined}>
         {myVideos.length > 0 ? (

@@ -4,6 +4,7 @@ import { SupabaseModule } from './supabase/supabase.module';
 import { AuthModule } from './auth/auth.module';
 import { PaypalModule } from './paypal/paypal.module';
 import { StocksModule } from './stocks/stocks.module';
+import { TransportationModule } from './transportation/transportation.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -13,6 +14,7 @@ import { HealthModule } from './health/health.module';
     AuthModule,
     PaypalModule,
     StocksModule,
+    TransportationModule,
     HealthModule,
   ],
 })
