@@ -16,8 +16,10 @@ import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { SupabaseService } from '../supabase/supabase.service';
 import { User } from '@supabase/supabase-js';
+import { ApiExcludeController } from '@nestjs/swagger';
 
 @Controller('paypal')
+@ApiExcludeController()
 export class PaypalController {
   constructor(
     private readonly paypal: PaypalService,

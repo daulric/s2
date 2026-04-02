@@ -11,8 +11,10 @@ import { StocksService } from './stocks.service';
 import { StocksGateway } from './stocks.gateway';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { SubscriptionGuard } from '../auth/subscription.guard';
+import { ApiExcludeController } from '@nestjs/swagger';
 
 @Controller('stocks')
+@ApiExcludeController()
 export class StocksController {
   constructor(
     private readonly stocks: StocksService,
