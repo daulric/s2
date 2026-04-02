@@ -3,6 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import { CensusService } from "./census.service";
 import { SupabaseAuthGuard } from "src/auth/supabase-auth.guard";
 import { SupabaseService } from "src/supabase/supabase.service";
+import { SubscriptionGuard } from "src/auth/subscription.guard";
+import { count } from "console";
 
 @Controller("census")
 export class CensusController {
@@ -17,7 +19,7 @@ export class CensusController {
     }
 
     @Get(":country/election-results/:type/:year")
-    @UseGuards(SupabaseAuthGuard)
+    @UseGuards(SupabaseAuthGuard, SubscriptionGuard)
     async getResults(
         @Param("country") country: string, 
         @Param("type") type: string,
@@ -52,9 +54,14 @@ export class CensusController {
         return await res.json();
     }
 
-    @Get("grenada/available-years")
-    @UseGuards(SupabaseAuthGuard)
-    async getAvailableYears() {
+    @Get(":country/available-years")
+    @UseGuards(SupabaseAuthGuard, SubscriptionGuard)
+    async getAvailableYears(@Param("country") country: string) {
+
+        if (country !== "grenada") { // just grenada for now
+            throw new BadRequestException("Country not supported");
+        }
+
         const res = await fetch(`${this.api_url}`);
 
         if (!res.ok) {
@@ -64,7 +71,5 @@ export class CensusController {
         const data = await res.json();
 
         return data.years;
-
     }
-
 }

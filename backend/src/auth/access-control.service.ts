@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 
+const allowedRoles = ['admin'];
+
 export type UserAccess = {
   role: string | null;
   isAdmin: boolean;
@@ -22,7 +24,7 @@ export class AccessControlService {
       .single();
 
     const role = profile?.role ?? null;
-    const isAdmin = role === 'admin';
+    const isAdmin = allowedRoles.includes(role);
 
     if (isAdmin) {
       return { role, isAdmin, isSubscribed: true, allowed: true };
