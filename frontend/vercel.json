@@ -1,6 +1,6 @@
 {
     "version": 2,
-    "ignoreCommand": "git diff --quiet HEAD^ HEAD ./frontend",
+    "ignoreCommand": "git diff --quiet HEAD^ HEAD .",
     "crons": [
         {
             "path": "/api/stocks/ingest",
