@@ -23,12 +23,19 @@ export class CensusController {
         @Param("type") type: string,
         @Param("year") year: string
     ) {
-        if (!country || !type) {
-            throw new BadRequestException("Country and type are required");
+        const ALLOWED_COUNTRIES = ['grenada'];
+        const ALLOWED_TYPES = ['general', 'local'];
+
+        if (!ALLOWED_COUNTRIES.includes(country)) {
+            throw new BadRequestException("Country not supported");
         }
 
-        if (country !== "grenada") {
-            throw new BadRequestException("Country not supported");
+        if (!ALLOWED_TYPES.includes(type)) {
+            throw new BadRequestException("Election type not supported");
+        }
+
+        if (!/^\d{4}$/.test(year)) {
+            throw new BadRequestException("Year must be a 4-digit number");
         }
 
         const url = `${this.api_url}/${year}/election_${type}.json`;
