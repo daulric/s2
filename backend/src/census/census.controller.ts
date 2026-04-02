@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Param, Query, BadRequestException, HttpException } from "@nestjs/common";
+import { Controller, Get, UseGuards, Param, BadRequestException, HttpException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CensusService } from "./census.service";
 import { SupabaseAuthGuard } from "src/auth/supabase-auth.guard";
