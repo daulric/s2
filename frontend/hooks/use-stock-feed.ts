@@ -46,16 +46,17 @@ async function getToken(): Promise<string | null> {
 }
 
 async function connect() {
-  if (subscribedTickers.size === 0) return
-  if (connecting) return
-  if (authRejected) return
+  if (subscribedTickers.size === 0) { console.log("[stock-feed] skip: no tickers"); return }
+  if (connecting) { console.log("[stock-feed] skip: already connecting"); return }
+  if (authRejected) { console.log("[stock-feed] skip: auth rejected"); return }
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-    return
+    console.log("[stock-feed] skip: ws already open/connecting"); return
   }
 
   connecting = true
   const token = await getToken()
   if (!token || subscribedTickers.size === 0) {
+    console.log("[stock-feed] skip: no token or tickers cleared", { token: !!token, tickers: subscribedTickers.size })
     connecting = false
     return
   }
@@ -67,6 +68,7 @@ async function connect() {
 
   const wsUrl = `${getWsUrl()}?token=${encodeURIComponent(token)}`
   ws = new WebSocket(wsUrl)
+  console.log("Connecting to stock feed", wsUrl)
 
   ws.onopen = () => {
     connecting = false
@@ -166,10 +168,21 @@ function subscribeTicker(ticker: string) {
   }
 
   if (wsReady && ws?.readyState === WebSocket.OPEN) {
+    console.log("[stock-feed] sending subscribe for", ticker)
     ws.send(JSON.stringify({ type: "subscribe", symbol: ticker }))
   } else if (connecting) {
+    console.log("[stock-feed] queuing", ticker, "(connecting)")
     pendingTickers.push(ticker)
   } else {
+    console.log("[stock-feed] triggering connect for", ticker, {
+      wsReady, connecting, authRejected,
+      wsState: ws?.readyState ?? "null",
+    })
+    authRejected = false
+    if (ws && ws.readyState !== WebSocket.OPEN && ws.readyState !== WebSocket.CONNECTING) {
+      ws = null
+      wsReady = false
+    }
     connect()
   }
 }
@@ -194,6 +207,7 @@ function unsubscribeTicker(ticker: string) {
 }
 
 function addSubscriber(ticker: string, cb: Subscriber) {
+  console.log("[stock-feed] addSubscriber", ticker)
   if (!subscribers.has(ticker)) {
     subscribers.set(ticker, new Set())
   }
@@ -244,10 +258,12 @@ export function useStockFeed(ticker: string, onUpdate?: (update: TradeUpdate) =>
   const callbackRef = useRef(onUpdate)
 
   useEffect(() => {
+    console.log("[stock-feed] useStockFeed effect running for", ticker)
     callbackRef.current = onUpdate
   }, [onUpdate])
 
   useEffect(() => {
+    console.log("[stock-feed] useStockFeed effect running for", ticker)
     const cb: Subscriber = (update) => {
       callbackRef.current?.(update)
     }

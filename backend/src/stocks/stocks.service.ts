@@ -54,10 +54,7 @@ export class StocksService {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  /**
-   * Seed stocks from SEC EDGAR + ECSE + EU listings.
-   * Upserts all listings, then prices a batch via Finnhub (US) and Yahoo (EU/ECSE).
-   */
+
   async seed(): Promise<{ message: string }> {
     const client = this.supabase.getClient();
 

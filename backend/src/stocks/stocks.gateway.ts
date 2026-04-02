@@ -59,6 +59,19 @@ export class StocksGateway
     }
 
     this.heartbeatInterval = setInterval(() => {
+      const finnhubState = this.finnhubWs?.readyState ?? -1;
+      const stateMap: Record<number, string> = { 0: 'CONNECTING', 1: 'OPEN', 2: 'CLOSING', 3: 'CLOSED' };
+      const stateLabel = stateMap[finnhubState] ?? 'NULL';
+      const clientCount = this.server?.clients?.size ?? 0;
+      if (clientCount > 0 || finnhubState !== 1) {
+        this.logger.log(`Heartbeat: Finnhub=${stateLabel}, symbols=${this.subscribedSymbols.size}, clients=${clientCount}`);
+      }
+
+      if (finnhubState !== 0 && finnhubState !== 1 && this.subscribedSymbols.size > 0) {
+        this.logger.warn('Finnhub dead, reconnecting...');
+        this.connectFinnhub();
+      }
+
       this.server?.clients?.forEach((ws) => {
         const sock = ws as AuthenticatedSocket;
         if (sock.isAlive === false) {
@@ -159,9 +172,13 @@ export class StocksGateway
         const msg = JSON.parse(data.toString());
         if (msg.type === 'trade' && Array.isArray(msg.data)) {
           this.fanOutTrades(msg.data as FinnhubTrade[]);
+        } else if (msg.type === 'ping') {
+          // Finnhub keepalive, ignore
+        } else {
+          this.logger.warn(`Finnhub unexpected message: ${JSON.stringify(msg).slice(0, 200)}`);
         }
       } catch {
-        // ignore
+        this.logger.warn(`Finnhub unparseable message: ${data.toString().slice(0, 200)}`);
       }
     });
 
