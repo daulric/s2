@@ -4,16 +4,13 @@ import Link from "next/link"
 import { useAuth } from "@/context/AuthProvider"
 import { useSubscription } from "@/context/SubscriptionProvider"
 import { VideoCard } from "@/components/video"
-import { StockCard } from "@/components/stocks"
 import { VideoInfoProps } from "@/lib/videos/data-to-video-format"
 import { AudioInfoProps } from "@/lib/audios/data-to-audio-format"
-import type { StockWithPrediction } from "@/lib/stocks/types"
 import { TransportationHomeWidget } from "@/components/transportation"
 import {
   Zap,
   ChevronRight,
   Music,
-  TrendingUp,
   Headphones,
   Video,
   Users,
@@ -26,8 +23,6 @@ type HomePageProps = {
   myVideos?: VideoInfoProps[]
   subVideos?: VideoInfoProps[]
   isPremium?: boolean
-  stocks?: StockWithPrediction[]
-  hasWatchlist?: boolean
   audios?: AudioInfoProps[]
 }
 
@@ -116,8 +111,6 @@ export default function HomePage({
   myVideos = [],
   subVideos = [],
   isPremium,
-  stocks = [],
-  hasWatchlist,
   audios = [],
 }: HomePageProps) {
   const auth = useAuth()
@@ -171,26 +164,6 @@ export default function HomePage({
           )}
         </h1>
       </div>
-
-      {isPremium && (
-        <FeedSection
-          title={hasWatchlist ? "your watchlist" : "top stocks"}
-          icon={TrendingUp}
-          href="/stocks"
-        >
-          {stocks.length > 0 ? (
-            <ScrollRow>
-              {stocks.map((stock) => (
-                <div key={stock.ticker} className="shrink-0 w-56">
-                  <StockCard stock={stock} />
-                </div>
-              ))}
-            </ScrollRow>
-          ) : (
-            <EmptyState message="no stocks to show — add tickers to your watchlist" />
-          )}
-        </FeedSection>
-      )}
 
       {isPremium && <TransportationHomeWidget />}
 

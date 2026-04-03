@@ -26,7 +26,7 @@ export class CensusController {
         @Param("year") year: string
     ) {
         const ALLOWED_COUNTRIES = ['grenada'];
-        const ALLOWED_TYPES = ['general', 'local'];
+        const ALLOWED_TYPES = ['general', 'local', 'constituency'];
 
         if (!ALLOWED_COUNTRIES.includes(country)) {
             throw new BadRequestException("Country not supported");

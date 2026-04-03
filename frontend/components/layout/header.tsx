@@ -18,17 +18,15 @@ import {
   Upload,
   Shell,
   Music,
-  BarChart3,
   Video,
   Compass,
   Headphones,
   Mic,
-  TrendingUp,
-  Star,
   FileVideo,
   Music2,
   Zap,
   Menu,
+  Vote,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthProvider"
 import { useSubscription } from "@/context/SubscriptionProvider"
@@ -136,6 +134,12 @@ export function Header() {
                   <span>Videos</span>
                 </Link>
               </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Link href="/census" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                  <Vote className="h-4 w-4" />
+                  <span>Census</span>
+                </Link>
+              </DropdownMenuItem>
 
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Music</DropdownMenuLabel>
@@ -150,23 +154,6 @@ export function Header() {
                   <Link href="/upload/music" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
                     <Mic className="h-4 w-4" />
                     <span>Upload Music</span>
-                  </Link>
-                </DropdownMenuItem>
-              )}
-
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Stocks</DropdownMenuLabel>
-              <DropdownMenuItem>
-                <Link href="/stocks" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
-                  <TrendingUp className="h-4 w-4" />
-                  <span>All Stocks</span>
-                </Link>
-              </DropdownMenuItem>
-              {user && (
-                <DropdownMenuItem>
-                  <Link href="/stocks?tab=watchlist" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
-                    <Star className="h-4 w-4" />
-                    <span>Watchlist</span>
                   </Link>
                 </DropdownMenuItem>
               )}
@@ -211,6 +198,12 @@ export function Header() {
                   <span>Videos</span>
                 </Link>
               </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Link href="/census" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
+                  <Vote className="h-4 w-4" />
+                  <span>Census</span>
+                </Link>
+              </DropdownMenuItem>
             </DropdownMenuGroup>
           </NavDropdown>
 
@@ -232,27 +225,6 @@ export function Header() {
                   </Link>
                 </DropdownMenuItem>
               )}
-            </DropdownMenuGroup>
-          </NavDropdown>
-
-          <NavDropdown icon={BarChart3} label="Stocks">
-            <DropdownMenuLabel>Stocks</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              {user && (
-                <DropdownMenuItem>
-                  <Link href="/stocks?tab=watchlist" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
-                    <Star className="h-4 w-4" />
-                    <span>Watchlist</span>
-                  </Link>
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem>
-                <Link href="/stocks" className="flex w-full items-center gap-2 text-sm" onClick={() => trigger("light")}>
-                  <TrendingUp className="h-4 w-4" />
-                  <span>All Stocks</span>
-                </Link>
-              </DropdownMenuItem>
             </DropdownMenuGroup>
           </NavDropdown>
 
