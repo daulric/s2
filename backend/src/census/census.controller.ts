@@ -4,7 +4,6 @@ import { CensusService } from "./census.service";
 import { SupabaseAuthGuard } from "src/auth/supabase-auth.guard";
 import { SupabaseService } from "src/supabase/supabase.service";
 import { SubscriptionGuard } from "src/auth/subscription.guard";
-import { count } from "console";
 
 @Controller("census")
 export class CensusController {
