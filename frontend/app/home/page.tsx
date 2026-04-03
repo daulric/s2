@@ -4,7 +4,6 @@ import { SupabaseClient } from "@supabase/supabase-js"
 import { isUserSubscribed } from "@/lib/subscription"
 import { GetPublicVideos, GetUserVideos, GetSubscriptionVideos } from "@/serverActions/GetVideoDetails"
 import { GetPublicAudios } from "@/serverActions/GetAudioDetails"
-import { GetWatchlistStocks, GetTopMovers } from "@/serverActions/GetStockDetails"
 import { HomeFeedSkeleton } from "@/components/layout/skeletons"
 import HomePage from "./home_page"
 
@@ -49,8 +48,6 @@ async function HomeContent() {
 
     const premiumPromises = isPremium
         ? Promise.all([
-            GetWatchlistStocks(),
-            GetTopMovers(5),
             GetPublicAudios(60, 5),
         ])
         : Promise.resolve(null)
@@ -58,20 +55,13 @@ async function HomeContent() {
     const [baseResults, premiumResults] = await Promise.all([basePromises, premiumPromises])
     const [myVideos, subVideos] = baseResults
 
-    let watchlistStocks = premiumResults?.[0] ?? []
-    const topStocks = premiumResults?.[1] ?? []
-    const audios = premiumResults?.[2] ?? []
-
-    const hasWatchlist = watchlistStocks.length > 0
-    const stocks = hasWatchlist ? watchlistStocks : topStocks
+    const audios = premiumResults?.[0] ?? []
 
     return (
         <HomePage
             myVideos={myVideos}
             subVideos={subVideos}
             isPremium={isPremium}
-            stocks={stocks}
-            hasWatchlist={hasWatchlist}
             audios={audios}
         />
     )

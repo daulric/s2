@@ -11,7 +11,6 @@ import {
   X,
   Zap,
   Globe,
-  TrendingUp,
   Shield,
   Video,
   Music,
@@ -30,12 +29,10 @@ import { toast } from "sonner"
 const FREE_FEATURES = [
   { text: "Browse videos and shorts", included: true },
   { text: "Stream music", included: true },
-  { text: "US stock predictions (NYSE & Nasdaq)", included: true },
-  { text: "News sentiment analysis", included: true },
-  { text: "Basic watchlist", included: true },
   { text: "Upload videos and music", included: true },
+  { text: "Basic transportation tracking", included: true },
   { text: "Ad-free video and music playback", included: false },
-  { text: "Live stock data from all exchanges", included: false },
+  { text: "Real-time vessel and aircraft tracking", included: false },
   { text: "High-quality audio streaming", included: false },
   { text: "Priority uploads and processing", included: false },
   { text: "Early access to new features", included: false },
@@ -44,12 +41,11 @@ const FREE_FEATURES = [
 const PLUS_FEATURES = [
   { text: "Everything in Free", included: true },
   { text: "Ad-free video and music playback", included: true },
-  { text: "Live stock data from all exchanges", included: true },
-  { text: "Real-time EU & ECSE prices", included: true },
+  { text: "Real-time vessel and aircraft tracking", included: true },
+  { text: "Global AIS vessel data", included: true },
+  { text: "Live ADS-B aircraft data", included: true },
   { text: "High-quality audio streaming", included: true },
   { text: "Priority uploads and processing", included: true },
-  { text: "Advanced sentiment scoring", included: true },
-  { text: "Extended market hours data", included: true },
   { text: "Early access to new features", included: true },
 ]
 
@@ -61,18 +57,13 @@ const HIGHLIGHTS = [
   },
   {
     icon: Globe,
-    title: "Global stock data",
-    description: "Live prices from NYSE, Nasdaq, FTSE 100, CAC 40, DAX 40, AEX 25, and ECSE",
+    title: "Global transportation tracking",
+    description: "Real-time vessel and aircraft tracking with worldwide AIS and ADS-B data",
   },
   {
     icon: Headphones,
     title: "High-quality audio",
     description: "Stream music at higher bitrates for a richer listening experience",
-  },
-  {
-    icon: TrendingUp,
-    title: "Smarter Predictions",
-    description: "Priority sentiment analysis with faster refresh cycles for stock predictions",
   },
   {
     icon: Upload,
@@ -214,7 +205,7 @@ export default function PricingPage() {
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               s2 is free to use. upgrade to
               <span className="font-semibold text-foreground"> s2+ </span>
-              for ad-free playback, live global stock data, high-quality audio, and more.
+              for ad-free playback, real-time transportation tracking, high-quality audio, and more.
             </p>
           </div>
 
@@ -223,7 +214,7 @@ export default function PricingPage() {
               <CardHeader>
                 <CardTitle className="text-xl">Free</CardTitle>
                 <CardDescription>
-                  videos, music, and stock predictions
+                  videos, music, and basic features
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -344,14 +335,14 @@ export default function PricingPage() {
               <div>
                 <h3 className="font-medium text-sm mb-1">what does s2+ include?</h3>
                 <p className="text-sm text-muted-foreground">
-                  ad-free video and music playback, live stock data from all global exchanges (NYSE, Nasdaq, FTSE 100, CAC 40, DAX 40, AEX 25, ECSE), high-quality audio streaming, priority uploads, and early access to new features.
+                  ad-free video and music playback, real-time global vessel and aircraft tracking, high-quality audio streaming, priority uploads, and early access to new features.
                 </p>
               </div>
               <Separator />
               <div>
                 <h3 className="font-medium text-sm mb-1">do I need s2+ to use the platform?</h3>
                 <p className="text-sm text-muted-foreground">
-                  no. browsing videos, listening to music, uploading content, and US stock predictions are all free. s2+ enhances the experience across the board.
+                  no. browsing videos, listening to music, and uploading content are all free. s2+ enhances the experience across the board.
                 </p>
               </div>
               <Separator />

@@ -11,9 +11,9 @@ import { Button } from "@/components/ui/button"
 import { useScrollReveal } from "@/hooks/use-scroll-reveal"
 
 const perks = [
-  { icon: Globe, label: "EU & ECSE markets", description: "live prices for European and Caribbean exchanges" },
+  { icon: Globe, label: "global tracking", description: "real-time vessel and aircraft tracking worldwide" },
   { icon: Shield, label: "priority access", description: "early access to new features and updates" },
-  { icon: Sparkles, label: "enhanced insights", description: "deeper analytics and extended prediction history" },
+  { icon: Sparkles, label: "premium media", description: "ad-free playback and high-quality audio streaming" },
 ] as const
 
 export function LandingS2Plus() {
@@ -32,7 +32,7 @@ export function LandingS2Plus() {
         </h2>
 
         <p data-reveal data-reveal-delay="2" className="text-muted-foreground text-lg mb-12 max-w-lg mx-auto">
-          $5/month for premium features, expanded market access, and enhanced analytics.
+          $5/month for premium features, real-time transportation tracking, and ad-free media.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">

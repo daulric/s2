@@ -259,23 +259,30 @@ export class TransportationService implements OnModuleInit, OnModuleDestroy {
 
     ws.on('open', () => {
       this.aisConnecting = false;
-      this.logger.log('AISStream WebSocket connected');
+      this.logger.log('AISStream WebSocket connected, sending subscribe...');
 
-      ws.send(
-        JSON.stringify({
-          APIKey: this.aisStreamKey,
-          BoundingBoxes: [[[-90, -180], [90, 180]]],
-          FilterMessageTypes: ['PositionReport', 'ShipStaticData'],
-        }),
-      );
+      const sub = {
+        APIKey: this.aisStreamKey,
+        BoundingBoxes: [[[-90, -180], [90, 180]]],
+        FilterMessageTypes: ['PositionReport', 'ShipStaticData'],
+      };
+      this.logger.log(`AISStream subscribe key length=${this.aisStreamKey.length}`);
+      ws.send(JSON.stringify(sub));
     });
 
+    let msgCount = 0;
     ws.on('message', (raw: Buffer) => {
       try {
-        const msg = JSON.parse(raw.toString());
+        const text = raw.toString();
+        if (msgCount < 3) {
+          this.logger.log(`AISStream msg #${msgCount}: ${text.slice(0, 300)}`);
+        }
+        msgCount++;
+
+        const msg = JSON.parse(text);
 
         if (msg.error) {
-          this.logger.error(`AISStream error message: ${msg.error}`);
+          this.logger.error(`AISStream error message: ${JSON.stringify(msg)}`);
           return;
         }
 
@@ -285,7 +292,7 @@ export class TransportationService implements OnModuleInit, OnModuleDestroy {
           this.handleShipStaticData(msg);
         }
       } catch {
-        // malformed
+        this.logger.warn(`AISStream unparseable: ${raw.toString().slice(0, 200)}`);
       }
     });
 

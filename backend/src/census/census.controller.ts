@@ -4,7 +4,6 @@ import { CensusService } from "./census.service";
 import { SupabaseAuthGuard } from "src/auth/supabase-auth.guard";
 import { SupabaseService } from "src/supabase/supabase.service";
 import { SubscriptionGuard } from "src/auth/subscription.guard";
-import { count } from "console";
 
 @Controller("census")
 export class CensusController {
@@ -26,7 +25,7 @@ export class CensusController {
         @Param("year") year: string
     ) {
         const ALLOWED_COUNTRIES = ['grenada'];
-        const ALLOWED_TYPES = ['general', 'local'];
+        const ALLOWED_TYPES = ['general', 'local', 'constituency'];
 
         if (!ALLOWED_COUNTRIES.includes(country)) {
             throw new BadRequestException("Country not supported");
