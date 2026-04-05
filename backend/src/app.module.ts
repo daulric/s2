@@ -6,6 +6,7 @@ import { PaypalModule } from './paypal/paypal.module';
 import { TransportationModule } from './transportation/transportation.module';
 import { HealthModule } from './health/health.module';
 import { CensusModule } from './census/census.module';
+import RootController from './controller';
 
 @Module({
   imports: [
@@ -17,5 +18,6 @@ import { CensusModule } from './census/census.module';
     HealthModule,
     CensusModule,
   ],
+  controllers: [RootController],
 })
 export class AppModule {}
